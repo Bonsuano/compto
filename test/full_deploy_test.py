@@ -41,11 +41,7 @@ def setComptoMintAuthority():
     run(f"spl-token authorize {getTokenAddress()} mint {getProgramId()} --output json > {compto_mint_authority_json}")
 
 def getCurrentMintAuthority() -> str | None:
-    try :
-        return json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get("MintAuthority");
-    except Exception:
-        # run raises Exception
-        return None
+    return json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get("MintAuthority");
 
 def getStaticPda():
     return json.loads(compto_static_pda.read_text())
