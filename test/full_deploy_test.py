@@ -135,7 +135,7 @@ def hardcodeComptoStaticSeed():
                 break
 
 
-def tokenAddressExists() -> bool:
+def checkIfTokenAddressExists() -> bool:
     return COMPTOKEN_ID_JSON.exists()
 
 
