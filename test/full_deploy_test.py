@@ -15,6 +15,10 @@ COMPTO_PROGRAM_SOURCE = PROJECT_PATH / "src/comptoken.rs"
 COMPTO_STATIC_PDA = CACHE_PATH / "compto_static_pda.json"
 
 
+class SubprocessFailedException(Exception):
+    pass
+
+
 # ==== SOLANA COMMANDS ====
 def getProgramId():
     return run(f"solana address -k target/deploy/comptoken-keypair.json")
@@ -60,10 +64,10 @@ def checkIfCurrentMintAuthorityExists() -> bool:
             "MintAuthority"
         )
         return True
-    except FileNotFoundError:
+    except (FileNotFoundError, SubprocessFailedException, json.decoder.JSONDecodeError):
         return False
     except Exception as ex:
-        print(f"new Exception: `{ex}'")
+        print(f"new Exception: Type:`{type(ex)}' value: `{ex}'")
         raise ex
 
 
@@ -179,7 +183,7 @@ def run(command: str | list[str], cwd: Path | None = None):
         command, shell=True, cwd=cwd, capture_output=True, text=True
     )
     if result.returncode != 0:
-        raise Exception(
+        raise SubprocessFailedException(
             f"Failed to run command! command: {command} stdout: {result.stdout} stderr: {result.stderr}"
         )
     return result.stdout.rstrip()
