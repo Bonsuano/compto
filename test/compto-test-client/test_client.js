@@ -34,16 +34,20 @@ let static_pda_seed = require("../.cache/compto_static_pda.json")["bumpSeed"];
 let compto_token_id_str = require("../.cache/comptoken_id.json")["commandOutput"]["address"]
 let compto_program_id_str = require("../.cache/compto_program_id.json")['programId'];
 let test_account = require("../.cache/compto_test_account.json");
+const { createSecretKey, createPublicKey, KeyObject } = require("crypto");
 
 // Pubkeys
 const destination_pubkey = Keypair.fromSecretKey(new Uint8Array(test_account)).publicKey;
 const static_pda_pubkey = new PublicKey(bs58.decode(static_pda_str));
-const me_pubkey = new PublicKey(bs58.decode("zrnQQbTKqNVzTQBxNkQR1nkFaVQEJEkghAkcW2LfcVY"));
+// const me_pubkey = new PublicKey(bs58.decode("zrnQQbTKqNVzTQBxNkQR1nkFaVQEJEkghAkcW2LfcVY"));
 const comptoken_pubkey = new PublicKey(bs58.decode(compto_token_id_str));
 const compto_program_id_pubkey = new PublicKey(bs58.decode(compto_program_id_str));
-const temp_keypair = Keypair.generate();
 
-console.log("me: " + me_pubkey);
+// KeyPairs
+const temp_keypair = Keypair.generate();
+const me_keypair = Keypair.fromSecretKey(new Uint8Array(require(require('os').homedir() + '/.config/solana/id.json')));
+
+// console.log("me: " + me_pubkey);
 console.log("destination: " + destination_pubkey);
 console.log("tempkeypair: " + temp_keypair.publicKey);
 console.log("compto_token: " + comptoken_pubkey);
@@ -80,9 +84,7 @@ async function setMintAuthorityIfNeeded() {
 }
 
 async function setMintAuthority(mint_authority_pubkey) {
-    // My Keypair: TODO: Replace with an ephemeral keypair
-    me_secret_key = Uint8Array.from(JSON.parse(fs.readFileSync('/home/david/.config/solana/id.json', 'utf8')));
-    me_signer = {publicKey: me_pubkey, secretKey: me_secret_key}
+    me_signer = { publicKey: me_keypair.publicKey, secretKey: me_keypair.secretKey }
     const res = await setAuthority(
         connection,
         me_signer,

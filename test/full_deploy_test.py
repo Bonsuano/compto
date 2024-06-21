@@ -22,26 +22,31 @@ def getProgramId():
 def createToken():
     run(f"spl-token create-token -v --output json > {comptoken_id_json}")
 
-def createKeyPair(outfile):
+def createKeyPair(outfile: Path):
     run(f"solana-keygen new --no-bip39-passphrase --force --silent --outfile {outfile}")
 
 def createComptoAccount():
     createKeyPair(compto_test_account)
     run(f"spl-token create-account {getTokenAddress()} {compto_test_account}")
     
-def getPubkey(path):
+def getPubkey(path: Path) -> str:
     return run(f"solana-keygen pubkey {path}")
     
-def getAccountBalance(pubkey):
+def getAccountBalance(pubkey: str):
     return run(f"solana balance {pubkey}") 
 
 def deploy():
     run(f"solana program deploy -v {compto_so} --output json > {compto_program_id_json}")
 
 def setComptoMintAuthority():
-    result = run(f"spl-token authorize {getTokenAddress()} mint {getProgramId()} --output json > {compto_mint_authority_json}")
+    run(f"spl-token authorize {getTokenAddress()} mint {getProgramId()} --output json > {compto_mint_authority_json}")
 
-def getCurrentMintAuthority():
+def getCurrentMintAuthority() -> str | None:
+    try :
+        return json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get("MintAuthority");
+    except Exception:
+        # run raises Exception
+        return None
     return json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get("mintAuthority")
 
 def getStaticPda():
@@ -57,6 +62,8 @@ def getComptoMd5():
 
 def checkIfProgamIdChanged():
     # Only deploy if the program id has changed
+    if not compto_program_id_json.exists():
+        return False
     real_program_id = getProgramId()
     cached_program_id = json.loads(compto_program_id_json.read_text())["programId"]
     if real_program_id == cached_program_id:
@@ -110,11 +117,11 @@ def createTokenIfNeeded():
         createToken()
     # If a new program id is created, the mint authority will not match.
     # Rather than have the old mint authority sign over the new authority, we will just create a new token.
-    # if getCurrentMintAuthority() != getStaticPda()["address"]:
-    #     print("Mint Authority doesn't match. Creating new Comptoken...")
-    #     createToken()
+    elif getCurrentMintAuthority() != getStaticPda()["address"]:
+        print("Mint Authority doesn't match. Creating new Comptoken...")
+        createToken()
     # ^^^ commented out in favor of checking if the program id has changed
-    if checkIfProgamIdChanged():
+    elif checkIfProgamIdChanged():
         print("Program ID has changed. Creating new Comptoken...")
         createToken()
     else:
