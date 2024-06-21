@@ -1,6 +1,10 @@
 import json
 import subprocess
+from os import devnull
 from pathlib import Path
+from time import sleep, time
+from types import TracebackType
+from typing import Any, Self, Type
 
 TEST_PATH = Path(__file__).parent
 PROJECT_PATH = TEST_PATH.parent
@@ -193,21 +197,83 @@ def runTestClient():
     return run("node compto-test-client/test_client.js", TEST_PATH)
 
 
+class BackgroundProcess:
+    _cmd: str | list[str]
+    _kwargs: dict[str, Any]
+    _process: subprocess.Popen[Any] | None = None
+
+    def __init__(self, cmd: str | list[str], **kwargs: Any):
+        self._cmd = cmd
+        self._kwargs = kwargs
+
+    def __enter__(self) -> Self:
+        self._process = subprocess.Popen(self._cmd, **self._kwargs)
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_tb: TracebackType,
+    ) -> bool:
+        if self._process is not None and self.checkIfProcessRunning():
+            self._process.terminate()
+        return False
+
+    def checkIfProcessRunning(self):
+        return self._process is not None and self._process.poll() is None
+
+
+def checkIfValidatorReady(validator: BackgroundProcess) -> bool:
+    if not validator.checkIfProcessRunning():
+        return False
+    try:
+        run("solana ping -c 1")
+        return True
+    except Exception:
+        return False
+
+
+def waitTillValidatorReady(validator: BackgroundProcess):
+    TIMEOUT = 10
+    t1 = time()
+    while not checkIfValidatorReady(validator):
+        if t1 + TIMEOUT < time():
+            print("timeout for Validator")
+            exit(1)
+        print("validator not ready")
+        sleep(1)
+
+
 if __name__ == "__main__":
-    print("Cargo Build...")
-    run("cargo build-sbf", PROJECT_PATH)
-    createTokenIfNeeded()
-    print("Checking Compto Program for hardcoded Comptoken Address and static seed...")
-    hardcodeComptoAddress()
-    hardcodeComptoStaticSeed()
-    print("Creating Token Account...")
-    createComptoAccount()
-    print("Building...")
-    build()
-    print("Deploying...")
-    deployIfNeeded()
-    print("Running Test Client...")
-    output = runTestClient()
-    print(output)
-    test_account = getPubkey(COMPTO_TEST_ACCOUNT)
-    print(f"Test Account {test_account} Balance: {getAccountBalance(test_account)}")
+    validator_path = Path(
+        f"{Path.home()}/.local/share/solana/install/active_release/bin/solana-test-validator"
+    )
+    with (
+        open(devnull, "w") as f,
+        BackgroundProcess(
+            [f"{validator_path}", "--reset"], cwd=PROJECT_PATH, stdout=f
+        ) as validator,
+    ):
+        print("Cargo Build...")
+        run("cargo build-sbf", PROJECT_PATH)
+        print("Checking Validator")
+        waitTillValidatorReady(validator)
+        print("Validator Ready")
+        createTokenIfNeeded()
+        print(
+            "Checking Compto Program for hardcoded Comptoken Address and static seed..."
+        )
+        hardcodeComptoAddress()
+        hardcodeComptoStaticSeed()
+        print("Creating Token Account...")
+        createComptoAccount()
+        print("Building...")
+        build()
+        print("Deploying...")
+        deployIfNeeded()
+        print("Running Test Client...")
+        output = runTestClient()
+        print(output)
+        test_account = getPubkey(COMPTO_TEST_ACCOUNT)
+        print(f"Test Account {test_account} Balance: {getAccountBalance(test_account)}")
