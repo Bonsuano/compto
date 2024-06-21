@@ -53,6 +53,20 @@ def setComptoMintAuthority():
     )
 
 
+def checkIfCurrentMintAuthorityExists() -> bool:
+    # TODO: find a more efficient way to do this
+    try:
+        json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get(
+            "MintAuthority"
+        )
+        return True
+    except FileNotFoundError:
+        return False
+    except Exception as ex:
+        print(f"new Exception: `{ex}'")
+        raise ex
+
+
 def getCurrentMintAuthority() -> str:
     return json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get(
         "MintAuthority"
@@ -145,7 +159,7 @@ def getTokenAddress():
 
 def createTokenIfNeeded():
     # TODO: put TokenCreation and MintAuthorityCreation together
-    if checkIfTokenAddressExists():
+    if not checkIfTokenAddressExists() or not checkIfCurrentMintAuthorityExists():
         print("Creating new Comptoken...")
         createToken()
     # If a new program id is created, the mint authority will not match.
