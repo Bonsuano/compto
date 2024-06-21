@@ -20,7 +20,7 @@ use hex::encode;
 entrypoint!(process_instruction);
 
 // vvv This line is automatically updated by full_deploy_test.py.
-static COMPTOKEN_ADDRESS: Pubkey = pubkey!("8X5imFk2PHsivSQmkYDo3ztFqGJPotnV43EbNPF4B6i3");
+static COMPTOKEN_ADDRESS: Pubkey = pubkey!("BXKf4Umnr7NbwZ7y74cKoKiGSATiGirnZQ1X48SuPBeT");
 // ^^^ DO NOT TOUCH. ^^^
 
 // A given seed and program id have a 50% chance of creating a valid PDA.
@@ -32,7 +32,7 @@ static COMPTOKEN_ADDRESS: Pubkey = pubkey!("8X5imFk2PHsivSQmkYDo3ztFqGJPotnV43Eb
 //      (1) create_program_address is not safe if using a user provided bump.
 //      (2) find_program_address is expensive and we want to avoid iterations.
 // vvv This line is automatically updated by full_deploy_test.py.
-static COMPTO_STATIC_ADDRESS_SEED: u8 = 255;
+static COMPTO_STATIC_ADDRESS_SEED: u8 = 254;
 // ^^^ DO NOT TOUCH. ^^^
 
 
