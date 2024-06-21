@@ -145,7 +145,7 @@ def getTokenAddress():
 
 def createTokenIfNeeded():
     # TODO: put TokenCreation and MintAuthorityCreation together
-    if tokenAddressExists():
+    if checkIfTokenAddressExists():
         print("Creating new Comptoken...")
         createToken()
     # If a new program id is created, the mint authority will not match.
