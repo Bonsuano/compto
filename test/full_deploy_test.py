@@ -1,7 +1,6 @@
-import os 
+import json
 import subprocess
 from pathlib import Path
-import json
 
 test_path = Path(__file__).parent
 project_path = test_path.parent
@@ -47,7 +46,6 @@ def getCurrentMintAuthority() -> str | None:
     except Exception:
         # run raises Exception
         return None
-    return json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get("mintAuthority")
 
 def getStaticPda():
     return json.loads(compto_static_pda.read_text())
@@ -112,6 +110,7 @@ def getTokenAddress():
     
 
 def createTokenIfNeeded():
+    # TODO: put TokenCreation and MintAuthorityCreation together
     if getTokenAddress() is None:
         print("Creating new Comptoken...")
         createToken()
@@ -120,7 +119,6 @@ def createTokenIfNeeded():
     elif getCurrentMintAuthority() != getStaticPda()["address"]:
         print("Mint Authority doesn't match. Creating new Comptoken...")
         createToken()
-    # ^^^ commented out in favor of checking if the program id has changed
     elif checkIfProgamIdChanged():
         print("Program ID has changed. Creating new Comptoken...")
         createToken()
@@ -154,6 +152,3 @@ if __name__ == "__main__":
     print(output)
     test_account = getPubkey(compto_test_account)
     print(f"Test Account {test_account} Balance: {getAccountBalance(test_account)}")
-    
-    
-    
