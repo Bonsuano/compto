@@ -16,12 +16,11 @@ use solana_program::{
 };
 use spl_token::instruction::mint_to;
 use hex::encode;
-
 // declare and export the program's entrypoint
 entrypoint!(process_instruction);
 
 // vvv This line is automatically updated by full_deploy_test.py.
-static COMPTOKEN_ADDRESS: Pubkey = pubkey!("BpkwkrydJdiyyDSh7dW4r9v2tkQ659NJ6or7VCV91yDK");
+static COMPTOKEN_ADDRESS: Pubkey = pubkey!("oNe7WCf3bD1J5t84YBCQFbo1Q5c24iMYgbx5vqHbeLw");
 // ^^^ DO NOT TOUCH. ^^^
 
 // A given seed and program id have a 50% chance of creating a valid PDA.
@@ -49,23 +48,18 @@ pub fn process_instruction(
     instruction_data: &[u8]
 ) -> ProgramResult {
     msg!("instruction_data: {:?}", instruction_data);
-    match instruction_data[0] {
-        0 => {
-            msg!("Test Mint");
-            test_mint(program_id, accounts, &instruction_data[1..])
-        },
-        1 => {
-            msg!("Mint New Comptokens");
-            mint_comptokens(program_id, accounts, &instruction_data[1..])
-        },
-        2 => {
-            msg!("Initialize Static Data Account");
-            initialize_static_data_account(program_id, accounts, &instruction_data[1..])
-        },
-        _ => {
-            msg!("Invalid Instruction");
-            Ok(())
-        }
+    if instruction_data[0] == 0 {
+        msg!("Test Mint");
+        return test_mint(program_id, accounts, &instruction_data[1..]);
+    } else if instruction_data[0] == 1 {
+        msg!("Mint New Comptokens");
+        return mint_comptokens(program_id, accounts, &instruction_data[1..]);
+    } else if instruction_data[0] == 2 {
+        msg!("Initialize Static Data Account");
+        return initialize_static_data_account(program_id, accounts, &instruction_data[1..]);
+    } else {
+        msg!("Invalid Instruction");
+        return Ok(());
     }
 } 
 
@@ -93,13 +87,14 @@ pub fn initialize_static_data_account(
         program_id
     );
     // let createacct = SystemInstruction::CreateAccount { lamports: (1000), space: (256), owner: *program_id };
-    invoke_signed(
+    let result = invoke_signed(
         &create_acct_instr, 
         accounts,
         &[&[&[COMPTO_STATIC_ADDRESS_SEED]]]
-    )
+    )?;
     // let data = accounts[0].try_borrow_mut_data()?;
     // data[0] = 1;
+    Ok(())
 }
 
 // struct ComptokenMintProof {
@@ -132,13 +127,14 @@ pub fn test_mint(
     )?;
     // accounts.push(AccountInfo::new(&mint_pda, true, true));
     // Invoke the token program
-    invoke_signed(
+    let result = invoke_signed(
         &mint_to_instruction, 
         accounts,
         &[&[&[COMPTO_STATIC_ADDRESS_SEED]]]
-    )
+    )?;
     // msg!("Result: {:?}", result);
     // gracefully exit the program
+    Ok(())
 }
 
 pub fn mint_comptokens(
@@ -166,33 +162,3 @@ pub fn mint_comptokens(
     // msg!("data: {:?}", encode(&data[..64]));
     Ok(())
 }
-/*
-// TODO: create better name
-struct ProofData {
-    hash: Hash,
-    date_time: TimeStamp, // chrono::DateTime?
-    // user identification (pubkey?, address?, something else?, all of these?)
-    // other data?
-    nonce: u32, // what bitcoin uses according to google
-}
-
-impl ProofData {
-    fn from_bytes(data: &[u8]) -> ProofData {
-        todo!();
-    }
-
-    // TODO: figure out correct size for data
-    fn to_bytes(self) -> [u8; 0] {
-        todo!();
-    }
-
-    fn verify_proof(&self) -> bool {
-        // is date_time new enough
-        // is hash small enough?
-        // has the hash been used before?
-        // is hash the correct hash for data?
-
-        todo!();
-    }
-}
-*/

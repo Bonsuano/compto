@@ -40,8 +40,12 @@ def deploy():
 def setComptoMintAuthority():
     run(f"spl-token authorize {getTokenAddress()} mint {getProgramId()} --output json > {compto_mint_authority_json}")
 
-def getCurrentMintAuthority() -> str:
-    return json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get("MintAuthority")
+def getCurrentMintAuthority() -> str | None:
+    try :
+        return json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get("MintAuthority");
+    except Exception:
+        # run raises Exception
+        return None
 
 def getStaticPda():
     return json.loads(compto_static_pda.read_text())
@@ -80,7 +84,7 @@ def hardcodeComptoAddress():
     lines = open(compto_program_source, "r").readlines()
     for i, line in enumerate(lines):
         if "static COMPTOKEN_ADDRESS: Pubkey = pubkey!(" in line:
-            if comptoken_id is not None and comptoken_id not in line:
+            if comptoken_id not in line:
                 print("Hardcoding comptoken address...")
                 lines[i] = f"static COMPTOKEN_ADDRESS: Pubkey = pubkey!(\"{comptoken_id}\");\n"
                 open(compto_program_source, "w").writelines(lines)
@@ -121,7 +125,7 @@ def createTokenIfNeeded():
     else:
         print("Using existing Comptoken...")
 
-def run(command, cwd:Path|None=None):
+def run(command, cwd=None):
     result = subprocess.run(command, shell=True, cwd=cwd, capture_output=True, text=True)
     if result.returncode != 0:
         raise Exception(f"Failed to run command! command: {command} stdout: {result.stdout} stderr: {result.stderr}")
