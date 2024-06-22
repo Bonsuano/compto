@@ -14,7 +14,7 @@ COMPTO_SO = PROJECT_PATH / "target/deploy/comptoken.so"
 COMPTOKEN_ID_JSON = CACHE_PATH / "comptoken_id.json"
 COMPTO_TEST_ACCOUNT = CACHE_PATH / "compto_test_account.json"
 COMPTO_MINT_AUTHORITY_JSON = CACHE_PATH / "compto_mint_authority.json"
-COMPTO_PROGRAM_SOURCE = PROJECT_PATH / "src/comptoken.rs"
+COMPTO_PROGRAM_SOURCE = PROJECT_PATH / "src/comptoken_generated.rs"
 COMPTO_STATIC_PDA = CACHE_PATH / "compto_static_pda.json"
 
 
@@ -130,11 +130,11 @@ def hardcodeComptoAddress():
     with open(COMPTO_PROGRAM_SOURCE, "r") as file:
         lines = file.readlines()
         for i, line in enumerate(lines):
-            if "static COMPTOKEN_ADDRESS: Pubkey = pubkey!(" in line:
+            if "pub static COMPTOKEN_ADDRESS: Pubkey = pubkey!(" in line:
                 if comptoken_id is None or comptoken_id not in line:
                     print("Hardcoding comptoken address...")
                     lines[i] = (
-                        f'static COMPTOKEN_ADDRESS: Pubkey = pubkey!("{comptoken_id}");\n'
+                        f'pub static COMPTOKEN_ADDRESS: Pubkey = pubkey!("{comptoken_id}");\n'
                     )
                     with open(COMPTO_PROGRAM_SOURCE, "w") as write_file:
                         write_file.writelines(lines)
@@ -147,10 +147,10 @@ def hardcodeComptoStaticSeed():
     with open(COMPTO_PROGRAM_SOURCE, "r") as file:
         lines = file.readlines()
         for i, line in enumerate(lines):
-            if "static COMPTO_STATIC_ADDRESS_SEED: u8 = " in line:
+            if "pub static COMPTO_STATIC_ADDRESS_SEED: u8 = " in line:
                 if str(seed) not in line:
                     print("Hardcoding compto static seed...")
-                    lines[i] = f"static COMPTO_STATIC_ADDRESS_SEED: u8 = {seed};\n"
+                    lines[i] = f"pub static COMPTO_STATIC_ADDRESS_SEED: u8 = {seed};\n"
                     with open(COMPTO_PROGRAM_SOURCE, "w") as write_file:
                         write_file.writelines(lines)
                 break
