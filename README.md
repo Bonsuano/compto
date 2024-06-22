@@ -10,11 +10,12 @@ Ubuntu 22.04
 
 ## Dependencies
 
-`apt install python3`  
+
 Install rust and the solana CLI (see docs: https://solana.com/tr/developers/guides/getstarted/setup-local-development)  
 
 ## Test Dependencies
 
+python ^3.11.6
 navigate to `test/compt-test-client` and run `npm install`  
 
 # Testing
