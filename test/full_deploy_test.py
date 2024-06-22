@@ -1,6 +1,5 @@
 import json
 import subprocess
-from os import devnull
 from pathlib import Path
 from time import sleep, time
 from types import TracebackType
@@ -246,15 +245,12 @@ def waitTillValidatorReady(validator: BackgroundProcess):
 
 
 if __name__ == "__main__":
-    validator_path = Path(
-        f"{Path.home()}/.local/share/solana/install/active_release/bin/solana-test-validator"
-    )
-    with (
-        open(devnull, "w") as f,
-        BackgroundProcess(
-            [f"{validator_path}", "--reset"], cwd=PROJECT_PATH, stdout=f
-        ) as validator,
-    ):
+    with BackgroundProcess(
+        "solana-test-validator --reset",
+        shell=True,
+        cwd=CACHE_PATH,
+        stdout=subprocess.DEVNULL,
+    ) as validator:
         print("Cargo Build...")
         run("cargo build-sbf", PROJECT_PATH)
         print("Checking Validator")
