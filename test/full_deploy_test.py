@@ -1,4 +1,6 @@
 import json
+import os
+import signal
 import subprocess
 from pathlib import Path
 from time import sleep, time
@@ -213,8 +215,9 @@ class BackgroundProcess:
         exc_value: BaseException | None,
         exc_tb: TracebackType,
     ) -> bool:
+        print("Killing Background Process...")
         if self._process is not None and self.checkIfProcessRunning():
-            self._process.terminate()
+            os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
         return False
 
     def checkIfProcessRunning(self):
@@ -251,6 +254,7 @@ if __name__ == "__main__":
         shell=True,
         cwd=CACHE_PATH,
         stdout=subprocess.DEVNULL,
+        preexec_fn=os.setsid,
     ) as validator:
         print("Checking Validator Ready...")
         waitTillValidatorReady(validator)
