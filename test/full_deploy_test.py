@@ -243,6 +243,8 @@ def waitTillValidatorReady(validator: BackgroundProcess):
 
 
 if __name__ == "__main__":
+    # create cache if it doesn't exist
+    run(f"[ -d {CACHE_PATH} ] || mkdir {CACHE_PATH} ")
     print("Creating Validator...")
     with BackgroundProcess(
         "solana-test-validator --reset",
