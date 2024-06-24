@@ -2,8 +2,9 @@ mod blockchain;
 
 extern crate bs58;
 
+use blockchain::Block;
 use solana_program::{
-    account_info::AccountInfo,
+    account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
     hash::Hash,
@@ -13,6 +14,7 @@ use solana_program::{
     system_instruction::create_account,
     // sysvar::{slot_hashes::SlotHashes, Sysvar},
     sysvar,
+    sysvar::slot_history::ProgramError,
 };
 use spl_token::instruction::mint_to;
 // declare and export the program's entrypoint
@@ -126,6 +128,25 @@ pub fn mint_comptokens(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // this nonce is what the miner increments to find a valid proof
+    if instruction_data.len() != 32 + 32 + 4 + 32 {
+        msg!("invalid instruction data");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let account_info_iter = &mut accounts.iter();
+    let first_acc_info = next_account_info(account_info_iter)?; // 0
+    if !first_acc_info.is_signer {
+        msg!("Missing required signature");
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    if !blockchain::verify_proof(Block::from_bytes(
+        first_acc_info.key.clone(),
+        instruction_data.try_into().expect("correct size"),
+    )) {
+        msg!("invalid proof");
+        return Err(ProgramError::InvalidArgument);
+    }
     // let nonce = instruction_data[..32].try_into().unwrap();
     // verify_proof(accounts[1].key, nonce);
 

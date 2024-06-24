@@ -1,19 +1,13 @@
+use std::mem;
+
 use solana_program::{
-    hash::{Hash, Hasher, HASH_BYTES},
-    pubkey,
+    clock::UnixTimestamp, hash::{Hash, Hasher, HASH_BYTES}, pubkey::{Pubkey, PUBKEY_BYTES}
 };
 
-type TimeStampType = [u8; 32];
-
-const PUBLIC_KEY_SIZE: usize = pubkey::PUBKEY_BYTES;
+// i64 is the type of Solana's GetBlockTime RPC result
+type TimeStampType = UnixTimestamp; 
 
 const MIN_NUM_ZEROED_BITS: u32 = 1; // TODO: replace with permanent value
-
-fn to_be_bytes(n: u32) -> [u8; 4] {
-    use std::mem::transmute;
-    let bytes: [u8; 4] = unsafe { transmute(n.to_be()) };
-    bytes
-}
 
 // will need to be converted to a data account
 static RECENT_BLOCKHASHES: [Hash; 4] = [unsafe { std::mem::transmute([0u8; 32]) }; 4];
@@ -26,38 +20,45 @@ fn check_if_recent_blockhashes(hash: &Hash) -> bool {
     RECENT_BLOCKHASHES.contains(&hash)
 }
 
-fn verify_proof(block: Block) -> bool {
+pub fn verify_proof(block: Block) -> bool {
     Block::leading_zeroes(&block.hash) >= MIN_NUM_ZEROED_BITS
         && check_if_recent_blockhashes(&block.recent_block_hash)
         && check_if_recent_timestamp(&block.timestamp)
         && block.generate_hash() == block.hash
 }
 pub struct Block {
+    pubkey: Pubkey,
     recent_block_hash: Hash,
     timestamp: TimeStampType,
-    pubkey: [u8; PUBLIC_KEY_SIZE],
     nonce: u32,
     hash: Hash,
 }
 
 impl Block {
-    pub fn from_bytes(bytes: [u8; HASH_BYTES + 32 + PUBLIC_KEY_SIZE + 4 + HASH_BYTES]) -> Self {
-        Block {
-            recent_block_hash: Hash::new_from_array(bytes[0..HASH_BYTES].try_into().unwrap()),
-            timestamp: bytes[HASH_BYTES..HASH_BYTES + 32].try_into().unwrap(),
-            pubkey: bytes[HASH_BYTES + 32..HASH_BYTES + 32 + PUBLIC_KEY_SIZE]
+    const PUBLIC_KEY_SIZE: usize = PUBKEY_BYTES;
+    const VERIFY_DATA_SIZE: usize = mem::size_of::<Hash>() + mem::size_of::<TimeStampType>() + mem::size_of::<u32>() + mem::size_of::<Hash>();
+
+    pub fn from_bytes(key: Pubkey, bytes: [u8; Self::VERIFY_DATA_SIZE]) -> Self {
+        let range_1 = 0..mem::size_of::<Hash>();
+        let range_2 = range_1.end..range_1.end + mem::size_of::<TimeStampType>();
+        let range_3 = range_2.end..range_2.end + mem::size_of::<u32>();
+        let range_4 = range_3.end..range_3.end + mem::size_of::<Hash>();
+        
+        let recent_block_hash = Hash::new_from_array(bytes[range_1].try_into().unwrap());
+        let timestamp = TimeStampType::from_be_bytes(bytes[range_2].try_into().unwrap());
+        let nonce = u32::from_be_bytes(
+            bytes[range_3]
                 .try_into()
                 .unwrap(),
-            nonce: u32::from_be_bytes(
-                bytes[HASH_BYTES + 32 + PUBLIC_KEY_SIZE..HASH_BYTES + 32 + PUBLIC_KEY_SIZE + 4]
-                    .try_into()
-                    .unwrap(),
-            ),
-            hash: Hash::new_from_array(
-                bytes[HASH_BYTES + 32 + PUBLIC_KEY_SIZE + 4..]
-                    .try_into()
-                    .unwrap(),
-            ),
+        );
+        let hash = Hash::new_from_array(bytes[range_4].try_into().unwrap());
+
+        Block {
+            pubkey: key,
+            recent_block_hash,
+            timestamp,
+            nonce,
+            hash,
         }
     }
 
@@ -78,10 +79,10 @@ impl Block {
 
     pub fn generate_hash(&self) -> Hash {
         let mut hasher = Hasher::default();
+        hasher.hash(&self.pubkey.to_bytes());
         hasher.hash(&self.recent_block_hash.to_bytes());
-        hasher.hash(&self.timestamp);
-        hasher.hash(&self.pubkey);
-        hasher.hash(&to_be_bytes(self.nonce));
+        hasher.hash(&self.timestamp.to_be_bytes());
+        hasher.hash(&self.nonce.to_be_bytes());
         hasher.result()
     }
 }
@@ -90,18 +91,13 @@ impl Block {
 mod test {
     use super::*;
 
-    fn create_block(
+    fn create_arbitrary_block(
         recent_block_hash: Hash,
         timestamp: TimeStampType,
-        pubkey: [u8; PUBLIC_KEY_SIZE],
+        pubkey: Pubkey,
         nonce: u32,
+        hash: Hash
     ) -> Block {
-        let mut hasher = Hasher::default();
-        hasher.hash(&recent_block_hash.to_bytes());
-        hasher.hash(&timestamp);
-        hasher.hash(&pubkey);
-        hasher.hash(&to_be_bytes(nonce));
-        let hash = hasher.result();
         Block {
             recent_block_hash,
             timestamp,
@@ -119,62 +115,66 @@ mod test {
     }
 
     fn create_zero_block() -> Block {
-        create_block(
+        create_arbitrary_block(
             Hash::new_from_array([0; 32]),
-            [0; 32],
-            [0; PUBLIC_KEY_SIZE],
             0,
+            Pubkey::new_from_array([0; Block::PUBLIC_KEY_SIZE]),
+            0,
+            Hash::new_from_array([0; 32]),
         )
     }
 
     #[test]
     fn test_leading_zeroes() {
         let mut hash_array = [0; 32];
-        let hash = Hash::new_from_array(hash_array);
+        let mut hash = Hash::new_from_array(hash_array);
         assert_eq!(256, Block::leading_zeroes(&hash));
 
         hash_array[0] = 0b1000_0000;
-        let hash = Hash::new_from_array(hash_array);
+        hash = Hash::new_from_array(hash_array);
         assert_eq!(0, Block::leading_zeroes(&hash));
 
         hash_array[0] = 0b0000_1000;
-        let hash = Hash::new_from_array(hash_array);
+        hash = Hash::new_from_array(hash_array);
         assert_eq!(4, Block::leading_zeroes(&hash));
     }
 
     #[test]
     fn test_from_bytes() {
         assert_eq!(
-            Block::from_bytes([0; HASH_BYTES + 32 + PUBLIC_KEY_SIZE + 4 + HASH_BYTES]).hash,
+            Block::from_bytes(
+                Pubkey::new_from_array([0; Block::PUBLIC_KEY_SIZE]),
+                [0; Block::VERIFY_DATA_SIZE]
+            )
+            .hash,
             [0; 32].into()
         );
 
         let recent_hash = Hash::new_from_array([1; 32]);
-        let timestamp = [2; 32];
-        let pubkey = [3; PUBLIC_KEY_SIZE];
-        let nonce = 0x04040404;
-        let mut v = Vec::<u8>::with_capacity(HASH_BYTES + 32 + PUBLIC_KEY_SIZE + 4 + HASH_BYTES);
-        v.extend(recent_hash.to_bytes());
-        v.extend(timestamp);
-        v.extend(pubkey);
-        v.extend(to_be_bytes(nonce));
+        let timestamp: i64 = 0x02020202_02020202;
+        let pubkey = Pubkey::new_from_array([3; Block::PUBLIC_KEY_SIZE]);
+        let nonce: u32 = 0x04040404;
+        let mut v = Vec::<u8>::with_capacity(Block::VERIFY_DATA_SIZE);
         let mut hasher = Hasher::default();
+
+        hasher.hash(&pubkey.to_bytes());
+        v.extend(recent_hash.to_bytes());
+        v.extend(timestamp.to_be_bytes());
+        v.extend(nonce.to_be_bytes());
         hasher.hash(&v);
-        v.extend(hasher.result().to_bytes());
-        let block_from_bytes = Block::from_bytes(v.try_into().unwrap());
-        let block_from_data = create_block(recent_hash, timestamp, pubkey, nonce);
+        let hash = hasher.result();
+        v.extend(hash.to_bytes());
+
+        let block_from_bytes = Block::from_bytes(pubkey, v.try_into().unwrap());
+        let block_from_data = create_arbitrary_block(recent_hash, timestamp, pubkey, nonce, hash);
         assert_eq!(
             block_from_bytes.recent_block_hash,
-            block_from_data.recent_block_hash
+            block_from_data.recent_block_hash,
+            "recent_block_hashes are different"
         );
-        assert_eq!(block_from_bytes.timestamp, block_from_data.timestamp);
-        assert_eq!(block_from_bytes.pubkey, block_from_data.pubkey);
-        assert_eq!(block_from_bytes.nonce, block_from_data.nonce);
-        assert_eq!(block_from_bytes.hash, block_from_data.hash);
-        assert_eq!(
-            block_from_bytes.hash.to_bytes(),
-            hex::decode("e81bcc7f79b4610777eb637e0459bde955298013e742f3a6d44a8497683e486d")
-                .unwrap()[..]
-        );
+        assert_eq!(block_from_bytes.timestamp, block_from_data.timestamp, "timestampss are different");
+        assert_eq!(block_from_bytes.pubkey, block_from_data.pubkey, "pubkeys are different");
+        assert_eq!(block_from_bytes.nonce, block_from_data.nonce, "nonces are different");
+        assert_eq!(block_from_bytes.hash, block_from_data.hash, "hashes are different");
     }
 }
