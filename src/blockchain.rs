@@ -1,11 +1,13 @@
 use std::mem;
 
 use solana_program::{
-    clock::UnixTimestamp, hash::{Hash, Hasher, HASH_BYTES}, pubkey::{Pubkey, PUBKEY_BYTES}
+    clock::UnixTimestamp,
+    hash::{Hash, Hasher, HASH_BYTES},
+    pubkey::{Pubkey, PUBKEY_BYTES},
 };
 
 // i64 is the type of Solana's GetBlockTime RPC result
-type TimeStampType = UnixTimestamp; 
+type TimeStampType = UnixTimestamp;
 
 const MIN_NUM_ZEROED_BITS: u32 = 1; // TODO: replace with permanent value
 
@@ -36,21 +38,20 @@ pub struct Block {
 
 impl Block {
     const PUBLIC_KEY_SIZE: usize = PUBKEY_BYTES;
-    const VERIFY_DATA_SIZE: usize = mem::size_of::<Hash>() + mem::size_of::<TimeStampType>() + mem::size_of::<u32>() + mem::size_of::<Hash>();
+    const VERIFY_DATA_SIZE: usize = mem::size_of::<Hash>()
+        + mem::size_of::<TimeStampType>()
+        + mem::size_of::<u32>()
+        + mem::size_of::<Hash>();
 
     pub fn from_bytes(key: Pubkey, bytes: [u8; Self::VERIFY_DATA_SIZE]) -> Self {
         let range_1 = 0..mem::size_of::<Hash>();
         let range_2 = range_1.end..range_1.end + mem::size_of::<TimeStampType>();
         let range_3 = range_2.end..range_2.end + mem::size_of::<u32>();
         let range_4 = range_3.end..range_3.end + mem::size_of::<Hash>();
-        
+
         let recent_block_hash = Hash::new_from_array(bytes[range_1].try_into().unwrap());
         let timestamp = TimeStampType::from_be_bytes(bytes[range_2].try_into().unwrap());
-        let nonce = u32::from_be_bytes(
-            bytes[range_3]
-                .try_into()
-                .unwrap(),
-        );
+        let nonce = u32::from_be_bytes(bytes[range_3].try_into().unwrap());
         let hash = Hash::new_from_array(bytes[range_4].try_into().unwrap());
 
         Block {
@@ -96,7 +97,7 @@ mod test {
         timestamp: TimeStampType,
         pubkey: Pubkey,
         nonce: u32,
-        hash: Hash
+        hash: Hash,
     ) -> Block {
         Block {
             recent_block_hash,
@@ -168,13 +169,24 @@ mod test {
         let block_from_bytes = Block::from_bytes(pubkey, v.try_into().unwrap());
         let block_from_data = create_arbitrary_block(recent_hash, timestamp, pubkey, nonce, hash);
         assert_eq!(
-            block_from_bytes.recent_block_hash,
-            block_from_data.recent_block_hash,
+            block_from_bytes.recent_block_hash, block_from_data.recent_block_hash,
             "recent_block_hashes are different"
         );
-        assert_eq!(block_from_bytes.timestamp, block_from_data.timestamp, "timestampss are different");
-        assert_eq!(block_from_bytes.pubkey, block_from_data.pubkey, "pubkeys are different");
-        assert_eq!(block_from_bytes.nonce, block_from_data.nonce, "nonces are different");
-        assert_eq!(block_from_bytes.hash, block_from_data.hash, "hashes are different");
+        assert_eq!(
+            block_from_bytes.timestamp, block_from_data.timestamp,
+            "timestampss are different"
+        );
+        assert_eq!(
+            block_from_bytes.pubkey, block_from_data.pubkey,
+            "pubkeys are different"
+        );
+        assert_eq!(
+            block_from_bytes.nonce, block_from_data.nonce,
+            "nonces are different"
+        );
+        assert_eq!(
+            block_from_bytes.hash, block_from_data.hash,
+            "hashes are different"
+        );
     }
 }

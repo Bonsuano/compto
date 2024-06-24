@@ -28,6 +28,28 @@ use comptoken_generated::{COMPTOKEN_ADDRESS, COMPTO_STATIC_ADDRESS_SEED};
 //     pub hash: [u8; 32], // Assuming you want to store a 32-byte hash
 // }
 
+#[repr(u8)]
+enum ComptokenInstructions {
+    TestMint = 0,
+    MintComptoken = 1,
+    InitializeStaticDataAccount = 2,
+}
+
+impl TryFrom<u8> for ComptokenInstructions {
+    type Error = ProgramError;
+    fn try_from(num: u8) -> Result<Self, Self::Error> {
+        match num {
+            0 => Ok(Self::TestMint),
+            1 => Ok(Self::MintComptoken),
+            2 => Ok(Self::InitializeStaticDataAccount),
+            _ => {
+                msg!("Invalid Instruction");
+                Err(ProgramError::InvalidInstructionData)
+            }
+        }
+    }
+}
+
 // program entrypoint's implementation
 pub fn process_instruction(
     program_id: &Pubkey,
@@ -35,18 +57,19 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> ProgramResult {
     msg!("instruction_data: {:?}", instruction_data);
-    if instruction_data[0] == 0 {
-        msg!("Test Mint");
-        return test_mint(program_id, accounts, &instruction_data[1..]);
-    } else if instruction_data[0] == 1 {
-        msg!("Mint New Comptokens");
-        return mint_comptokens(program_id, accounts, &instruction_data[1..]);
-    } else if instruction_data[0] == 2 {
-        msg!("Initialize Static Data Account");
-        return initialize_static_data_account(program_id, accounts, &instruction_data[1..]);
-    } else {
-        msg!("Invalid Instruction");
-        return Ok(());
+    match instruction_data[0].try_into()? {
+        ComptokenInstructions::TestMint => {
+            msg!("Test Mint");
+            test_mint(program_id, accounts, &instruction_data[1..])
+        }
+        ComptokenInstructions::MintComptoken => {
+            msg!("Mint New Comptokens");
+            mint_comptokens(program_id, accounts, &instruction_data[1..])
+        }
+        ComptokenInstructions::InitializeStaticDataAccount => {
+            msg!("Initialize Static Data Account");
+            initialize_static_data_account(program_id, accounts, &instruction_data[1..])
+        }
     }
 }
 
