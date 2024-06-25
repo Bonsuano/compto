@@ -1,8 +1,8 @@
-mod blockchain;
+mod mintblock;
 
 extern crate bs58;
 
-use blockchain::Block;
+use mintblock::Block;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -28,28 +28,6 @@ use comptoken_generated::{COMPTOKEN_ADDRESS, COMPTO_STATIC_ADDRESS_SEED};
 //     pub hash: [u8; 32], // Assuming you want to store a 32-byte hash
 // }
 
-#[repr(u8)]
-enum ComptokenInstructions {
-    TestMint = 0,
-    MintComptoken = 1,
-    InitializeStaticDataAccount = 2,
-}
-
-impl TryFrom<u8> for ComptokenInstructions {
-    type Error = ProgramError;
-    fn try_from(num: u8) -> Result<Self, Self::Error> {
-        match num {
-            0 => Ok(Self::TestMint),
-            1 => Ok(Self::MintComptoken),
-            2 => Ok(Self::InitializeStaticDataAccount),
-            _ => {
-                msg!("Invalid Instruction");
-                Err(ProgramError::InvalidInstructionData)
-            }
-        }
-    }
-}
-
 // program entrypoint's implementation
 pub fn process_instruction(
     program_id: &Pubkey,
@@ -57,18 +35,22 @@ pub fn process_instruction(
     instruction_data: &[u8],
 ) -> ProgramResult {
     msg!("instruction_data: {:?}", instruction_data);
-    match instruction_data[0].try_into()? {
-        ComptokenInstructions::TestMint => {
+    match instruction_data[0] {
+        0 => {
             msg!("Test Mint");
             test_mint(program_id, accounts, &instruction_data[1..])
         }
-        ComptokenInstructions::MintComptoken => {
+        1 => {
             msg!("Mint New Comptokens");
             mint_comptokens(program_id, accounts, &instruction_data[1..])
         }
-        ComptokenInstructions::InitializeStaticDataAccount => {
+        2 => {
             msg!("Initialize Static Data Account");
             initialize_static_data_account(program_id, accounts, &instruction_data[1..])
+        }
+        _ => {
+            msg!("Invalid Instruction");
+            Err(ProgramError::InvalidInstructionData)
         }
     }
 }
@@ -151,19 +133,19 @@ pub fn mint_comptokens(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // this nonce is what the miner increments to find a valid proof
-    if instruction_data.len() != 32 + 32 + 4 + 32 {
+    if instruction_data.len() != Block::VERIFY_DATA_SIZE {
         msg!("invalid instruction data");
         return Err(ProgramError::InvalidInstructionData);
     }
 
     let account_info_iter = &mut accounts.iter();
     let first_acc_info = next_account_info(account_info_iter)?; // 0
-    if !first_acc_info.is_signer {
+    if !first_acc_info.is_signer && first_acc_info.is_writable {
         msg!("Missing required signature");
-        return Err(ProgramError::MissingRequiredSignature);
+        return Err(ProgramError::MissingRequiredSignature); // TODO: fix error type
     }
 
-    if !blockchain::verify_proof(Block::from_bytes(
+    if !mintblock::verify_proof(Block::from_bytes(
         first_acc_info.key.clone(),
         instruction_data.try_into().expect("correct size"),
     )) {
