@@ -26,6 +26,7 @@ pub fn verify_proof(block: ComptokenProof) -> bool {
         && check_if_is_new_hash(block.hash)
         && block.generate_hash() == block.hash
 }
+
 pub const VERIFY_DATA_SIZE: usize =
     mem::size_of::<Hash>() + mem::size_of::<u64>() + mem::size_of::<Hash>();
 
