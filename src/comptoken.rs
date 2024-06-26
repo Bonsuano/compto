@@ -142,7 +142,6 @@ pub fn mint_comptokens(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    // this nonce is what the miner increments to find a valid proof
     if instruction_data.len() != mintblock::VERIFY_DATA_SIZE {
         msg!("invalid instruction data");
         return Err(ProgramError::InvalidInstructionData);
@@ -163,10 +162,6 @@ pub fn mint_comptokens(
         msg!("invalid proof");
         return Err(ProgramError::InvalidArgument);
     }
-    // let nonce = instruction_data[..32].try_into().unwrap();
-    // verify_proof(accounts[1].key, nonce);
-
-    // get_pseudo_random();
 
     assert_eq!(
         accounts[0].key,

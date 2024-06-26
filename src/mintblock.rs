@@ -45,6 +45,7 @@ impl<'a> ComptokenProof<'a> {
         let range_3 = range_2.end..range_2.end + mem::size_of::<Hash>();
 
         let recent_block_hash = Hash::new_from_array(bytes[range_1].try_into().unwrap());
+        // this nonce is what the miner incremented to find a valid proof
         let nonce = u64::from_be_bytes(bytes[range_2].try_into().unwrap());
         let hash = Hash::new_from_array(bytes[range_3].try_into().unwrap());
 
