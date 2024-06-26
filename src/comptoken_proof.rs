@@ -40,9 +40,9 @@ impl<'a> ComptokenProof<'a> {
     // pub const PUBLIC_KEY_SIZE: usize = PUBKEY_BYTES;
 
     pub fn from_bytes(key: &'a Pubkey, bytes: &[u8; VERIFY_DATA_SIZE]) -> Self {
-        let range_1 = 0..mem::size_of::<Hash>();
+        let range_1 = 0..HASH_BYTES;
         let range_2 = range_1.end..range_1.end + mem::size_of::<u64>();
-        let range_3 = range_2.end..range_2.end + mem::size_of::<Hash>();
+        let range_3 = range_2.end..range_2.end + HASH_BYTES;
 
         let recent_block_hash = Hash::new_from_array(bytes[range_1].try_into().unwrap());
         // this nonce is what the miner incremented to find a valid proof

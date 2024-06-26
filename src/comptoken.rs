@@ -142,7 +142,6 @@ pub fn mint_comptokens(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    // this nonce is what the miner increments to find a valid proof
     if instruction_data.len() != comptoken_proof::VERIFY_DATA_SIZE {
         msg!("invalid instruction data");
         return Err(ProgramError::InvalidInstructionData);
