@@ -2,7 +2,7 @@ mod mintblock;
 
 extern crate bs58;
 
-use mintblock::Block;
+use mintblock::ComptokenProof;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -27,7 +27,7 @@ entrypoint!(process_instruction);
 mod comptoken_generated;
 #[cfg(not(feature = "testmode"))]
 mod comptoken_generated {
-    use solana_program::{{pubkey, pubkey::Pubkey}};
+    use solana_program::{pubkey, pubkey::Pubkey};
     pub static COMPTOKEN_ADDRESS: Pubkey = pubkey!("11111111111111111111111111111111");
     pub static COMPTO_STATIC_ADDRESS_SEED: u8 = 255;
 }
@@ -143,7 +143,7 @@ pub fn mint_comptokens(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // this nonce is what the miner increments to find a valid proof
-    if instruction_data.len() != Block::VERIFY_DATA_SIZE {
+    if instruction_data.len() != mintblock::VERIFY_DATA_SIZE {
         msg!("invalid instruction data");
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -151,12 +151,13 @@ pub fn mint_comptokens(
     let account_info_iter = &mut accounts.iter();
     let first_acc_info = next_account_info(account_info_iter)?; // 0
     if !first_acc_info.is_signer && first_acc_info.is_writable {
+        // TODO: Verify this works and explain why
         msg!("Missing required signature");
         return Err(ProgramError::MissingRequiredSignature); // TODO: fix error type
     }
 
-    if !mintblock::verify_proof(Block::from_bytes(
-        first_acc_info.key.clone(),
+    if !mintblock::verify_proof(ComptokenProof::from_bytes(
+        &first_acc_info.key,
         instruction_data.try_into().expect("correct size"),
     )) {
         msg!("invalid proof");
