@@ -143,7 +143,7 @@ pub fn mint_comptokens(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // this nonce is what the miner increments to find a valid proof
-    if instruction_data.len() != Block::VERIFY_DATA_SIZE {
+    if instruction_data.len() != mintblock::VERIFY_DATA_SIZE {
         msg!("invalid instruction data");
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -156,7 +156,7 @@ pub fn mint_comptokens(
     }
 
     if !mintblock::verify_proof(Block::from_bytes(
-        first_acc_info.key.clone(),
+        &first_acc_info.key,
         instruction_data.try_into().expect("correct size"),
     )) {
         msg!("invalid proof");

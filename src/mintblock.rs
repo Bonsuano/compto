@@ -26,19 +26,20 @@ pub fn verify_proof(block: Block) -> bool {
         && check_if_is_new_hash(block.hash)
         && block.generate_hash() == block.hash
 }
-pub struct Block {
-    pubkey: Pubkey,
+
+pub const VERIFY_DATA_SIZE: usize =
+    mem::size_of::<Hash>() + mem::size_of::<u64>() + mem::size_of::<Hash>();
+pub struct Block<'a> {
+    pubkey: &'a Pubkey,
     recent_block_hash: Hash,
     nonce: u64,
     hash: Hash,
 }
 
-impl Block {
+impl<'a> Block<'a> {
     pub const PUBLIC_KEY_SIZE: usize = PUBKEY_BYTES;
-    pub const VERIFY_DATA_SIZE: usize =
-        mem::size_of::<Hash>() + mem::size_of::<u64>() + mem::size_of::<Hash>();
 
-    pub fn from_bytes(key: Pubkey, bytes: [u8; Self::VERIFY_DATA_SIZE]) -> Self {
+    pub fn from_bytes(key: &'a Pubkey, bytes: &'a [u8; VERIFY_DATA_SIZE]) -> Self {
         let range_1 = 0..mem::size_of::<Hash>();
         let range_2 = range_1.end..range_1.end + mem::size_of::<u64>();
         let range_3 = range_2.end..range_2.end + mem::size_of::<Hash>();
@@ -83,15 +84,17 @@ impl Block {
 mod test {
     use super::*;
 
-    fn create_arbitrary_block(
+    static ZERO_PUBKEY: Pubkey = Pubkey::new_from_array([0; Block::PUBLIC_KEY_SIZE]);
+
+    fn create_arbitrary_block<'a>(
+        pubkey: &'a Pubkey,
         recent_block_hash: Hash,
-        pubkey: Pubkey,
         nonce: u64,
         hash: Hash,
-    ) -> Block {
+    ) -> Block<'a> {
         Block {
-            recent_block_hash,
             pubkey,
+            recent_block_hash,
             nonce,
             hash,
         }
@@ -104,10 +107,10 @@ mod test {
         }
     }
 
-    fn create_zero_block() -> Block {
+    fn create_zero_block<'a>() -> Block<'a> {
         create_arbitrary_block(
+            &ZERO_PUBKEY,
             Hash::new_from_array([0; 32]),
-            Pubkey::new_from_array([0; Block::PUBLIC_KEY_SIZE]),
             0,
             Hash::new_from_array([0; 32]),
         )
@@ -131,18 +134,14 @@ mod test {
     #[test]
     fn test_from_bytes() {
         assert_eq!(
-            Block::from_bytes(
-                Pubkey::new_from_array([0; Block::PUBLIC_KEY_SIZE]),
-                [0; Block::VERIFY_DATA_SIZE]
-            )
-            .hash,
+            Block::from_bytes(&ZERO_PUBKEY, &[0; VERIFY_DATA_SIZE]).hash,
             [0; 32].into()
         );
 
         let recent_hash = Hash::new_from_array([1; 32]);
         let pubkey = Pubkey::new_from_array([2; Block::PUBLIC_KEY_SIZE]);
         let nonce: u64 = 0x03030303_03030303;
-        let mut v = Vec::<u8>::with_capacity(Block::VERIFY_DATA_SIZE);
+        let mut v = Vec::<u8>::with_capacity(VERIFY_DATA_SIZE);
         let mut hasher = Hasher::default();
 
         hasher.hash(&pubkey.to_bytes());
@@ -152,8 +151,9 @@ mod test {
         let hash = hasher.result();
         v.extend(hash.to_bytes());
 
-        let block_from_bytes = Block::from_bytes(pubkey, v.try_into().unwrap());
-        let block_from_data = create_arbitrary_block(recent_hash, pubkey, nonce, hash);
+        let bytes = v.try_into().unwrap();
+        let block_from_bytes = Block::from_bytes(&pubkey, &bytes);
+        let block_from_data = create_arbitrary_block(&pubkey, recent_hash, nonce, hash);
         assert_eq!(
             block_from_bytes.recent_block_hash, block_from_data.recent_block_hash,
             "recent_block_hashes are different"
