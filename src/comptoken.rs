@@ -1,8 +1,8 @@
-mod mintblock;
+mod comptoken_proof;
 
 extern crate bs58;
 
-use mintblock::ComptokenProof;
+use comptoken_proof::ComptokenProof;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -143,7 +143,7 @@ pub fn mint_comptokens(
     instruction_data: &[u8],
 ) -> ProgramResult {
     // this nonce is what the miner increments to find a valid proof
-    if instruction_data.len() != mintblock::VERIFY_DATA_SIZE {
+    if instruction_data.len() != comptoken_proof::VERIFY_DATA_SIZE {
         msg!("invalid instruction data");
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -156,7 +156,7 @@ pub fn mint_comptokens(
         return Err(ProgramError::MissingRequiredSignature); // TODO: fix error type
     }
 
-    if !mintblock::verify_proof(ComptokenProof::from_bytes(
+    if !comptoken_proof::verify_proof(ComptokenProof::from_bytes(
         &first_acc_info.key,
         instruction_data.try_into().expect("correct size"),
     )) {
