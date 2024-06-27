@@ -1,16 +1,3 @@
-// const  = require("@solana/web3.js");
-
-//const {
-//    Keypair,
-//    Transaction,
-//    SystemProgram,
-//    LAMPORTS_PER_SOL,
-//    TransactionInstruction,
-//    sendAndConfirmTransaction,
-//    Connection,
-//    PublicKey,
-//    SYSVAR_SLOT_HASHES_PUBKEY
-//} = require("@solana/web3.js");
 import {
     Connection,
     Keypair,
@@ -21,12 +8,6 @@ import {
     sendAndConfirmTransaction
 } from "@solana/web3.js";
 
-//const { 
-//    setAuthority,
-//    AuthorityType,
-//    TOKEN_PROGRAM_ID,
-//    unpackMint,
-//} = require('@solana/spl-token');
 import {
     AuthorityType,
     TOKEN_PROGRAM_ID,
@@ -34,11 +15,6 @@ import {
     unpackMint,
 } from '@solana/spl-token';
 
-//const bs58 = require('bs58');
-
-//const {
-//    mintComptokens
-//} = require("./comptoken_proof.js");
 import {
     Instruction,
     compto_program_id_pubkey,
@@ -49,28 +25,6 @@ import {
 } from './common.js';
 
 import { mintComptokens } from "./comptoken_proof.js";
-
-//const Instruction = {
-//    TEST: 0,
-//    COMPTOKEN_MINT: 1,
-//    INITIALIZE_STATIC_ACCOUNT: 2
-//};
-
-//// Read Cache Files
-//let static_pda_str = require("../.cache/compto_static_pda.json")["address"];
-//let compto_token_id_str = require("../.cache/comptoken_id.json")["commandOutput"]["address"]
-//let compto_program_id_str = require("../.cache/compto_program_id.json")['programId'];
-//let test_account = require("../.cache/compto_test_account.json");
-
-//// Pubkeys
-//const destination_pubkey = Keypair.fromSecretKey(new Uint8Array(test_account)).publicKey;
-//const static_pda_pubkey = new PublicKey(bs58.decode(static_pda_str));
-//const comptoken_pubkey = new PublicKey(bs58.decode(compto_token_id_str));
-//const compto_program_id_pubkey = new PublicKey(bs58.decode(compto_program_id_str));
-
-//// KeyPairs
-//const temp_keypair = Keypair.generate();
-//const me_keypair = Keypair.fromSecretKey(new Uint8Array(require(require('os').homedir() + '/.config/solana/id.json')));
 
 const temp_keypair = Keypair.generate();
 
@@ -147,22 +101,6 @@ async function testMint() {
     let testMintResult = await sendAndConfirmTransaction(connection, testMintTransaction, [temp_keypair, temp_keypair]);
     console.log("testMint transaction confirmed", testMintResult);
 }
-// under construction
-//async function mintComptokens() {
-//    let data = Buffer.from([Instruction.COMPTOKEN_MINT]);
-//    let keys = [{ pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
-//                { pubkey: destination_pubkey, isSigner: false, isWritable: true },];
-//    let mintComptokensTransaction = new Transaction();
-//    mintComptokensTransaction.add(
-//        new TransactionInstruction({
-//            keys: keys,
-//            programId: compto_program_id_pubkey,
-//            data: data,
-//        }),
-//    );
-//    let mintComptokensResult = await sendAndConfirmTransaction(connection, mintComptokensTransaction, [temp_keypair, temp_keypair]);
-//    console.log("mintComptokens transaction confirmed", mintComptokensResult);
-//}
 
 async function initializeStaticAccount() {
     // createAccountTransaction = new Transaction();

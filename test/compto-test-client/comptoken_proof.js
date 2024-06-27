@@ -2,9 +2,8 @@ import { SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionInstruction, sendAnd
 import * as bs58_ from "bs58";
 import { assert } from "console";
 import { createHash } from "crypto";
-let bs58 = bs58_.default;
-/* @ts-ignore */
 import { Instruction } from "./common.js";
+let bs58 = bs58_.default;
 const MIN_NUM_ZEROED_BITS = 1; // TODO: replace with permanent value
 class ComptokenProof {
     pubkey;
