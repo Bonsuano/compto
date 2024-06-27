@@ -5,8 +5,9 @@ import { createHash } from "crypto";
 import { Instruction } from "./common.js";
 let bs58 = bs58_.default;
 
-const MIN_NUM_ZEROED_BITS = 1; // ensure this remains consistent with comptoken_proof.rs
+const MIN_NUM_ZEROED_BITS = 1;
 
+// Ensure changes to this class remain consistent with comptoken_proof.rs
 class ComptokenProof {
     pubkey;
     recentBlockHash; // bs58 encoded string
@@ -14,7 +15,6 @@ class ComptokenProof {
     hash;
 
     constructor(pubkey, recentBlockHash) {
-        // ensure this remains consistent with comptoken_proof.rs
         this.pubkey = pubkey;
         this.recentBlockHash = recentBlockHash;
         this.nonce = Buffer.alloc(8);
@@ -51,7 +51,6 @@ class ComptokenProof {
     }
 
     serializeData() {
-        // ensure this remains consistent with comptoken_proof.rs
         let buffer = Buffer.concat([
             bs58.decode(this.recentBlockHash),
             this.nonce,

@@ -27,6 +27,7 @@ pub fn verify_proof(block: ComptokenProof) -> bool {
 
 pub const VERIFY_DATA_SIZE: usize = HASH_BYTES + mem::size_of::<u64>() + HASH_BYTES;
 
+// Ensure changes to this struct remain consistent with comptoken_proof.js
 pub struct ComptokenProof<'a> {
     pubkey: &'a Pubkey,
     recent_block_hash: Hash,
