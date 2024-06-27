@@ -34,8 +34,6 @@ pub struct ComptokenProof<'a> {
 }
 
 impl<'a> ComptokenProof<'a> {
-    // pub const PUBLIC_KEY_SIZE: usize = PUBKEY_BYTES;
-
     pub fn from_bytes(key: &'a Pubkey, bytes: &[u8; VERIFY_DATA_SIZE]) -> Self {
         let range_1 = 0..HASH_BYTES;
         let range_2 = range_1.end..range_1.end + mem::size_of::<u64>();
