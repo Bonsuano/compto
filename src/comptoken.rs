@@ -88,53 +88,131 @@ pub fn initialize_static_data_account(
         program_id,
     );
     // let createacct = SystemInstruction::CreateAccount { lamports: (1000), space: (256), owner: *program_id };
-    let result = invoke_signed(
-        &create_acct_instr,
-        accounts,
-        &[&[&[COMPTO_STATIC_ADDRESS_SEED]]],
-    )?;
+    let result = invoke_signed(&create_acct_instr, accounts, &[COMPTO_STATIC_PDA_SEEDS])?;
     // let data = accounts[0].try_borrow_mut_data()?;
     // data[0] = 1;
     Ok(())
 }
 
-// struct ComptokenMintProof {
-//     sh
-// }
+fn mint(
+    mint_pda: &Pubkey,
+    destination: &Pubkey,
+    amount: u64,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    let instruction = mint_to(
+        &spl_token::id(),
+        &COMPTOKEN_ADDRESS,
+        &destination,
+        &mint_pda,
+        &[&mint_pda],
+        amount,
+    )?;
+    invoke_signed(&instruction, accounts, &[COMPTO_STATIC_PDA_SEEDS])
+}
+
+fn verify_destination_account(account: &AccountInfo) -> ProgramResult {
+    // TODO: verify account
+    msg!("Destination Account: {:?}", account);
+    Ok(())
+}
+
+fn verify_mint_authority_account(account: &AccountInfo, program_id: &Pubkey) -> ProgramResult {
+    // TODO: is this correct
+    msg!("Mint Authority Account: {:?}", account);
+    if *account.key != Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id)? {
+        Err(ProgramError::InvalidAccountData)
+    } else {
+        Ok(())
+    }
+}
+
+fn verify_token_account(account: &AccountInfo) -> ProgramResult {
+    if *account.key != spl_token::id() {
+        Err(ProgramError::InvalidAccountData)
+    } else {
+        Ok(())
+    }
+}
+
+fn verify_comptoken_account(account: &AccountInfo) -> ProgramResult {
+    if *account.key != COMPTOKEN_ADDRESS {
+        Err(ProgramError::InvalidAccountData)
+    } else {
+        Ok(())
+    }
+}
 
 pub fn test_mint(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
+    //  accounts order:
+    //      destination pda
+    //      mint authority? pda
+    //      spl_token id
+    //      program id (need?) works without
+    //      comptoken id
+
     msg!("instruction_data: {:?}", instruction_data);
-    let amount = 2;
     for account_info in accounts.iter() {
         msg!("Public Key: {:?}", account_info.key);
     }
-    let destination_pubkey = accounts[0].key;
+
+    let account_info_iter = &mut accounts.iter();
+    let destination_account = next_account_info(account_info_iter)?;
+    let mint_authority_account = next_account_info(account_info_iter)?;
+    let token_account = next_account_info(account_info_iter)?;
+    let comptoken_account = next_account_info(account_info_iter)?;
+
+    verify_destination_account(destination_account)?;
+    verify_mint_authority_account(mint_authority_account, program_id)?;
+    verify_token_account(token_account)?;
+    verify_comptoken_account(comptoken_account)?;
+
+    let amount = 2;
+
+    //let destination_pubkey = accounts[0].key;
     // Create the mint_to instruction
-    let mint_pda = Pubkey::create_program_address(&[&[COMPTO_STATIC_ADDRESS_SEED]], &program_id)?;
-    msg!("Mint PDA: {:?}", mint_pda);
+    //let mint_pda = Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, &program_id)?;
+    //msg!("Mint PDA: {:?}", mint_pda);
     // msg!("bump: {:?}", bump);
-    let mint_to_instruction = mint_to(
-        &spl_token::id(),
-        &COMPTOKEN_ADDRESS,
-        &destination_pubkey,
-        &mint_pda,
-        &[&mint_pda],
+    mint(
+        mint_authority_account.key,
+        destination_account.key,
         amount,
-    )?;
-    // accounts.push(AccountInfo::new(&mint_pda, true, true));
-    // Invoke the token program
-    let result = invoke_signed(
-        &mint_to_instruction,
         accounts,
-        &[&[&[COMPTO_STATIC_ADDRESS_SEED]]],
-    )?;
-    // msg!("Result: {:?}", result);
-    // gracefully exit the program
-    Ok(())
+    )
+    //let mint_to_instruction = mint_to(
+    //    &spl_token::id(),
+    //    &COMPTOKEN_ADDRESS,
+    //    &destination_pubkey,
+    //    &mint_pda,
+    //    &[&mint_pda],
+    //    amount,
+    //)?;
+    //// accounts.push(AccountInfo::new(&mint_pda, true, true));
+    //// Invoke the token program
+    //let result = invoke_signed(&mint_to_instruction, accounts, &[COMPTO_STATIC_PDA_SEEDS])?;
+    //// msg!("Result: {:?}", result);
+    //// gracefully exit the program
+    //Ok(())
+}
+
+fn verify_data_mint_comptokens(destination: &Pubkey, data: &[u8]) -> Result<Hash, ProgramError> {
+    if data.len() != comptoken_proof::VERIFY_DATA_SIZE {
+        msg!("invalid instruction data");
+        Err(ProgramError::InvalidInstructionData)
+    } else {
+        let block = ComptokenProof::from_bytes(destination, data.try_into().expect("correct size"));
+        if !comptoken_proof::verify_proof(&block) {
+            msg!("invalid proof");
+            Err(ProgramError::InvalidArgument)
+        } else {
+            Ok(block.hash)
+        }
+    }
 }
 
 pub fn mint_comptokens(
