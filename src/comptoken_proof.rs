@@ -7,12 +7,9 @@ use solana_program::{
 
 const MIN_NUM_ZEROED_BITS: u32 = 1; // TODO: replace with permanent value
 
-// will need to be converted to a data account
-static RECENT_BLOCKHASHES: [Hash; 4] = [unsafe { std::mem::transmute([0u8; 32]) }; 4];
-
-fn check_if_recent_blockhashes(blockhash: &Hash) -> bool {
+fn check_if_recent_blockhashes(_blockhash: &Hash) -> bool {
     // TODO: get it to actually work
-    RECENT_BLOCKHASHES.contains(&blockhash)
+    true
 }
 
 fn check_if_is_new_hash(_hash: Hash) -> bool {

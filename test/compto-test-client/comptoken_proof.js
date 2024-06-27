@@ -1,7 +1,7 @@
 import { SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionInstruction, sendAndConfirmTransaction, } from '@solana/web3.js';
 import * as bs58_ from "bs58";
 import { assert } from "console";
-import { createHash, randomInt } from "crypto";
+import { createHash } from "crypto";
 let bs58 = bs58_.default;
 /* @ts-ignore */
 import { Instruction } from "./common.js";
@@ -15,7 +15,6 @@ class ComptokenProof {
         this.pubkey = pubkey;
         this.recentBlockHash = recentBlockHash;
         this.nonce = Buffer.alloc(8);
-        this.nonce.writeUInt32BE(randomInt(2 ** 32));
         this.hash = this.generateHash();
     }
     generateHash() {
