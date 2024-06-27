@@ -65,11 +65,11 @@ class ComptokenProof {
 // under construction
 export async function mintComptokens(connection, destination_pubkey, compto_program_id_pubkey, temp_keypair) {
     let proof = new ComptokenProof(destination_pubkey, "11111111111111111111111111111111"); // TODO: get recent_block_hash from caches
+    proof.mine();
     let data = Buffer.concat([
         Buffer.from([Instruction.COMPTOKEN_MINT]),
         proof.serializeData(),
     ]);
-    proof.mine();
     let keys = [
         { pubkey: destination_pubkey, isSigner: false, isWritable: true },
         { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
