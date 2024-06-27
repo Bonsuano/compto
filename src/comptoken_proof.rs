@@ -5,6 +5,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+// ensure this remains consistent with comptoken_proof.js
 const MIN_NUM_ZEROED_BITS: u32 = 1; // TODO: replace with permanent value
 
 fn check_if_recent_blockhashes(_blockhash: &Hash) -> bool {
@@ -35,6 +36,7 @@ pub struct ComptokenProof<'a> {
 
 impl<'a> ComptokenProof<'a> {
     pub fn from_bytes(key: &'a Pubkey, bytes: &[u8; VERIFY_DATA_SIZE]) -> Self {
+        // ensure this remains consistent with comptoken_proof.js
         let range_1 = 0..HASH_BYTES;
         let range_2 = range_1.end..range_1.end + mem::size_of::<u64>();
         let range_3 = range_2.end..range_2.end + HASH_BYTES;
@@ -68,6 +70,7 @@ impl<'a> ComptokenProof<'a> {
     }
 
     pub fn generate_hash(&self) -> Hash {
+        // ensure this remains consistent with comptoken_proof.js
         let mut hasher = Hasher::default();
         hasher.hash(&self.pubkey.to_bytes());
         hasher.hash(&self.recent_block_hash.to_bytes());

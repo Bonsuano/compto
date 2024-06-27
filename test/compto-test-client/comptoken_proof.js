@@ -4,18 +4,23 @@ import { assert } from "console";
 import { createHash } from "crypto";
 import { Instruction } from "./common.js";
 let bs58 = bs58_.default;
-const MIN_NUM_ZEROED_BITS = 1; // TODO: replace with permanent value
+
+const MIN_NUM_ZEROED_BITS = 1; // ensure this remains consistent with comptoken_proof.rs
+
 class ComptokenProof {
     pubkey;
-    recentBlockHash;
+    recentBlockHash; // bs58 encoded string
     nonce; // uint_64
     hash;
+
     constructor(pubkey, recentBlockHash) {
+        // ensure this remains consistent with comptoken_proof.rs
         this.pubkey = pubkey;
         this.recentBlockHash = recentBlockHash;
         this.nonce = Buffer.alloc(8);
         this.hash = this.generateHash();
     }
+
     generateHash() {
         let hasher = createHash("sha256");
         hasher.update(this.pubkey.toBuffer());
@@ -23,6 +28,7 @@ class ComptokenProof {
         hasher.update(this.nonce);
         return bs58.encode(hasher.digest());
     }
+
     static leadingZeroes(hash) {
         let leadingZeroes = 0;
         let iter = bs58
@@ -36,14 +42,16 @@ class ComptokenProof {
         }
         return leadingZeroes;
     }
+
     mine() {
-        while (ComptokenProof.leadingZeroes(this.hash) <= MIN_NUM_ZEROED_BITS) {
+        while (ComptokenProof.leadingZeroes(this.hash) < MIN_NUM_ZEROED_BITS) {
             this.nonce.writeUInt32BE(this.nonce.readUInt32BE() + 1);
             this.hash = this.generateHash();
         }
     }
+
     serializeData() {
-        // ensure this remains consistent with mintblock.rs
+        // ensure this remains consistent with comptoken_proof.rs
         let buffer = Buffer.concat([
             bs58.decode(this.recentBlockHash),
             this.nonce,
@@ -53,9 +61,10 @@ class ComptokenProof {
         return buffer;
     }
 }
+
 // under construction
 export async function mintComptokens(connection, destination_pubkey, compto_program_id_pubkey, temp_keypair) {
-    let proof = new ComptokenProof(destination_pubkey, "11111111111111111111111111111111");
+    let proof = new ComptokenProof(destination_pubkey, "11111111111111111111111111111111"); // TODO: get recent_block_hash from caches
     let data = Buffer.concat([
         Buffer.from([Instruction.COMPTOKEN_MINT]),
         proof.serializeData(),
