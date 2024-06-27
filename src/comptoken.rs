@@ -31,6 +31,8 @@ mod comptoken_generated {
 }
 use comptoken_generated::{COMPTOKEN_ADDRESS, COMPTO_STATIC_ADDRESS_SEED};
 
+const COMPTO_STATIC_PDA_SEEDS: &[&[u8]] = &[&[COMPTO_STATIC_ADDRESS_SEED]];
+
 // #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 // pub struct DataAccount {
 //     pub hash: [u8; 32], // Assuming you want to store a 32-byte hash
@@ -68,7 +70,7 @@ pub fn initialize_static_data_account(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    let mint_pda = Pubkey::create_program_address(&[&[COMPTO_STATIC_ADDRESS_SEED]], &program_id)?;
+    let mint_pda = Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, &program_id)?;
     assert_eq!(accounts[0].key, &mint_pda, "Invalid Mint PDA account.");
 
     msg!("instruction_data: {:?}", instruction_data);
