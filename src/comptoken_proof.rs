@@ -13,15 +13,15 @@ fn check_if_recent_blockhashes(_blockhash: &Hash) -> bool {
     true
 }
 
-fn check_if_is_new_hash(_hash: Hash) -> bool {
+fn check_if_is_new_hash(_hash: &Hash) -> bool {
     // TODO: implement
     true
 }
 
-pub fn verify_proof(block: ComptokenProof) -> bool {
+pub fn verify_proof(block: &ComptokenProof) -> bool {
     ComptokenProof::leading_zeroes(&block.hash) >= MIN_NUM_ZEROED_BITS
         && check_if_recent_blockhashes(&block.recent_block_hash)
-        && check_if_is_new_hash(block.hash)
+        && check_if_is_new_hash(&block.hash)
         && block.generate_hash() == block.hash
 }
 
@@ -29,10 +29,10 @@ pub const VERIFY_DATA_SIZE: usize = HASH_BYTES + mem::size_of::<u64>() + HASH_BY
 
 // Ensure changes to this struct remain consistent with comptoken_proof.js
 pub struct ComptokenProof<'a> {
-    pubkey: &'a Pubkey,
-    recent_block_hash: Hash,
-    nonce: u64,
-    hash: Hash,
+    pub pubkey: &'a Pubkey,
+    pub recent_block_hash: Hash,
+    pub nonce: u64,
+    pub hash: Hash,
 }
 
 impl<'a> ComptokenProof<'a> {

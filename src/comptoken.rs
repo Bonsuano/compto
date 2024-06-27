@@ -220,41 +220,40 @@ pub fn mint_comptokens(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    if instruction_data.len() != comptoken_proof::VERIFY_DATA_SIZE {
-        msg!("invalid instruction data");
-        return Err(ProgramError::InvalidInstructionData);
+    //  accounts order:
+    //      destination pda
+    //      mint authority pda
+    //      spl_token id
+    //      comptoken id
+
+    msg!("instruction_data: {:?}", instruction_data);
+    for account_info in accounts.iter() {
+        msg!("Public Key: {:?}", account_info.key);
     }
 
     let account_info_iter = &mut accounts.iter();
-    let first_acc_info = next_account_info(account_info_iter)?; // 0
-    if !first_acc_info.is_signer && first_acc_info.is_writable {
-        // TODO: Verify this works and explain why
-        msg!("Missing required signature");
-        return Err(ProgramError::MissingRequiredSignature); // TODO: fix error type
-    }
+    let destination_account = next_account_info(account_info_iter)?;
+    let mint_authority_account = next_account_info(account_info_iter)?;
+    let token_account = next_account_info(account_info_iter)?;
+    let comptoken_account = next_account_info(account_info_iter)?;
 
-    if !comptoken_proof::verify_proof(ComptokenProof::from_bytes(
-        &first_acc_info.key,
-        instruction_data.try_into().expect("correct size"),
-    )) {
-        msg!("invalid proof");
-        return Err(ProgramError::InvalidArgument);
-    }
+    verify_destination_account(destination_account)?;
+    verify_mint_authority_account(mint_authority_account, program_id)?;
+    verify_token_account(token_account)?;
+    verify_comptoken_account(comptoken_account)?;
 
-    assert_eq!(
-        accounts[1].key,
-        &sysvar::slot_hashes::id(),
-        "Invalid SlotHashes account."
-    );
-    let data = accounts[1].try_borrow_data()?;
-    let hash = Hash::new(&data[16..48]);
+    let hash = verify_data_mint_comptokens(destination_account.key, instruction_data)?;
+    let amount = 1;
+
     msg!("Hash: {:?}", hash);
+    mint(
+        mint_authority_account.key,
+        destination_account.key,
+        amount,
+        accounts,
+    )?;
     // now save the hash to the account
 
-    // let mint_pda = Pubkey::create_program_address(&[&[COMPTO_STATIC_ADDRESS_SEED]], &program_id)?;
-    // let mut pda_data = mint_pda.try_borrow_mut_data()?;
-    // pda_data[0].copy_from_slice(instruction_data[0]);
-    // msg!("data: {:?}", encode(&data[..64]));
     todo!("implement minting and storing of hashing");
     Ok(())
 }
