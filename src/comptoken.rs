@@ -12,9 +12,7 @@ use solana_program::{
     program::invoke_signed,
     pubkey::Pubkey,
     system_instruction::create_account,
-    // sysvar::{slot_hashes::SlotHashes, Sysvar},
-    sysvar,
-    sysvar::slot_history::ProgramError,
+    sysvar::{self, slot_history::ProgramError},
 };
 use spl_token::instruction::mint_to;
 // declare and export the program's entrypoint
@@ -28,8 +26,8 @@ mod comptoken_generated;
 #[cfg(not(feature = "testmode"))]
 mod comptoken_generated {
     use solana_program::{pubkey, pubkey::Pubkey};
-    pub static COMPTOKEN_ADDRESS: Pubkey = pubkey!("11111111111111111111111111111111");
-    pub static COMPTO_STATIC_ADDRESS_SEED: u8 = 255;
+    pub const COMPTOKEN_ADDRESS: Pubkey = pubkey!("11111111111111111111111111111111");
+    pub const COMPTO_STATIC_ADDRESS_SEED: u8 = 255;
 }
 use comptoken_generated::{COMPTOKEN_ADDRESS, COMPTO_STATIC_ADDRESS_SEED};
 
