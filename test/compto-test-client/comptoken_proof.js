@@ -6,7 +6,7 @@ import { createHash } from "crypto";
 import { Instruction, compto_program_id_pubkey, comptoken_pubkey, static_pda_pubkey } from "./common.js";
 let bs58 = bs58_.default;
 
-const MIN_NUM_ZEROED_BITS = 1;
+const MIN_NUM_ZEROED_BITS = 3;
 
 // Ensure changes to this class remain consistent with comptoken_proof.rs
 class ComptokenProof {
@@ -31,17 +31,24 @@ class ComptokenProof {
     }
 
     static leadingZeroes(hash) {
-        let leadingZeroes = 0;
-        let iter = bs58
-            .decode(hash)
-            .map((byte) => 8 - byte.toString().replace(/^0*/, "").length);
-        for (let i = 0; i < iter.length; ++i) {
-            leadingZeroes += iter[i];
-            if (iter[i] != 8) {
+        hash = bs58.decode(hash)
+        let numZeroes = 0;
+        for (let i = 0; i < hash.length; i++) {
+            let byte = hash[i];
+            if (byte == 0) {
+                numZeroes += 8;
+            } else {
+                let mask = 0x80; // 10000000
+                // mask > 0 is defensive, not technically necessary
+                // because the above if case checks for all 0's
+                while (mask > 0 && (byte & mask) == 0) {
+                    numZeroes += 1;
+                    mask >>= 1;
+                }
                 break;
             }
         }
-        return leadingZeroes;
+        return numZeroes;
     }
 
     mine() {
