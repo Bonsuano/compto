@@ -113,13 +113,11 @@ fn mint(
 
 fn verify_destination_account(account: &AccountInfo) -> ProgramResult {
     // TODO: verify account
-    msg!("Destination Account: {:?}", account);
     Ok(())
 }
 
 fn verify_mint_authority_account(account: &AccountInfo, program_id: &Pubkey) -> ProgramResult {
     // TODO: is this correct
-    msg!("Mint Authority Account: {:?}", account);
     if *account.key != Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id)? {
         Err(ProgramError::InvalidAccountData)
     } else {
@@ -206,6 +204,7 @@ fn verify_data_mint_comptokens(destination: &Pubkey, data: &[u8]) -> Result<Hash
         Err(ProgramError::InvalidInstructionData)
     } else {
         let block = ComptokenProof::from_bytes(destination, data.try_into().expect("correct size"));
+        msg!("block: {:?}", block);
         if !comptoken_proof::verify_proof(&block) {
             msg!("invalid proof");
             Err(ProgramError::InvalidArgument)
@@ -226,10 +225,10 @@ pub fn mint_comptokens(
     //      spl_token id
     //      comptoken id
 
-    msg!("instruction_data: {:?}", instruction_data);
-    for account_info in accounts.iter() {
-        msg!("Public Key: {:?}", account_info.key);
-    }
+    //msg!("instruction_data: {:?}", instruction_data);
+    //for account_info in accounts.iter() {
+    //    msg!("Public Key: {:?}", account_info.key);
+    //}
 
     let account_info_iter = &mut accounts.iter();
     let destination_account = next_account_info(account_info_iter)?;
@@ -243,9 +242,10 @@ pub fn mint_comptokens(
     verify_comptoken_account(comptoken_account)?;
 
     let hash = verify_data_mint_comptokens(destination_account.key, instruction_data)?;
-    let amount = 1;
+    let amount = 2;
 
     msg!("Hash: {:?}", hash);
+    //test_mint(program_id, accounts, instruction_data)?;
     mint(
         mint_authority_account.key,
         destination_account.key,

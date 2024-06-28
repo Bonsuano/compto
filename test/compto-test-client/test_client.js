@@ -42,7 +42,7 @@ let connection = new Connection('http://localhost:8899', 'recent');
     await setMintAuthorityIfNeeded();
     await testMint();
     await initializeStaticAccount();
-    await mintComptokens(connection, temp_keypair.publicKey, compto_program_id_pubkey, temp_keypair);
+    await mintComptokens(connection, temp_keypair.publicKey, temp_keypair);
     
 })();
 
