@@ -58,13 +58,15 @@ impl<'a> ComptokenProof<'a> {
 
     pub fn leading_zeroes(hash: &Hash) -> u32 {
         let mut leading_zeroes: u32 = 0;
-        let mut iter = hash
-            .to_bytes()
-            .into_iter()
-            .map(|byte| byte.leading_zeros() as u32);
-        while let Some(i) = iter.next() {
-            leading_zeroes += i;
-            if i != 8 {
+        for byte in hash.to_bytes() {
+            if byte == 0 {
+                leading_zeroes += 8;
+            } else {
+                let mut mask = 0x80;
+                while mask > 0 && (mask & byte) == 0 {
+                    leading_zeroes += 1;
+                    mask >>= 1;
+                }
                 break;
             }
         }
