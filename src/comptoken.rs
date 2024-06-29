@@ -133,7 +133,13 @@ fn verify_comptoken_data_account(
     program_id: &Pubkey,
 ) -> ProgramResult {
     // TODO: verify data account
-    Ok(())
+    if *comptoken_data_account.key
+        != Pubkey::find_program_address(&[comptoken_account.key.as_ref()], program_id).0
+    {
+        Err(ProgramError::InvalidAccountOwner)
+    } else {
+        Ok(())
+    }
 }
 
 fn verify_mint_authority_pda(account: &AccountInfo, program_id: &Pubkey) -> ProgramResult {
@@ -217,13 +223,18 @@ fn verify_data_mint_comptokens<'a>(
     }
 }
 
-fn store_hash(
-    proof: ComptokenProof,
-    data_account: &AccountInfo,
-) -> Result<ErrorAfterSuccess, ProgramError> {
+fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResult {
     // TODO: store hash
     let hash_storage: &mut HashStorage = data_account.data.borrow_mut().as_mut().try_into()?;
-    hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
+    match hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account) {
+        Err(ProgramError::Custom(0)) => {
+            let hash_storage: &mut HashStorage =
+                data_account.data.borrow_mut().as_mut().try_into()?;
+            hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
+        }
+        Err(E) => Err(E),
+        Ok(o) => Ok(o),
+    }
 }
 
 pub fn mint_comptokens(
@@ -256,7 +267,7 @@ pub fn mint_comptokens(
     let amount = 2;
 
     // now save the hash to the account, returning an error if the hash already exists
-    let result = store_hash(proof, data_account)?;
+    store_hash(proof, data_account)?;
 
     mint(
         mint_authority_account.key,
@@ -266,8 +277,5 @@ pub fn mint_comptokens(
     )?;
 
     //todo!("implement minting and storing of hashing");
-    match result {
-        ErrorAfterSuccess::None => Ok(()),
-        ErrorAfterSuccess::Err(E) => Err(E),
-    }
+    Ok(())
 }

@@ -123,7 +123,7 @@ impl HashStorage {
         recent_blockhash: &Hash,
         new_hash: Hash,
         data_account: &AccountInfo,
-    ) -> Result<ErrorAfterSuccess, ProgramError> {
+    ) -> ProgramResult {
         // The provided recent_blockhash is checked for validity
         let valid_hashes = get_valid_hashes();
         if !valid_hashes.contains(recent_blockhash) {
@@ -151,12 +151,8 @@ impl HashStorage {
         // maintain capacity > total_size
         if self.capacity == self.size_blockhash_1 + self.size_blockhash_2 {
             // this invalidates self, so we can no longer insert and must Err
-            let result = self.realloc(data_account);
-            return match result {
-                Err(ProgramError::InvalidRealloc) => Err(ProgramError::Custom(3)), // AccountDataTooSmall and InvalidRealloc
-                Err(_) => Err(ProgramError::Custom(u32::MAX)),                     // Unknown Error
-                _ => Err(ProgramError::AccountDataTooSmall),
-            };
+            self.realloc(data_account)?;
+            return Err(ProgramError::Custom(0));
         }
 
         // If the provided hash matches recent_hash_2 then
@@ -208,16 +204,16 @@ impl HashStorage {
             self.size_blockhash_1 += 1;
         }
 
-        if self.capacity == self.size_blockhash_1 + self.size_blockhash_2 {
-            // realloc invalidation does not matter here, b/c the insertion is done, and the
-            // invalidation is related to the runtime capacity of the HashStorage pointer
-            // getting out of sync with the true capacity of the data
-            return match self.realloc(data_account) {
-                Err(E) => Ok(ErrorAfterSuccess::Err(E)), // Unknown Error,
-                _ => Ok(ErrorAfterSuccess::None),
-            };
-        }
-        Ok(ErrorAfterSuccess::None)
+        //if self.capacity == self.size_blockhash_1 + self.size_blockhash_2 {
+        //    // realloc invalidation does not matter here, b/c the insertion is done, and the
+        //    // invalidation is related to the runtime capacity of the HashStorage pointer
+        //    // getting out of sync with the true capacity of the data
+        //    return match self.realloc(data_account) {
+        //        Err(E) => Ok(ErrorAfterSuccess::Err(E)), // Unknown Error,
+        //        _ => Ok(ErrorAfterSuccess::None),
+        //    };
+        //}
+        Ok(())
     }
 
     // realloc invalidates `&mut self`, `&mut self` stores data about how large self.hashes is
