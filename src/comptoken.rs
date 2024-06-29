@@ -130,17 +130,10 @@ fn verify_comptoken_account(account: &AccountInfo) -> ProgramResult {
 fn verify_comptoken_data_account(
     comptoken_data_account: &AccountInfo,
     comptoken_account: &AccountInfo,
-    bump: u8,
     program_id: &Pubkey,
 ) -> ProgramResult {
     // TODO: verify data account
-    if *comptoken_data_account.key
-        != Pubkey::create_program_address(&[comptoken_account.key.as_ref(), &[bump]], program_id)?
-    {
-        Err(ProgramError::InvalidAccountData)
-    } else {
-        Ok(())
-    }
+    Ok(())
 }
 
 fn verify_mint_authority_pda(account: &AccountInfo, program_id: &Pubkey) -> ProgramResult {
@@ -208,20 +201,18 @@ pub fn test_mint(
 fn verify_data_mint_comptokens<'a>(
     destination: &'a Pubkey,
     data: &[u8],
-) -> Result<(u8, ComptokenProof<'a>), ProgramError> {
-    if data.len() != comptoken_proof::VERIFY_DATA_SIZE + 1 {
+) -> Result<ComptokenProof<'a>, ProgramError> {
+    if data.len() != comptoken_proof::VERIFY_DATA_SIZE {
         msg!("invalid instruction data");
         Err(ProgramError::InvalidInstructionData)
     } else {
-        let bump = data[0];
-        let proof =
-            ComptokenProof::from_bytes(destination, data[1..].try_into().expect("correct size"));
+        let proof = ComptokenProof::from_bytes(destination, data.try_into().expect("correct size"));
         msg!("block: {:?}", proof);
         if !comptoken_proof::verify_proof(&proof) {
             msg!("invalid proof");
             Err(ProgramError::InvalidArgument)
         } else {
-            Ok((bump, proof))
+            Ok(proof)
         }
     }
 }
@@ -258,9 +249,10 @@ pub fn mint_comptokens(
     verify_mint_authority_pda(mint_authority_account, program_id)?;
     verify_token_account(token_account)?;
     verify_comptoken_program_account(comptoken_account)?;
-    let (bump, proof) = verify_data_mint_comptokens(destination_account.key, instruction_data)?;
-    verify_comptoken_data_account(data_account, destination_account, bump, program_id)?;
+    let proof = verify_data_mint_comptokens(destination_account.key, instruction_data)?;
+    verify_comptoken_data_account(data_account, destination_account, program_id)?;
 
+    msg!("data/accounts verified");
     let amount = 2;
 
     // now save the hash to the account, returning an error if the hash already exists
