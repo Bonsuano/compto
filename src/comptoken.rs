@@ -1,4 +1,5 @@
 mod comptoken_proof;
+mod hash_storage;
 
 extern crate bs58;
 
@@ -121,9 +122,25 @@ fn mint(
     invoke_signed(&instruction, accounts, &[COMPTO_STATIC_PDA_SEEDS])
 }
 
-fn verify_destination_account(account: &AccountInfo) -> ProgramResult {
-    // TODO: verify account
+fn verify_comptoken_account(account: &AccountInfo) -> ProgramResult {
+    // TODO: verify comptoken accounts
     Ok(())
+}
+
+fn verify_comptoken_data_account(
+    comptoken_data_account: &AccountInfo,
+    comptoken_account: &AccountInfo,
+    bump: u8,
+    program_id: &Pubkey,
+) -> ProgramResult {
+    // TODO: verify data account
+    if *comptoken_data_account.key
+        != Pubkey::create_program_address(&[comptoken_account.key.as_ref(), &[bump]], program_id)?
+    {
+        Err(ProgramError::InvalidAccountData)
+    } else {
+        Ok(())
+    }
 }
 
 fn verify_mint_authority_account(account: &AccountInfo, program_id: &Pubkey) -> ProgramResult {
@@ -143,7 +160,7 @@ fn verify_token_account(account: &AccountInfo) -> ProgramResult {
     }
 }
 
-fn verify_comptoken_account(account: &AccountInfo) -> ProgramResult {
+fn verify_comptoken_program_account(account: &AccountInfo) -> ProgramResult {
     if *account.key != COMPTOKEN_ADDRESS {
         Err(ProgramError::InvalidAccountData)
     } else {
@@ -173,54 +190,46 @@ pub fn test_mint(
     let token_account = next_account_info(account_info_iter)?;
     let comptoken_account = next_account_info(account_info_iter)?;
 
-    verify_destination_account(destination_account)?;
+    verify_comptoken_account(destination_account)?;
     verify_mint_authority_account(mint_authority_account, program_id)?;
     verify_token_account(token_account)?;
-    verify_comptoken_account(comptoken_account)?;
+    verify_comptoken_program_account(comptoken_account)?;
 
     let amount = 2;
 
-    //let destination_pubkey = accounts[0].key;
-    // Create the mint_to instruction
-    //let mint_pda = Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, &program_id)?;
-    //msg!("Mint PDA: {:?}", mint_pda);
-    // msg!("bump: {:?}", bump);
     mint(
         mint_authority_account.key,
         destination_account.key,
         amount,
         accounts,
     )
-    //let mint_to_instruction = mint_to(
-    //    &spl_token::id(),
-    //    &COMPTOKEN_ADDRESS,
-    //    &destination_pubkey,
-    //    &mint_pda,
-    //    &[&mint_pda],
-    //    amount,
-    //)?;
-    //// accounts.push(AccountInfo::new(&mint_pda, true, true));
-    //// Invoke the token program
-    //let result = invoke_signed(&mint_to_instruction, accounts, &[COMPTO_STATIC_PDA_SEEDS])?;
-    //// msg!("Result: {:?}", result);
-    //// gracefully exit the program
-    //Ok(())
 }
 
-fn verify_data_mint_comptokens(destination: &Pubkey, data: &[u8]) -> Result<Hash, ProgramError> {
-    if data.len() != comptoken_proof::VERIFY_DATA_SIZE {
+fn verify_data_mint_comptokens<'a>(
+    destination: &'a Pubkey,
+    data: &[u8],
+) -> Result<(u8, ComptokenProof<'a>), ProgramError> {
+    if data.len() != comptoken_proof::VERIFY_DATA_SIZE + 1 {
         msg!("invalid instruction data");
         Err(ProgramError::InvalidInstructionData)
     } else {
-        let block = ComptokenProof::from_bytes(destination, data.try_into().expect("correct size"));
-        msg!("block: {:?}", block);
-        if !comptoken_proof::verify_proof(&block) {
+        let bump = data[0];
+        let proof =
+            ComptokenProof::from_bytes(destination, data[1..].try_into().expect("correct size"));
+        msg!("block: {:?}", proof);
+        if !comptoken_proof::verify_proof(&proof) {
             msg!("invalid proof");
             Err(ProgramError::InvalidArgument)
         } else {
-            Ok(block.hash)
+            Ok((bump, proof))
         }
     }
+}
+
+fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResult {
+    // TODO: store hash
+    let a = data_account.data.borrow_mut().as_mut();
+    Ok(())
 }
 
 pub fn mint_comptokens(
@@ -229,39 +238,37 @@ pub fn mint_comptokens(
     instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
-    //      destination pda
-    //      mint authority pda
-    //      spl_token id
-    //      comptoken id
-
-    //msg!("instruction_data: {:?}", instruction_data);
-    //for account_info in accounts.iter() {
-    //    msg!("Public Key: {:?}", account_info.key);
-    //}
+    //      destination token account (writable)
+    //      destination data account (writable)
+    //      mint authority account
+    //      spl_token account
+    //      comptoken program account (writable)
 
     let account_info_iter = &mut accounts.iter();
     let destination_account = next_account_info(account_info_iter)?;
+    let data_account = next_account_info(account_info_iter)?;
     let mint_authority_account = next_account_info(account_info_iter)?;
     let token_account = next_account_info(account_info_iter)?;
     let comptoken_account = next_account_info(account_info_iter)?;
 
-    verify_destination_account(destination_account)?;
+    verify_comptoken_account(destination_account)?;
     verify_mint_authority_account(mint_authority_account, program_id)?;
     verify_token_account(token_account)?;
-    verify_comptoken_account(comptoken_account)?;
+    verify_comptoken_program_account(comptoken_account)?;
+    let (bump, proof) = verify_data_mint_comptokens(destination_account.key, instruction_data)?;
+    verify_comptoken_data_account(data_account, destination_account, bump, program_id)?;
 
-    let hash = verify_data_mint_comptokens(destination_account.key, instruction_data)?;
     let amount = 2;
 
-    msg!("Hash: {:?}", hash);
-    //test_mint(program_id, accounts, instruction_data)?;
+    // now save the hash to the account, returning an error if the hash already exists
+    store_hash(proof, data_account)?;
+
     mint(
         mint_authority_account.key,
-        destination_account.key,
+        &destination_account.key,
         amount,
         accounts,
     )?;
-    // now save the hash to the account
 
     todo!("implement minting and storing of hashing");
     Ok(())
