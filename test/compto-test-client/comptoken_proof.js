@@ -79,6 +79,7 @@ export async function mintComptokens(connection, destination_pubkey, temp_keypai
     ]);
     let keys = [
         { pubkey: destination_pubkey, isSigner: false, isWritable: true },
+        { pubkey: ?, isSigner: false, isWritable: true },
         { pubkey: static_pda_pubkey, isSigner: false, isWritable: false},
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: comptoken_pubkey, isSigner: false, isWritable: true },

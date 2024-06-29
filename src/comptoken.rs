@@ -12,11 +12,14 @@ use solana_program::{
     program::invoke_signed,
     pubkey::Pubkey,
     system_instruction::create_account,
-    sysvar::{self, slot_history::ProgramError},
+    sysvar::slot_history::ProgramError,
 };
 use spl_token::instruction::mint_to;
 // declare and export the program's entrypoint
 entrypoint!(process_instruction);
+
+// MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN test_client.js
+const STATIC_ACCOUNT_SPACE: u64 = 4096;
 
 // full_deploy_test.py generates a comptoken_generated.rs
 // The first build must not have the testmode feature enabled so that a ProgramId is created.
@@ -70,21 +73,28 @@ pub fn initialize_static_data_account(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
-    let mint_pda = Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, &program_id)?;
-    assert_eq!(accounts[0].key, &mint_pda, "Invalid Mint PDA account.");
+    //  accounts order:
+    //      owner id
+    //      mint authority? pda
 
     msg!("instruction_data: {:?}", instruction_data);
 
-    // let initialize_account_instruction =
+    let account_info_iter = &mut accounts.iter();
+    let owner_account = next_account_info(account_info_iter)?;
+    let mint_authority_account = next_account_info(account_info_iter)?;
+
+    // verify_owner_account(owner_account)?;
+    verify_mint_authority_account(mint_authority_account, program_id)?;
+
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
-    let lamports = u64::from_le_bytes(first_8_bytes);
+    let lamports = u64::from_be_bytes(first_8_bytes);
     msg!("Lamports: {:?}", lamports);
+
     let create_acct_instr = create_account(
-        accounts[1].key,
-        &mint_pda,
+        owner_account.key,
+        &mint_authority_account.key,
         lamports,
-        // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN test_client.js
-        4096,
+        STATIC_ACCOUNT_SPACE,
         program_id,
     );
     // let createacct = SystemInstruction::CreateAccount { lamports: (1000), space: (256), owner: *program_id };
@@ -147,11 +157,10 @@ pub fn test_mint(
     instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
-    //      destination pda
-    //      mint authority? pda
-    //      spl_token id
-    //      program id (need?) works without
-    //      comptoken id
+    //      destination comptoken account
+    //      mint authority account
+    //      spl_token account
+    //      comptoken program account
 
     msg!("instruction_data: {:?}", instruction_data);
     for account_info in accounts.iter() {

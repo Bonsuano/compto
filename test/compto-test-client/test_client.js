@@ -124,13 +124,10 @@ async function initializeStaticAccount() {
     data.writeBigInt64LE(BigInt(rentExemptAmount), 1);
     console.log("data: ", data);
     let keys = [
-        { pubkey: static_pda_pubkey, isSigner: false, isWritable: true},
         { pubkey: temp_keypair.publicKey, isSigner: true, isWritable: true },
+        { pubkey: static_pda_pubkey, isSigner: false, isWritable: true},
         // needed because compto program interacts with the system program to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false}
-        // { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        //{ pubkey: destination_pubkey, isSigner: false, isWritable: true },
-        //{ pubkey: compto_program_id_pubkey, isSigner: false, isWritable: false },
     ];
     let initializeStaticAccountTransaction = new Transaction();
     initializeStaticAccountTransaction.add(
