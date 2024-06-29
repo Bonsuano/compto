@@ -82,10 +82,10 @@ pub fn initialize_static_data_account(
 
     let account_info_iter = &mut accounts.iter();
     let owner_account = next_account_info(account_info_iter)?;
-    let mint_authority_account = next_account_info(account_info_iter)?;
+    let mint_authority_pda = next_account_info(account_info_iter)?;
 
     // verify_owner_account(owner_account)?;
-    verify_mint_authority_account(mint_authority_account, program_id)?;
+    verify_mint_authority_pda(mint_authority_pda, program_id)?;
 
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
     let lamports = u64::from_be_bytes(first_8_bytes);
@@ -93,7 +93,7 @@ pub fn initialize_static_data_account(
 
     let create_acct_instr = create_account(
         owner_account.key,
-        &mint_authority_account.key,
+        &mint_authority_pda.key,
         lamports,
         STATIC_ACCOUNT_SPACE,
         program_id,
@@ -143,7 +143,7 @@ fn verify_comptoken_data_account(
     }
 }
 
-fn verify_mint_authority_account(account: &AccountInfo, program_id: &Pubkey) -> ProgramResult {
+fn verify_mint_authority_pda(account: &AccountInfo, program_id: &Pubkey) -> ProgramResult {
     // TODO: is this correct
     if *account.key != Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id)? {
         Err(ProgramError::InvalidAccountData)
@@ -191,7 +191,7 @@ pub fn test_mint(
     let comptoken_account = next_account_info(account_info_iter)?;
 
     verify_comptoken_account(destination_account)?;
-    verify_mint_authority_account(mint_authority_account, program_id)?;
+    verify_mint_authority_pda(mint_authority_account, program_id)?;
     verify_token_account(token_account)?;
     verify_comptoken_program_account(comptoken_account)?;
 
