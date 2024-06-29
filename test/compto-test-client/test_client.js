@@ -121,7 +121,7 @@ async function initializeStaticAccount() {
     console.log("Rent exempt amount: ", rentExemptAmount);
     let data = Buffer.alloc(9);
     data.writeUInt8(Instruction.INITIALIZE_STATIC_ACCOUNT, 0);
-    data.writeBigInt64LE(BigInt(rentExemptAmount), 1);
+    data.writeBigInt64BE(BigInt(rentExemptAmount), 1);
     console.log("data: ", data);
     let keys = [
         { pubkey: temp_keypair.publicKey, isSigner: true, isWritable: true },

@@ -9,7 +9,6 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
-    hash::Hash,
     msg,
     program::invoke_signed,
     pubkey::Pubkey,
@@ -256,7 +255,7 @@ pub fn mint_comptokens(
     let comptoken_account = next_account_info(account_info_iter)?;
 
     verify_comptoken_account(destination_account)?;
-    verify_mint_authority_account(mint_authority_account, program_id)?;
+    verify_mint_authority_pda(mint_authority_account, program_id)?;
     verify_token_account(token_account)?;
     verify_comptoken_program_account(comptoken_account)?;
     let (bump, proof) = verify_data_mint_comptokens(destination_account.key, instruction_data)?;
