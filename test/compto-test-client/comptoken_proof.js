@@ -1,5 +1,5 @@
 import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { Transaction, TransactionInstruction, sendAndConfirmTransaction } from '@solana/web3.js';
+import { PublicKey, Transaction, TransactionInstruction, sendAndConfirmTransaction } from '@solana/web3.js';
 import * as bs58_ from "bs58";
 import { assert } from "console";
 import { createHash } from "crypto";
@@ -79,7 +79,7 @@ export async function mintComptokens(connection, destination_pubkey, temp_keypai
     ]);
     let keys = [
         { pubkey: destination_pubkey, isSigner: false, isWritable: true },
-        { pubkey: ?, isSigner: false, isWritable: true },
+        { pubkey: PublicKey.default(), isSigner: false, isWritable: true }, // TODO: get correct publicKey
         { pubkey: static_pda_pubkey, isSigner: false, isWritable: false},
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: comptoken_pubkey, isSigner: false, isWritable: true },
