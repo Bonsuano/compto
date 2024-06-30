@@ -123,7 +123,9 @@ async function initializeStaticAccount() {
     data.writeBigInt64BE(BigInt(rentExemptAmount), 1);
     console.log("data: ", data);
     let keys = [
+        // the payer of the rent for the account
         { pubkey: temp_keypair.publicKey, isSigner: true, isWritable: true },
+        // the address of the account to be created
         { pubkey: static_pda_pubkey, isSigner: false, isWritable: true},
         // needed because compto program interacts with the system program to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false}
