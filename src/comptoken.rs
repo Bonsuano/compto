@@ -1,10 +1,10 @@
 mod comptoken_proof;
-mod hash_storage;
+// mod hash_storage; // coming soon
 
 extern crate bs58;
 
 use comptoken_proof::ComptokenProof;
-use hash_storage::{ErrorAfterSuccess, HashStorage};
+// use hash_storage::{ErrorAfterSuccess, HashStorage};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -188,16 +188,17 @@ fn verify_comptoken_proof_userdata<'a>(
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResult {
     // TODO: store hash
-    let hash_storage: &mut HashStorage = data_account.data.borrow_mut().as_mut().try_into()?;
-    match hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account) {
-        Err(ProgramError::Custom(0)) => {
-            let hash_storage: &mut HashStorage =
-                data_account.data.borrow_mut().as_mut().try_into()?;
-            hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
-        }
-        Err(E) => Err(E),
-        Ok(o) => Ok(o),
-    }
+    // let hash_storage: &mut HashStorage = data_account.data.borrow_mut().as_mut().try_into()?;
+    // match hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account) {
+    //     Err(ProgramError::Custom(0)) => {
+    //         let hash_storage: &mut HashStorage =
+    //             data_account.data.borrow_mut().as_mut().try_into()?;
+    //         hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
+    //     }
+    //     Err(E) => Err(E),
+    //     Ok(o) => Ok(o),
+    // }
+    Ok(())
 }
 
 pub fn mint_comptokens(
