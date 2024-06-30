@@ -83,11 +83,10 @@ async function testMint() {
         { pubkey: destination_pubkey, isSigner: false, isWritable: true },
         // the mint authority that will sign to mint the tokens
         { pubkey: static_pda_pubkey, isSigner: false, isWritable: false},
-        // ...
+        // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
-        // ...
-        //{ pubkey: compto_program_id_pubkey, isSigner: false, isWritable: false },
-        //// ....
+        // communicates to the token program which mint (and therefore which mint authority)
+        // to mint the tokens from
         { pubkey: comptoken_pubkey, isSigner: false, isWritable: true },
     ];
     let testMintTransaction = new Transaction();
