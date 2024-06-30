@@ -122,40 +122,23 @@ fn mint(
     invoke_signed(&instruction, accounts, &[COMPTO_STATIC_PDA_SEEDS])
 }
 
-fn verify_comptoken_account(account: &AccountInfo) -> ProgramResult {
-    // TODO: verify comptoken accounts
+fn verify_comptoken_user_account(account: &AccountInfo) -> ProgramResult {
+    // TODO: verify comptoken user accounts
     Ok(())
 }
 
-fn verify_comptoken_data_account(
-    comptoken_data_account: &AccountInfo,
-    comptoken_account: &AccountInfo,
+fn verify_comptoken_user_data_account(
+    comptoken_user_data_account: &AccountInfo,
+    comptoken_user_account: &AccountInfo,
     program_id: &Pubkey,
-) -> ProgramResult {
-    // TODO: verify data account
-    if *comptoken_data_account.key
-        != Pubkey::find_program_address(&[comptoken_account.key.as_ref()], program_id).0
-    {
-        Err(ProgramError::InvalidAccountOwner)
-    } else {
-        Ok(())
-    }
-}
-
-fn verify_token_account(account: &AccountInfo) -> ProgramResult {
-    if *account.key != spl_token::id() {
-        Err(ProgramError::InvalidAccountData)
-    } else {
-        Ok(())
-    }
-}
-
-fn verify_comptoken_program_account(account: &AccountInfo) -> ProgramResult {
-    if *account.key != COMPTOKEN_ADDRESS {
-        Err(ProgramError::InvalidAccountData)
-    } else {
-        Ok(())
-    }
+) {
+    // if we ever need a user data account to sign something,
+    // then we should return the bumpseed in this function
+    assert_eq!(
+        *comptoken_user_data_account.key, 
+        Pubkey::find_program_address(&[comptoken_user_account.key.as_ref()], program_id).0, 
+        "Invalid user data account"
+    );
 }
 
 pub fn test_mint(
@@ -180,9 +163,7 @@ pub fn test_mint(
     let token_account = next_account_info(account_info_iter)?;
     let comptoken_account = next_account_info(account_info_iter)?;
 
-    verify_comptoken_account(destination_account)?;
-    verify_token_account(token_account)?;
-    verify_comptoken_program_account(comptoken_account)?;
+    verify_comptoken_user_account(destination_account)?;
 
     let amount = 2;
 
@@ -194,23 +175,15 @@ pub fn test_mint(
     )
 }
 
-fn verify_data_mint_comptokens<'a>(
+fn verify_comptoken_proof_userdata<'a>(
     destination: &'a Pubkey,
     data: &[u8],
-) -> Result<ComptokenProof<'a>, ProgramError> {
-    if data.len() != comptoken_proof::VERIFY_DATA_SIZE {
-        msg!("invalid instruction data");
-        Err(ProgramError::InvalidInstructionData)
-    } else {
-        let proof = ComptokenProof::from_bytes(destination, data.try_into().expect("correct size"));
-        msg!("block: {:?}", proof);
-        if !comptoken_proof::verify_proof(&proof) {
-            msg!("invalid proof");
-            Err(ProgramError::InvalidArgument)
-        } else {
-            Ok(proof)
-        }
-    }
+) -> ComptokenProof<'a> {
+    assert_eq!(data.len(), comptoken_proof::VERIFY_DATA_SIZE, "Invalid proof size");
+    let proof = ComptokenProof::from_bytes(destination, data.try_into().expect("correct size"));
+    msg!("block: {:?}", proof);
+    assert!(comptoken_proof::verify_proof(&proof), "invalid proof");
+    return proof;
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResult {
@@ -246,11 +219,9 @@ pub fn mint_comptokens(
     let token_account = next_account_info(account_info_iter)?;
     let comptoken_account = next_account_info(account_info_iter)?;
 
-    verify_comptoken_account(destination_account)?;
-    verify_token_account(token_account)?;
-    verify_comptoken_program_account(comptoken_account)?;
-    let proof = verify_data_mint_comptokens(destination_account.key, instruction_data)?;
-    verify_comptoken_data_account(data_account, destination_account, program_id)?;
+    verify_comptoken_user_account(destination_account)?;
+    let proof = verify_comptoken_proof_userdata(destination_account.key, instruction_data);
+    verify_comptoken_user_data_account(data_account, destination_account, program_id);
 
     msg!("data/accounts verified");
     let amount = 2;
