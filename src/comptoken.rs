@@ -4,7 +4,7 @@ mod hash_storage;
 extern crate bs58;
 
 use comptoken_proof::ComptokenProof;
-use hash_storage::{ErrorAfterSuccess, HashStorage};
+use hash_storage::HashStorage;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -224,17 +224,8 @@ fn verify_data_mint_comptokens<'a>(
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResult {
-    // TODO: store hash
     let hash_storage: &mut HashStorage = data_account.data.borrow_mut().as_mut().try_into()?;
-    match hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account) {
-        Err(ProgramError::Custom(0)) => {
-            let hash_storage: &mut HashStorage =
-                data_account.data.borrow_mut().as_mut().try_into()?;
-            hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
-        }
-        Err(E) => Err(E),
-        Ok(o) => Ok(o),
-    }
+    hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
 }
 
 pub fn mint_comptokens(
@@ -265,7 +256,6 @@ pub fn mint_comptokens(
 
     msg!("data/accounts verified");
     let amount = 2;
-
     // now save the hash to the account, returning an error if the hash already exists
     store_hash(proof, data_account)?;
 

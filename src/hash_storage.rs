@@ -98,14 +98,14 @@ impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
     type Error = ProgramError;
 
     fn try_from(data: &mut [u8]) -> Result<Self, Self::Error> {
-        let capacity = u32::from_be_bytes(data[0..4].try_into().expect("correct size"));
-        let size_blockhash_1 = u32::from_be_bytes(data[4..8].try_into().expect("correct size"));
-        let size_blockhash_2 = u32::from_be_bytes(data[8..12].try_into().expect("correct size"));
+        let capacity = u32::from_ne_bytes(data[0..4].try_into().expect("correct size"));
+        let size_blockhash_1 = u32::from_ne_bytes(data[4..8].try_into().expect("correct size"));
+        let size_blockhash_2 = u32::from_ne_bytes(data[8..12].try_into().expect("correct size"));
         // if data.len() != <sizeof HashStorage w/ capacity Hashes>
         if data.len() != 96 + (capacity as usize) * HASH_BYTES {
             return Err(ProgramError::InvalidAccountData);
         }
-        if size_blockhash_1 + size_blockhash_2 <= capacity {
+        if size_blockhash_1 + size_blockhash_2 > capacity {
             return Err(ProgramError::InvalidAccountData);
         }
         // Safety:
@@ -113,13 +113,21 @@ impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
         // capacity corresponds with length
         // size_blockhash_1 and size_blockhash_2 are within possible bounds
         // Hash's are valid with any bit pattern
-        Ok(unsafe { std::mem::transmute(data) })
+        //Ok(unsafe { std::mem::transmute(data) })
+        let new_len = (data.len() / 32) - 3;
+        unsafe {
+            let data_hashes =
+                core::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut Hash, new_len);
+            let result: &mut HashStorage = std::mem::transmute(data_hashes);
+            Ok(result)
+        }
     }
 }
 
 impl HashStorage {
+    // may reallocate, which would invalidate `&mut self`, so takes `mut self: &mut Self`
     pub fn insert(
-        &mut self,
+        mut self: &mut Self,
         recent_blockhash: &Hash,
         new_hash: Hash,
         data_account: &AccountInfo,
@@ -147,12 +155,9 @@ impl HashStorage {
             self.size_blockhash_1 = self.size_blockhash_2;
         }
 
-        // defensive programming, the capacity should be increased after inserting to
-        // maintain capacity > total_size
+        // reallocate if necessary
         if self.capacity == self.size_blockhash_1 + self.size_blockhash_2 {
-            // this invalidates self, so we can no longer insert and must Err
             self.realloc(data_account)?;
-            return Err(ProgramError::Custom(0));
         }
 
         // If the provided hash matches recent_hash_2 then
@@ -203,33 +208,28 @@ impl HashStorage {
             self.hashes[self.size_blockhash_1 as usize] = new_hash;
             self.size_blockhash_1 += 1;
         }
-
-        //if self.capacity == self.size_blockhash_1 + self.size_blockhash_2 {
-        //    // realloc invalidation does not matter here, b/c the insertion is done, and the
-        //    // invalidation is related to the runtime capacity of the HashStorage pointer
-        //    // getting out of sync with the true capacity of the data
-        //    return match self.realloc(data_account) {
-        //        Err(E) => Ok(ErrorAfterSuccess::Err(E)), // Unknown Error,
-        //        _ => Ok(ErrorAfterSuccess::None),
-        //    };
-        //}
         Ok(())
     }
 
-    // realloc invalidates `&mut self`, `&mut self` stores data about how large self.hashes is
-    // and this function increases the size of self.hashes without updating `&mut self`, possibly
-    // leading to problems if `&mut self` is used after calling this function. recreating the
-    // HashStorage from the data account should fix the discrepency
-    fn realloc(&mut self, data_account: &AccountInfo) -> ProgramResult {
-        // TODO: is it feasible to revalidate self?
-        //      probably requires understanding rusts fat pointers
+    // realloc invalidates `&mut self`, so it takes `&mut &mut self` in order to correct this
+    fn realloc(self: &mut &mut Self, data_account: &AccountInfo) -> ProgramResult {
         let increase = min(
-            self.capacity as usize * HASH_BYTES,
+            (*self).capacity as usize * HASH_BYTES,
             MAX_PERMITTED_DATA_INCREASE,
         );
-        let new_len = 96 + self.capacity as usize * HASH_BYTES + increase;
-        self.capacity += (new_len / HASH_BYTES) as u32;
-        data_account.realloc(new_len, false)
+        let new_len = 96 + (*self).capacity as usize * HASH_BYTES + increase;
+        (*self).capacity += (new_len / HASH_BYTES) as u32;
+        data_account.realloc(new_len, false)?;
+
+        unsafe {
+            let self_ptr: *mut Self = *self;
+            let data = core::slice::from_raw_parts_mut(
+                self_ptr as *mut u8,
+                (self.capacity * 32 + 96) as usize,
+            );
+            *self = data.try_into()?;
+        }
+        Ok(())
     }
 }
 
@@ -249,9 +249,4 @@ impl ValidHashes {
 
 fn get_valid_hashes() -> ValidHashes {
     ValidHashes::One(Hash::new_from_array([0; 32]))
-}
-
-pub enum ErrorAfterSuccess {
-    None,
-    Err(ProgramError),
 }
