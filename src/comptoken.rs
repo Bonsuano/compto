@@ -135,8 +135,8 @@ fn verify_comptoken_user_data_account(
     // if we ever need a user data account to sign something,
     // then we should return the bumpseed in this function
     assert_eq!(
-        *comptoken_user_data_account.key, 
-        Pubkey::find_program_address(&[comptoken_user_account.key.as_ref()], program_id).0, 
+        *comptoken_user_data_account.key,
+        Pubkey::find_program_address(&[comptoken_user_account.key.as_ref()], program_id).0,
         "Invalid user data account"
     );
 }
@@ -175,11 +175,12 @@ pub fn test_mint(
     )
 }
 
-fn verify_comptoken_proof_userdata<'a>(
-    destination: &'a Pubkey,
-    data: &[u8],
-) -> ComptokenProof<'a> {
-    assert_eq!(data.len(), comptoken_proof::VERIFY_DATA_SIZE, "Invalid proof size");
+fn verify_comptoken_proof_userdata<'a>(destination: &'a Pubkey, data: &[u8]) -> ComptokenProof<'a> {
+    assert_eq!(
+        data.len(),
+        comptoken_proof::VERIFY_DATA_SIZE,
+        "Invalid proof size"
+    );
     let proof = ComptokenProof::from_bytes(destination, data.try_into().expect("correct size"));
     msg!("block: {:?}", proof);
     assert!(comptoken_proof::verify_proof(&proof), "invalid proof");
