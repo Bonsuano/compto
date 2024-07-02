@@ -523,6 +523,68 @@ mod test {
         );
     }
 
-    //#[test]
-    //fn test_insert_duplicate() {}
+    #[test]
+    fn test_insert_duplicate() {
+        let lamports = &mut 999_999_999u64;
+        let mut arr = Data { arr: [[0; 128]; 2] };
+        let mut arr: ([u8; 160], [u8; 96]) = unsafe { std::mem::transmute(arr) };
+        let data: &mut [u8] = &mut arr.0;
+        write_data(
+            data,
+            2,
+            1,
+            0,
+            Hash::new_from_array([0; HASH_BYTES]),
+            Hash::new_from_array([1; HASH_BYTES]),
+            &[Hash::new_from_array([1; HASH_BYTES])],
+        );
+
+        let dummy_account = create_dummy_data_account(lamports, data);
+        let mut hs: &mut HashStorage = dummy_account
+            .try_borrow_mut_data()
+            .unwrap()
+            .as_mut()
+            .try_into()
+            .unwrap();
+
+        let result = hs.insert(
+            &Hash::new_from_array([0; HASH_BYTES]),
+            Hash::new_from_array([1; HASH_BYTES]),
+            &dummy_account,
+        );
+
+        match result {
+            Err(ProgramError::InvalidInstructionData) => {}
+            _ => assert!(false, "should have failed to insert"),
+        }
+
+        assert_eq!(hs.capacity, 2, "capacity should be 2");
+        assert_eq!(
+            hs.capacity as usize,
+            hs.hashes.len(),
+            "capacity should equal hashes.len()"
+        );
+        assert_eq!(hs.size_blockhash_1, 1, "size_blockhash_1 should be 1");
+        assert_eq!(hs.size_blockhash_2, 0, "size_blockhash_2 should be 0");
+        assert_eq!(
+            hs.recent_blockhash_1,
+            Hash::new_from_array([0; HASH_BYTES]),
+            "recent_blockhash_1 should be all zeros, (ones in bs58)"
+        );
+        assert_eq!(
+            hs.recent_blockhash_2,
+            Hash::new_from_array([1; HASH_BYTES]),
+            "recent_blockhash_2 should be all ones, (not in bs58)"
+        );
+        assert_eq!(
+            hs.hashes[0],
+            Hash::new_from_array([1; HASH_BYTES]),
+            "hashes[0] should be all ones (not in bs58)"
+        );
+        assert_eq!(
+            hs.hashes[1],
+            Hash::new_from_array([0; HASH_BYTES]),
+            "hashes[0] should be all zeroes (ones in bs58)"
+        );
+    }
 }
