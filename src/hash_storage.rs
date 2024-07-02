@@ -163,6 +163,7 @@ impl HashStorage {
                     self.hashes[(self.size_blockhash_1 + self.size_blockhash_2 - 1 - i) as usize];
             }
             self.size_blockhash_1 = self.size_blockhash_2;
+            self.size_blockhash_2 = 0;
         }
 
         // reallocate if necessary
