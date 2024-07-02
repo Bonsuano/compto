@@ -1,10 +1,10 @@
 mod comptoken_proof;
-// mod hash_storage; // coming soon
+mod hash_storage;
 
 extern crate bs58;
 
 use comptoken_proof::ComptokenProof;
-// use hash_storage::{ErrorAfterSuccess, HashStorage};
+use hash_storage::HashStorage;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -135,8 +135,8 @@ fn verify_comptoken_user_data_account(
     // if we ever need a user data account to sign something,
     // then we should return the bumpseed in this function
     assert_eq!(
-        *comptoken_user_data_account.key, 
-        Pubkey::find_program_address(&[comptoken_user_account.key.as_ref()], program_id).0, 
+        *comptoken_user_data_account.key,
+        Pubkey::find_program_address(&[comptoken_user_account.key.as_ref()], program_id).0,
         "Invalid user data account"
     );
 }
@@ -175,11 +175,12 @@ pub fn test_mint(
     )
 }
 
-fn verify_comptoken_proof_userdata<'a>(
-    destination: &'a Pubkey,
-    data: &[u8],
-) -> ComptokenProof<'a> {
-    assert_eq!(data.len(), comptoken_proof::VERIFY_DATA_SIZE, "Invalid proof size");
+fn verify_comptoken_proof_userdata<'a>(destination: &'a Pubkey, data: &[u8]) -> ComptokenProof<'a> {
+    assert_eq!(
+        data.len(),
+        comptoken_proof::VERIFY_DATA_SIZE,
+        "Invalid proof size"
+    );
     let proof = ComptokenProof::from_bytes(destination, data.try_into().expect("correct size"));
     msg!("block: {:?}", proof);
     assert!(comptoken_proof::verify_proof(&proof), "invalid proof");
@@ -187,18 +188,8 @@ fn verify_comptoken_proof_userdata<'a>(
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResult {
-    // TODO: store hash
-    // let hash_storage: &mut HashStorage = data_account.data.borrow_mut().as_mut().try_into()?;
-    // match hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account) {
-    //     Err(ProgramError::Custom(0)) => {
-    //         let hash_storage: &mut HashStorage =
-    //             data_account.data.borrow_mut().as_mut().try_into()?;
-    //         hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
-    //     }
-    //     Err(E) => Err(E),
-    //     Ok(o) => Ok(o),
-    // }
-    Ok(())
+    let mut hash_storage: &mut HashStorage = data_account.data.borrow_mut().as_mut().try_into()?;
+    hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
 }
 
 pub fn mint_comptokens(
@@ -226,7 +217,6 @@ pub fn mint_comptokens(
 
     msg!("data/accounts verified");
     let amount = 2;
-
     // now save the hash to the account, returning an error if the hash already exists
     store_hash(proof, data_account)?;
 
