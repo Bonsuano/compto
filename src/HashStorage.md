@@ -20,14 +20,17 @@ This is to prevent miners from doing useless work or having to spin down briefly
 
 The provided hash is checked for validity
 
-If 2 hashes -> 1 hash  
- 1. size_hash_2 = 0
+If there is only one valid recent hash, it is stored in recent_hash_1.
+
+check if provided recent_hash is valid
 
 If recent_hash_1 is no longer a valid recent_hash
  1. copy all the hashes in the second region to the first region
 
 If the provided hash matches recent_hash_2, 
  1. the hash is stored in the second region, at the end of size, increment size
+
+reallocate if capacity < size_blockhash_1 + size_blockhash_2
 
 If the provided hash matches recent_hash_1, then
  1. the first hash in the second region is moved to the end of the second region, the size of the second region does not increment
