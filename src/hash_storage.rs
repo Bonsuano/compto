@@ -281,23 +281,19 @@ mod test {
     use super::HashStorage;
 
     #[repr(align(32))]
-    //#[repr(packed)]
+    #[repr(C)]
     struct AlignedPubkey {
-        _align: u32,
-        _align1: u8,
+        original_data_len: u32, // realloc accesses this element for AccountInfo.key, so make sure it is defined behavior
         pubkey: Pubkey,
     }
 
-    const ZERO_PUBKEY: Pubkey = AlignedPubkey {
+    const ALIGNED_ZERO_PUBKEY: AlignedPubkey = AlignedPubkey {
+        original_data_len: 0,
         pubkey: Pubkey::new_from_array([0; 32]),
-        _align: 0,
-        _align1: 0,
-    }
-    .pubkey;
+    };
     const TOKEN: Pubkey = AlignedPubkey {
+        original_data_len: 0,
         pubkey: COMPTOKEN_ADDRESS,
-        _align: 0,
-        _align1: 0,
     }
     .pubkey;
 
@@ -307,9 +303,9 @@ mod test {
     }
 
     fn create_dummy_data_account<'a>(lamports: &'a mut u64, data: &'a mut [u8]) -> AccountInfo<'a> {
-        eprintln!("{:p} ", &ZERO_PUBKEY);
+        eprintln!("{:p} ", &ALIGNED_ZERO_PUBKEY);
         AccountInfo {
-            key: &ZERO_PUBKEY,
+            key: &ALIGNED_ZERO_PUBKEY.pubkey,
             lamports: Rc::new(RefCell::new(lamports)),
             data: Rc::new(RefCell::new(data)),
             owner: &TOKEN,
