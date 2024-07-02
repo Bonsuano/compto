@@ -224,7 +224,7 @@ fn verify_data_mint_comptokens<'a>(
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResult {
-    let hash_storage: &mut HashStorage = data_account.data.borrow_mut().as_mut().try_into()?;
+    let mut hash_storage: &mut HashStorage = data_account.data.borrow_mut().as_mut().try_into()?;
     hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
 }
 
