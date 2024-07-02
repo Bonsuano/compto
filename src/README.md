@@ -6,6 +6,8 @@ TODO: Add drawio for struct layout
 
 TODO: Move other documentation to this file
 
+TODO: Good name for Gif
+
 TODO: Move all the user pda code to its own folder, maybe separate docs from code? Maybe not.
 
 ## Memory Layout
@@ -52,6 +54,10 @@ State Transitions:
 
 ![image](proof_flow.drawio.png)  
 [ASCII version](#ascii-state-transition-diagram) if the image doesn't work  
+
+## Gif
+
+![image](HashStorage.gif)
 
 ## ASCII ART
 
