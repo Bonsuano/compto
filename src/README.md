@@ -10,6 +10,8 @@ TODO: Move all the user pda code to its own folder, maybe separate docs from cod
 
 ## Memory Layout
 
+![image](HashStorage_Memory_Layout.png)  
+[ASCII version](#ascii-memory-layout) if the image doesn't work  
 
 ## State Machine View
 
