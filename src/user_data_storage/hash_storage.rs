@@ -18,8 +18,7 @@ pub struct HashStorage {
     size_blockhash_2: u32,
     _padding_1: [u8; 4],
     _padding_2: [u8; 16],
-    recent_blockhash_1: Hash,
-    recent_blockhash_2: Hash,
+    recent_hashes: HashStorageStates,
     hashes: [Hash],
 }
 
@@ -61,6 +60,18 @@ impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
     }
 }
 
+#[derive(Debug)]
+enum HashStorageStates {
+    NoHashes,
+    OneHash(Hash),
+    TwoHashes(Hash, Hash),
+}
+
+
+// Implements a state machine, see documentation/HashStorage.md for more information
+// new_hash should already be checked for validity (with exception of duplicate check)
+// recent_hash should also be valid, and the same as one of the valid_hashes
+// valid_hashes should also be the most updated, from Solana runtime
 impl HashStorage {
     // may reallocate, which would invalidate `&mut self`, so takes `mut self: &mut Self`
     pub fn insert(
@@ -70,12 +81,74 @@ impl HashStorage {
         valid_hashes: ValidHashes,
         data_account: &AccountInfo,
     ) -> ProgramResult {
-        // The provided recent_blockhash is checked for validity
-        //let valid_hashes = get_valid_hashes();
-        if !valid_hashes.contains(recent_blockhash) {
-            return Err(ProgramError::InvalidInstructionData);
-        }
+        match &self.recent_hashes {
+            HashStorageStates::NoHashes => {
+                // State Transition 1
+                // no stored hashes, add the new hash
+                self.recent_hashes = HashStorageStates::OneHash(*recent_blockhash);
+                self.hashes[0] = new_hash;
+                self.size_blockhash_1 = 1;
+            }
+            HashStorageStates::OneHash(rh) => {
+                if !valid_hashes.contains(rh) {
+                    // State Transition 2 (implicit) and State Transition 1
+                    // If the stored one hash is no longer valid, then replace it with the new valid one
+                    self.recent_hashes = HashStorageStates::OneHash(*recent_blockhash);
+                    self.hashes[0] = new_hash;
+                    self.size_blockhash_1 = 1;
+                } else if rh == recent_blockhash {
+                    // State Transition 3
+                    // If another proof is being added using the same recent_blockhash
+                    self.check_for_duplicate(new_hash);
+                    self.hashes[self.size_blockhash_1 as usize] = new_hash;
+                    self.size_blockhash_1 += 1;
+                } else {
+                    // State Transition 4
+                    // If the stored one hash is valid, but not the same as the new hash, then
+                    // add the new hash to the second region
+                    // TODO: enforce that the old hash (new hash?) is in slot 1
+                    self.recent_hashes = HashStorageStates::TwoHashes(*rh, *recent_blockhash);
+                    // region 2 begins at the end of region 1
+                    self.hashes[self.size_blockhash_1 as usize] = new_hash;
+                    self.size_blockhash_2 += 1;
+                }
+            }
+            HashStorageStates::TwoHashes(rh1, rh2) => {
+                let rh1_is_valid = valid_hashes.contains(&self.recent_blockhash_1);
+                let rh2_is_valid = valid_hashes.contains(&self.recent_blockhash_2);
+                if (rh1_is_valid && rh2_is_valid) {
+                    // State Transition 6
+                } else {
+                    // State Transition 5
+                    if (rh1_is_valid) {
 
+                    } else if (rh2_is_valid) {
+                        
+                    } else {
+                        // State Transition 2
+                    }
+                }
+
+
+
+                if valid_hashes.contains(rh1) && valid_hashes.contains(rh2) {
+                    // State Transition 6
+                } else {
+                    // State Transition 5
+                    if 
+
+                }
+            }
+        }
+        let is_two_hash_state = self.size_blockhash_2 > 0;
+
+
+
+        let rh1_is_valid = valid_hashes.contains(&self.recent_blockhash_1);
+        let rh2_is_valid = valid_hashes.contains(&self.recent_blockhash_2);
+
+
+        // State Transition 5
         // If 2 blockhashes -> 1 blockhash
         //    size_blockhash_2 = 0
         if !valid_hashes.contains(&self.recent_blockhash_2) {
@@ -84,7 +157,7 @@ impl HashStorage {
 
         // If recent_blockhash_1 is no longer a valid recent_hash
         //    copy all the hashes in the second region to the first region
-        //      (some optimizations have been made to prevent unnecessary copies)
+        //    (some optimizations have been made to prevent unnecessary copies)
         if !valid_hashes.contains(&self.recent_blockhash_1) {
             for i in 0..min(self.size_blockhash_1, self.size_blockhash_2) {
                 self.hashes[i as usize] =
@@ -105,12 +178,7 @@ impl HashStorage {
         //          the size of the second region does not increment
         //      (3) the hash is stored in the first region, at the end of size, increment size
         if *recent_blockhash == self.recent_blockhash_1 {
-            if self.hashes[0..self.size_blockhash_1 as usize]
-                .iter()
-                .any(|hash| *hash == new_hash)
-            {
-                return Err(ProgramError::InvalidInstructionData);
-            }
+
             self.hashes[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
                 self.hashes[self.size_blockhash_1 as usize];
             self.hashes[self.size_blockhash_1 as usize] = new_hash;
@@ -169,6 +237,12 @@ impl HashStorage {
             *self = data.try_into()?;
         }
         Ok(())
+    }
+
+    fn check_for_duplicate(&self, new_hash: Hash) {
+        assert!(self.hashes[0..self.size_blockhash_1 + self.size_blockhash_2 as usize]
+            .iter()
+            .any(|hash| *hash == new_hash));
     }
 
     fn write_data(&mut self) {
