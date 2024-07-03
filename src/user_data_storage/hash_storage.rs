@@ -8,6 +8,8 @@ use solana_program::{
     program_error::ProgramError,
 };
 
+use crate::ValidHashes;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct HashStorage {
@@ -65,10 +67,11 @@ impl HashStorage {
         self: &mut &mut Self,
         recent_blockhash: &Hash,
         new_hash: Hash,
+        valid_hashes: ValidHashes,
         data_account: &AccountInfo,
     ) -> ProgramResult {
         // The provided recent_blockhash is checked for validity
-        let valid_hashes = get_valid_hashes();
+        //let valid_hashes = get_valid_hashes();
         if !valid_hashes.contains(recent_blockhash) {
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -173,24 +176,6 @@ impl HashStorage {
         self.size_blockhash_1 = self.size_blockhash_1.to_be();
         self.size_blockhash_2 = self.size_blockhash_2.to_be();
     }
-}
-
-enum ValidHashes {
-    One(Hash),
-    Two(Hash, Hash),
-}
-
-impl ValidHashes {
-    fn contains(&self, hash: &Hash) -> bool {
-        match self {
-            Self::One(h) => h == hash,
-            Self::Two(h1, h2) => h1 == hash || h2 == hash,
-        }
-    }
-}
-
-fn get_valid_hashes() -> ValidHashes {
-    ValidHashes::One(Hash::new_from_array([0; 32]))
 }
 
 #[cfg(test)]
@@ -360,6 +345,7 @@ mod test {
         hs.insert(
             &Hash::new_from_array([0; HASH_BYTES]),
             Hash::new_from_array([1; HASH_BYTES]),
+            crate::ValidHashes::One(Hash::new_from_array([0; HASH_BYTES])),
             &dummy_account,
         )
         .unwrap();
@@ -415,6 +401,7 @@ mod test {
         hs.insert(
             &Hash::new_from_array([0; HASH_BYTES]),
             Hash::new_from_array([2; HASH_BYTES]),
+            crate::ValidHashes::One(Hash::new_from_array([0; HASH_BYTES])),
             &dummy_account,
         )
         .unwrap();
@@ -476,6 +463,7 @@ mod test {
         let result = hs.insert(
             &Hash::new_from_array([0; HASH_BYTES]),
             Hash::new_from_array([1; HASH_BYTES]),
+            crate::ValidHashes::One(Hash::new_from_array([0; HASH_BYTES])),
             &dummy_account,
         );
 

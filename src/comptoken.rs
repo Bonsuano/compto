@@ -8,6 +8,7 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
+    hash::Hash,
     msg,
     program::invoke_signed,
     pubkey::Pubkey,
@@ -187,9 +188,33 @@ fn verify_comptoken_proof_userdata<'a>(destination: &'a Pubkey, data: &[u8]) -> 
     return proof;
 }
 
+pub enum ValidHashes {
+    One(Hash),
+    Two(Hash, Hash),
+}
+
+impl ValidHashes {
+    pub fn contains(&self, hash: &Hash) -> bool {
+        match self {
+            Self::One(h) => h == hash,
+            Self::Two(h1, h2) => h1 == hash || h2 == hash,
+        }
+    }
+}
+
+fn get_valid_hashes() -> ValidHashes {
+    // TODO: implement
+    ValidHashes::One(Hash::new_from_array([0; 32]))
+}
+
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResult {
     let mut hash_storage: &mut HashStorage = data_account.data.borrow_mut().as_mut().try_into()?;
-    hash_storage.insert(&proof.recent_block_hash, proof.hash, data_account)
+    hash_storage.insert(
+        &proof.recent_block_hash,
+        proof.hash,
+        get_valid_hashes(),
+        data_account,
+    )
 }
 
 pub fn mint_comptokens(
