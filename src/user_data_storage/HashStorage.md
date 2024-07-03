@@ -14,7 +14,7 @@ TODO: Move all the user pda code to its own folder, maybe separate docs from cod
 
 The purpose of this structure is to allow miners a small overlap of time,
 where they can either submit a hash with the old recent_hash or a hash with the new recent_hash, and both are considered valid.
-This is to prevent miners from doing useless work or having to spin down briefly once per day as the recent_hash changes.
+This is to prevent miners from doing useless work or having to spin down briefly once per day as the recent_hash changes.  
 
 ### insert
 

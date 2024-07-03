@@ -109,7 +109,7 @@ impl HashStorage {
         //      [state transition 2/5]
         if self.size_blockhash_1 == 0 {
             self.hashes[0] = new_hash;
-            self.size_blockhash_1 += 1;
+            self.size_blockhash_1 = 1;
 
         // If the provided hash matches recent_hash_1, then
         //      (1) the hash is checked against existing hashes
