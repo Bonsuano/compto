@@ -1,10 +1,9 @@
 mod comptoken_proof;
-mod hash_storage;
+mod user_data_storage;
 
 extern crate bs58;
 
 use comptoken_proof::ComptokenProof;
-use hash_storage::HashStorage;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -16,6 +15,7 @@ use solana_program::{
     sysvar::slot_history::ProgramError,
 };
 use spl_token::instruction::mint_to;
+use user_data_storage::HashStorage;
 // declare and export the program's entrypoint
 entrypoint!(process_instruction);
 

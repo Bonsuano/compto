@@ -6,7 +6,7 @@ TODO: Add drawio for struct layout
 
 TODO: Move other documentation to this file
 
-TODO: Good name for Gif
+TODO: Good name for Gif section
 
 TODO: Move all the user pda code to its own folder, maybe separate docs from code? Maybe not.
 
