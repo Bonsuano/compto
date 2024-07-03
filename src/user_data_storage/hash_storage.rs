@@ -78,14 +78,19 @@ impl HashStorage {
 
         // If 2 blockhashes -> 1 blockhash
         //    size_blockhash_2 = 0
-        if !valid_hashes.contains(&self.recent_blockhash_2) {
+
+        // if recent_blockhash_2 is no longer valid
+        //      set size_blockhash_2 to 0
+        //      [state transition 3]
+        if self.size_blockhash_2 > 0 && !valid_hashes.contains(&self.recent_blockhash_2) {
             self.size_blockhash_2 = 0;
         }
 
         // If recent_blockhash_1 is no longer a valid recent_hash
         //    copy all the hashes in the second region to the first region
         //      (some optimizations have been made to prevent unnecessary copies)
-        if !valid_hashes.contains(&self.recent_blockhash_1) {
+        //      [state transition 3/4]
+        if self.size_blockhash_1 > 0 && !valid_hashes.contains(&self.recent_blockhash_1) {
             for i in 0..min(self.size_blockhash_1, self.size_blockhash_2) {
                 self.hashes[i as usize] =
                     self.hashes[(self.size_blockhash_1 + self.size_blockhash_2 - 1 - i) as usize];
@@ -99,12 +104,20 @@ impl HashStorage {
             self.realloc(data_account)?;
         }
 
+        // if the storage is empty
+        //      insert hash into first region and increment size_blockhash_1
+        //      [state transition 2/5]
+        if self.size_blockhash_1 == 0 {
+            self.hashes[0] = new_hash;
+            self.size_blockhash_1 += 1;
+
         // If the provided hash matches recent_hash_1, then
         //      (1) the hash is checked against existing hashes
         //      (2) the first hash in the second region is moved to the end of the second region,
         //          the size of the second region does not increment
         //      (3) the hash is stored in the first region, at the end of size, increment size
-        if *recent_blockhash == self.recent_blockhash_1 {
+        //      [state transition 2]
+        } else if *recent_blockhash == self.recent_blockhash_1 {
             if self.hashes[0..self.size_blockhash_1 as usize]
                 .iter()
                 .any(|hash| *hash == new_hash)
@@ -119,6 +132,7 @@ impl HashStorage {
         // If the provided hash matches recent_hash_2 then
         //      (1) the hash is checked against existing hashes
         //      (2) the hash is stored in the second region, at the end of size, increment size
+        //      [no state transition]
         } else if *recent_blockhash == self.recent_blockhash_2 {
             if self.hashes[self.size_blockhash_2 as usize
                 ..(self.size_blockhash_1 + self.size_blockhash_2) as usize]
@@ -137,6 +151,7 @@ impl HashStorage {
         //     (3) the provided recent_hash is stored in recent_hash_1
         //     (4) size_hash_1 is set to 0
         //     (5) from here do the same as if the provided hash matches recent_hash_1
+        //      [state transition 1]
         } else {
             self.recent_blockhash_2 = self.recent_blockhash_1;
             self.size_blockhash_2 = self.size_blockhash_1;
