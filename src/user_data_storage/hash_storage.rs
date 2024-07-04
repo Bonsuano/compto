@@ -741,7 +741,7 @@ mod test {
     }
 
     #[test]
-    fn test_event_two() {
+    fn test_event_three() {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut [0; 256],
@@ -758,17 +758,18 @@ mod test {
                     Hash::new_from_array([1; HASH_BYTES]),
                 ),
                 new_proofs: &[(
-                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
                     Hash::new_from_array([1; HASH_BYTES]),
                 )],
             },
             outputs: Some(TestValuesOutput {
                 capacity: 2,
-                size_blockhash_1: 2,
-                size_blockhash_2: 0,
-                recent_blockhashes: HashStorageStates::OneHash(Hash::new_from_array(
-                    [0; HASH_BYTES],
-                )),
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
                 proofs: &[
                     Hash::new_from_array([0; HASH_BYTES]),
                     Hash::new_from_array([1; HASH_BYTES]),
