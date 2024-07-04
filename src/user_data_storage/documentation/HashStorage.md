@@ -83,16 +83,16 @@ transition(s) they cause.
 [ASCII version](#ascii-state-transitions-diagram) if the image doesn't work  
 
 ### Scenarios:
-| Possible Events                                              | State Transitions |
-|--------------------------------------------------------------|-------------------|
-| 1. No recent_hashes -> One recent_hash                       | (1)               |
-| 2. One recent_hash -> Same recent_hash                       | (3)               |
-| 3. One recent_hash -> Two recent_hashes                      | (4)               |
-| 4. One recent_hash -> New recent_hash                        | (2), (1)          |
-| 5. Two recent_hashes -> Same two recent_hashes               | (6)               |
-| 6. Two recent_hashes -> Only the second hash is valid        | (5)               |
-| 7. Two recent_hashes -> Second recent_hash + new recent_hash | (5), (4)          |
-| 8. Two recent_hashes -> New recent_hash                      | (5), (2), (1)     |
+| Possible Events                                                    | State Transitions |
+|--------------------------------------------------------------------|-------------------|
+| 1. No recent_hashes -> One recent_hash                             | (1)               |
+| 2. One recent_hash -> Same recent_hash                             | (3)               |
+| 3. One recent_hash -> Two recent_hashes                            | (4)               |
+| 4. One recent_hash -> New recent_hash                              | (2), (1)          |
+| 5. Two recent_hashes -> Same two recent_hashes                     | (6)               |
+| 6. Two recent_hashes -> Only the less old recent_hash is valid     | (5)               |
+| 7. Two recent_hashes -> The less old recent_hash + new recent_hash | (5), (4)          |
+| 8. Two recent_hashes -> New recent_hash                            | (5), (2), (1)     |
 
 ## Scenarios Animation
 
