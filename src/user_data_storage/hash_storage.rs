@@ -80,7 +80,7 @@ impl HashStorage {
     pub fn insert(
         self: &mut &mut Self,
         recent_blockhash: &Hash,
-        new_hash: Hash,
+        new_proof: Hash,
         valid_hashes: ValidHashes,
         data_account: &AccountInfo,
     ) -> ProgramResult {
@@ -91,7 +91,7 @@ impl HashStorage {
                 // assumes the storage starts off with some capacity
                 // no stored hashes, add the new hash
                 self.recent_hashes = HashStorageStates::OneHash(*recent_blockhash);
-                self.proofs[0] = new_hash;
+                self.proofs[0] = new_proof;
                 self.size_blockhash_1 = 1;
             }
             HashStorageStates::OneHash(rh) => {
@@ -99,14 +99,14 @@ impl HashStorage {
                     // State Transition 2 (implicit) and State Transition 1
                     // If the stored one hash is no longer valid, then replace it with the new valid one
                     self.recent_hashes = HashStorageStates::OneHash(*recent_blockhash);
-                    self.proofs[0] = new_hash;
+                    self.proofs[0] = new_proof;
                     self.size_blockhash_1 = 1;
                 } else if rh == recent_blockhash {
                     // State Transition 3
                     // If another proof is being added using the same recent_blockhash
-                    self.check_for_duplicate(new_hash);
+                    self.check_for_duplicate(new_proof);
                     self.realloc_if_necessary(data_account)?;
-                    self.proofs[self.size_blockhash_1 as usize] = new_hash;
+                    self.proofs[self.size_blockhash_1 as usize] = new_proof;
                     self.size_blockhash_1 += 1;
                 } else {
                     // State Transition 4
@@ -119,7 +119,7 @@ impl HashStorage {
                     self.realloc_if_necessary(data_account)?;
 
                     // region 2 begins at the end of region 1
-                    self.proofs[self.size_blockhash_1 as usize] = new_hash;
+                    self.proofs[self.size_blockhash_1 as usize] = new_proof;
                     self.size_blockhash_2 += 1;
                 }
             }
@@ -129,25 +129,25 @@ impl HashStorage {
 
                 if rh1_is_valid && rh2_is_valid {
                     // State Transition 6
-                    self.check_for_duplicate(new_hash);
+                    self.check_for_duplicate(new_proof);
                     // borrow checker won't allow me to put the realloc up here
-                    if *rh1 == new_hash {
+                    if *rh1 == new_proof {
                         self.realloc_if_necessary(data_account)?;
                         self.proofs[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
                             self.proofs[self.size_blockhash_1 as usize];
-                        self.proofs[self.size_blockhash_1 as usize] = new_hash;
+                        self.proofs[self.size_blockhash_1 as usize] = new_proof;
                         self.size_blockhash_1 += 1;
                     } else {
                         self.realloc_if_necessary(data_account)?;
                         self.proofs[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
-                            new_hash;
+                            new_proof;
                         self.size_blockhash_2 += 1;
                     }
                 } else if rh1_is_valid {
                     // State Transition 5
                     self.size_blockhash_2 = 0;
-                    self.proofs[self.size_blockhash_1 as usize] = new_hash;
-                    if *rh1 == new_hash {
+                    self.proofs[self.size_blockhash_1 as usize] = new_proof;
+                    if *rh1 == new_proof {
                         self.recent_hashes = HashStorageStates::OneHash(*rh1);
                         self.size_blockhash_1 += 1;
                     } else {
@@ -163,9 +163,9 @@ impl HashStorage {
                     }
                     self.size_blockhash_1 = self.size_blockhash_2;
                     self.size_blockhash_2 = 0;
-                    self.proofs[self.size_blockhash_1 as usize] = new_hash;
+                    self.proofs[self.size_blockhash_1 as usize] = new_proof;
                     // State Transition 5
-                    if *rh2 == new_hash {
+                    if *rh2 == new_proof {
                         self.recent_hashes = HashStorageStates::OneHash(*rh2);
                         self.size_blockhash_1 += 1;
                     } else {
@@ -176,7 +176,7 @@ impl HashStorage {
                 } else {
                     // State Transition 5 (implicit), 2 (implicit), 1
                     self.recent_hashes = HashStorageStates::OneHash(*recent_blockhash);
-                    self.proofs[0] = new_hash;
+                    self.proofs[0] = new_proof;
                     self.size_blockhash_1 = 1;
                     self.size_blockhash_2 = 0;
                 }
@@ -662,6 +662,38 @@ mod test {
                 )],
             },
             outputs: None,
+        });
+    }
+
+    #[test]
+    fn test_event_1() {
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut [0; 256],
+                data_size: 128,
+                capacity: 1,
+                size_blockhash_1: 0,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::NoHashes,
+                proofs: &[],
+                valid_blockhashes: ValidHashes::Two(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                new_proofs: &[(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                )],
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 1,
+                size_blockhash_1: 1,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::OneHash(Hash::new_from_array(
+                    [0; HASH_BYTES],
+                )),
+                proofs: &[Hash::new_from_array([1; HASH_BYTES])],
+            }),
         });
     }
 }
