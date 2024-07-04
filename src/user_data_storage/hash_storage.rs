@@ -286,7 +286,7 @@ impl HashStorage {
 
     // realloc invalidates `&mut self`, so it takes `&mut &mut self` in order to correct this
     fn realloc_if_necessary(self: &mut &mut Self, data_account: &AccountInfo) -> ProgramResult {
-        if self.capacity < self.size_blockhash_1 + self.size_blockhash_2 {
+        if self.capacity > self.size_blockhash_1 + self.size_blockhash_2 {
             return Ok(());
         }
 
@@ -484,17 +484,23 @@ mod test {
             .outputs
             .expect("outputs should be Some if it didn't already panic");
 
-        assert_eq!(hs.capacity, outputs.capacity, "capacity should be 1");
+        assert_eq!(
+            hs.capacity, outputs.capacity,
+            "capacity: '{}' should be {}",
+            hs.capacity, outputs.capacity,
+        );
         assert_eq!(
             hs.capacity as usize,
             hs.proofs.len(),
-            "capacity should equal hashes.len()"
+            "capacity: '{}' should equal hashes.len(): '{}'",
+            hs.capacity as usize,
+            hs.proofs.len(),
         );
-        //assert_eq!(
-        //    hs.size_blockhash_1, outputs.size_blockhash_1,
-        //    "size_blockhash_1 should be {}",
-        //    outputs.size_blockhash_1
-        //);
+        assert_eq!(
+            hs.size_blockhash_1, outputs.size_blockhash_1,
+            "size_blockhash_1 should be {}",
+            outputs.size_blockhash_1
+        );
         assert_eq!(
             hs.size_blockhash_2, outputs.size_blockhash_2,
             "size_blockhash_2 should be {}",
@@ -666,7 +672,7 @@ mod test {
     }
 
     #[test]
-    fn test_event_1() {
+    fn test_event_one() {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut [0; 256],
@@ -693,6 +699,80 @@ mod test {
                     [0; HASH_BYTES],
                 )),
                 proofs: &[Hash::new_from_array([1; HASH_BYTES])],
+            }),
+        });
+    }
+
+    #[test]
+    fn test_event_two() {
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut [0; 256],
+                data_size: 160,
+                capacity: 2,
+                size_blockhash_1: 1,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::OneHash(Hash::new_from_array(
+                    [0; HASH_BYTES],
+                )),
+                proofs: &[Hash::new_from_array([0; HASH_BYTES])],
+                valid_blockhashes: ValidHashes::Two(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                new_proofs: &[(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                )],
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 2,
+                size_blockhash_1: 2,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::OneHash(Hash::new_from_array(
+                    [0; HASH_BYTES],
+                )),
+                proofs: &[
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ],
+            }),
+        });
+    }
+
+    #[test]
+    fn test_event_two() {
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut [0; 256],
+                data_size: 160,
+                capacity: 2,
+                size_blockhash_1: 1,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::OneHash(Hash::new_from_array(
+                    [0; HASH_BYTES],
+                )),
+                proofs: &[Hash::new_from_array([0; HASH_BYTES])],
+                valid_blockhashes: ValidHashes::Two(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                new_proofs: &[(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                )],
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 2,
+                size_blockhash_1: 2,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::OneHash(Hash::new_from_array(
+                    [0; HASH_BYTES],
+                )),
+                proofs: &[
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ],
             }),
         });
     }
