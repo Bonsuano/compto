@@ -684,4 +684,34 @@ mod test {
             }),
         });
     }
+
+    #[test]
+    fn test_event_four() {
+        // TODO: implement
+        todo!()
+    }
+
+    #[test]
+    fn test_event_five() {
+        // TODO: implement
+        todo!()
+    }
+
+    #[test]
+    fn test_event_six() {
+        // TODO: implement
+        todo!()
+    }
+
+    #[test]
+    fn test_event_seven() {
+        // TODO: implement
+        todo!()
+    }
+
+    #[test]
+    fn test_event_eight() {
+        // TODO: implement
+        todo!()
+    }
 }
