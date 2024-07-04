@@ -13,32 +13,24 @@ use crate::ValidHashes;
 #[repr(C)]
 #[derive(Debug)]
 pub struct HashStorage {
-    capacity: u32,
-    size_blockhash_1: u32,
-    size_blockhash_2: u32,
-    //_padding_1: [u8; 4],
-    _padding_2: [u8; 16],
+    capacity: usize, // assumed to be u64
+    size_blockhash_1: usize,
+    size_blockhash_2: usize,
     recent_hashes: HashStorageStates,
     proofs: [Hash],
-}
-
-impl Drop for HashStorage {
-    fn drop(&mut self) {
-        self.write_data();
-    }
 }
 
 impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
     type Error = ProgramError;
 
     fn try_from(data: &mut [u8]) -> Result<Self, Self::Error> {
-        let capacity = u32::from_be_bytes(data[0..4].try_into().expect("correct size"));
-        let size_blockhash_1 = u32::from_be_bytes(data[4..8].try_into().expect("correct size"));
-        let size_blockhash_2 = u32::from_be_bytes(data[8..12].try_into().expect("correct size"));
+        let capacity = usize::from_le_bytes(data[0..8].try_into().expect("correct size"));
+        let size_blockhash_1 = usize::from_le_bytes(data[8..16].try_into().expect("correct size"));
+        let size_blockhash_2 = usize::from_le_bytes(data[16..24].try_into().expect("correct size"));
         // if data.len() != <sizeof HashStorage w/ capacity Hashes>
         assert_eq!(
             data.len(),
-            96 + (capacity as usize) * HASH_BYTES,
+            96 + capacity * HASH_BYTES,
             "data does not match capacity"
         );
         assert!(
@@ -55,16 +47,16 @@ impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
             let data_hashes =
                 core::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut Hash, new_len);
             let result: &mut HashStorage = std::mem::transmute(data_hashes);
-            result.capacity = u32::from_be(result.capacity);
-            result.size_blockhash_1 = u32::from_be(result.size_blockhash_1);
-            result.size_blockhash_2 = u32::from_be(result.size_blockhash_2);
+            result.capacity = usize::from_le(result.capacity);
+            result.size_blockhash_1 = usize::from_le(result.size_blockhash_1);
+            result.size_blockhash_2 = usize::from_le(result.size_blockhash_2);
             Ok(result)
         }
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
-#[repr(C, u32)]
+#[repr(C, usize)]
 enum HashStorageStates {
     NoHashes = 0,
     OneHash(Hash) = 1,
@@ -106,7 +98,7 @@ impl HashStorage {
                     // If another proof is being added using the same recent_blockhash
                     self.check_for_duplicate(new_proof);
                     self.realloc_if_necessary(data_account)?;
-                    self.proofs[self.size_blockhash_1 as usize] = new_proof;
+                    self.proofs[self.size_blockhash_1] = new_proof;
                     self.size_blockhash_1 += 1;
                 } else {
                     // State Transition 4
@@ -119,7 +111,7 @@ impl HashStorage {
                     self.realloc_if_necessary(data_account)?;
 
                     // region 2 begins at the end of region 1
-                    self.proofs[self.size_blockhash_1 as usize] = new_proof;
+                    self.proofs[self.size_blockhash_1] = new_proof;
                     self.size_blockhash_2 += 1;
                 }
             }
@@ -136,22 +128,21 @@ impl HashStorage {
                         // user's recent_blockhash matches the first section (recent_blockhash_1)
                         // copy the first hash to the end of the second region to the end of the
                         // second region, to make space for the first region to grow by one.
-                        self.proofs[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
-                            self.proofs[self.size_blockhash_1 as usize];
-                        self.proofs[self.size_blockhash_1 as usize] = new_proof;
+                        self.proofs[self.size_blockhash_1 + self.size_blockhash_2] =
+                            self.proofs[self.size_blockhash_1];
+                        self.proofs[self.size_blockhash_1] = new_proof;
                         self.size_blockhash_1 += 1;
                     } else {
                         // user's recent_blockhash matches the second section (recent_blockhash_2)
                         // grow second region by one.
-                        self.proofs[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
-                            new_proof;
+                        self.proofs[self.size_blockhash_1 + self.size_blockhash_2] = new_proof;
                         self.size_blockhash_2 += 1;
                     }
                 } else if rh1_is_valid {
                     // State Transition 5
                     // Second region is old. Invalidate the second region.
                     self.size_blockhash_2 = 0;
-                    self.proofs[self.size_blockhash_1 as usize] = new_proof;
+                    self.proofs[self.size_blockhash_1] = new_proof;
                     if rh1_is_a_match {
                         self.recent_hashes = HashStorageStates::OneHash(*rh1);
                         self.size_blockhash_1 += 1;
@@ -170,15 +161,15 @@ impl HashStorage {
                     // copies only size_region_1 from the end of region 2 to region 1
                     // if region 2 is larger than region 1
                     for i in 0..min(self.size_blockhash_1, self.size_blockhash_2) {
-                        self.proofs[i as usize] = self.proofs
-                            [(self.size_blockhash_1 + self.size_blockhash_2 - 1 - i) as usize];
+                        self.proofs[i] =
+                            self.proofs[self.size_blockhash_1 + self.size_blockhash_2 - 1 - i];
                     }
                     self.size_blockhash_1 = self.size_blockhash_2;
                     // now that region 2 is copied to region 1, invalidate region 2
                     self.size_blockhash_2 = 0;
 
                     // add new proof to region 1
-                    self.proofs[self.size_blockhash_1 as usize] = new_proof;
+                    self.proofs[self.size_blockhash_1] = new_proof;
                     if rh2 == recent_blockhash {
                         // there is a match, add to region 1 (formerly region 2)
                         self.recent_hashes = HashStorageStates::OneHash(*rh2);
@@ -209,18 +200,15 @@ impl HashStorage {
             return Ok(());
         }
 
-        let increase = min(
-            self.capacity as usize * HASH_BYTES,
-            MAX_PERMITTED_DATA_INCREASE,
-        );
-        let new_len = self.capacity as usize * HASH_BYTES + increase;
-        self.capacity = (new_len / HASH_BYTES) as u32;
+        let increase = min(self.capacity * HASH_BYTES, MAX_PERMITTED_DATA_INCREASE);
+        let new_len = self.capacity * HASH_BYTES + increase;
+        self.capacity = new_len / HASH_BYTES;
         data_account.realloc(new_len, false)?;
         unsafe {
             let self_ptr: *mut Self = *self;
             let data = core::slice::from_raw_parts_mut(
                 self_ptr as *mut u8,
-                self.capacity as usize * HASH_BYTES + 96,
+                self.capacity * HASH_BYTES + 96,
             );
             self.write_data();
             *self = data.try_into()?;
@@ -230,7 +218,7 @@ impl HashStorage {
 
     fn check_for_duplicate(&self, new_hash: Hash) {
         assert!(
-            !self.proofs[0..(self.size_blockhash_1 + self.size_blockhash_2) as usize]
+            !self.proofs[0..self.size_blockhash_1 + self.size_blockhash_2]
                 .iter()
                 .any(|hash| *hash == new_hash),
             "duplicate hash"
@@ -238,9 +226,9 @@ impl HashStorage {
     }
 
     fn write_data(&mut self) {
-        self.capacity = self.capacity.to_be();
-        self.size_blockhash_1 = self.size_blockhash_1.to_be();
-        self.size_blockhash_2 = self.size_blockhash_2.to_be();
+        self.capacity = self.capacity.to_le();
+        self.size_blockhash_1 = self.size_blockhash_1.to_le();
+        self.size_blockhash_2 = self.size_blockhash_2.to_le();
     }
 }
 
@@ -249,8 +237,7 @@ mod test {
     use std::{cell::RefCell, rc::Rc};
 
     use solana_program::{
-        account_info::AccountInfo, blake3::HASH_BYTES, hash::Hash, program_error::ProgramError,
-        pubkey::Pubkey,
+        account_info::AccountInfo, blake3::HASH_BYTES, hash::Hash, pubkey::Pubkey,
     };
 
     use crate::{comptoken_generated::COMPTOKEN_ADDRESS, ValidHashes};
@@ -273,7 +260,7 @@ mod test {
 
     const ALIGNED_ZERO_PUBKEY: AlignedPubkey = AlignedPubkey {
         original_data_len: 0, // used for checking if the size increase is too much, which shouldn't ever be a concern in our tests
-        pubkey: Pubkey::new_from_array([0; 32]),
+        pubkey: Pubkey::new_from_array([0; HASH_BYTES]),
     };
     const TOKEN: Pubkey = COMPTOKEN_ADDRESS;
 
@@ -307,9 +294,9 @@ mod test {
     struct TestValuesInput<'a> {
         data: &'a mut [u8],
         data_size: usize,
-        capacity: u32,
-        size_blockhash_1: u32,
-        size_blockhash_2: u32,
+        capacity: usize,
+        size_blockhash_1: usize,
+        size_blockhash_2: usize,
         recent_blockhashes: HashStorageStates,
         proofs: &'a [Hash],
         valid_blockhashes: ValidHashes<'a>,
@@ -337,9 +324,9 @@ mod test {
 
     #[derive(Debug)]
     struct TestValuesOutput<'a> {
-        capacity: u32,
-        size_blockhash_1: u32,
-        size_blockhash_2: u32,
+        capacity: usize,
+        size_blockhash_1: usize,
+        size_blockhash_2: usize,
         recent_blockhashes: HashStorageStates,
         proofs: &'a [Hash],
     }
@@ -364,26 +351,26 @@ mod test {
 
     fn write_data(
         data: &mut [u8],
-        capacity: u32,
-        size_blockhash_1: u32,
-        size_blockhash_2: u32,
+        capacity: usize,
+        size_blockhash_1: usize,
+        size_blockhash_2: usize,
         recent_blockhashes: HashStorageStates,
         proofs: &[Hash],
     ) {
         assert!(data.len() >= 96 + proofs.len() * 32);
 
         let data_ptr = data.as_mut_ptr();
-        let capacity_ptr = data_ptr as *mut u32;
+        let capacity_ptr = data_ptr as *mut usize;
         unsafe {
-            *capacity_ptr = capacity.to_be();
+            *capacity_ptr = capacity.to_le();
 
-            let size_blockhash_1_ptr = data_ptr.offset(4) as *mut u32;
-            *size_blockhash_1_ptr = size_blockhash_1.to_be();
+            let size_blockhash_1_ptr = data_ptr.offset(8) as *mut usize;
+            *size_blockhash_1_ptr = size_blockhash_1.to_le();
 
-            let size_blockhash_2_ptr = data_ptr.offset(8) as *mut u32;
-            *size_blockhash_2_ptr = size_blockhash_2.to_be();
+            let size_blockhash_2_ptr = data_ptr.offset(16) as *mut usize;
+            *size_blockhash_2_ptr = size_blockhash_2.to_le();
 
-            let recent_blockhashes_ptr = data_ptr.offset(28) as *mut HashStorageStates;
+            let recent_blockhashes_ptr = data_ptr.offset(24) as *mut HashStorageStates;
             *recent_blockhashes_ptr = recent_blockhashes;
 
             for (i, hash) in proofs.iter().enumerate() {
