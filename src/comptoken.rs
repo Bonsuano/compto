@@ -188,6 +188,7 @@ fn verify_comptoken_proof_userdata<'a>(destination: &'a Pubkey, data: &[u8]) -> 
     return proof;
 }
 
+#[derive(Debug, Clone, Copy)]
 pub enum ValidHashes {
     One(Hash),
     Two(Hash, Hash),

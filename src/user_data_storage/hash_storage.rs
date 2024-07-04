@@ -16,10 +16,10 @@ pub struct HashStorage {
     capacity: u32,
     size_blockhash_1: u32,
     size_blockhash_2: u32,
-    _padding_1: [u8; 4],
+    //_padding_1: [u8; 4],
     _padding_2: [u8; 16],
     recent_hashes: HashStorageStates,
-    hashes: [Hash],
+    proofs: [Hash],
 }
 
 impl Drop for HashStorage {
@@ -36,12 +36,15 @@ impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
         let size_blockhash_1 = u32::from_be_bytes(data[4..8].try_into().expect("correct size"));
         let size_blockhash_2 = u32::from_be_bytes(data[8..12].try_into().expect("correct size"));
         // if data.len() != <sizeof HashStorage w/ capacity Hashes>
-        if data.len() != 96 + (capacity as usize) * HASH_BYTES {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        if size_blockhash_1 + size_blockhash_2 > capacity {
-            return Err(ProgramError::InvalidAccountData);
-        }
+        assert_eq!(
+            data.len(),
+            96 + (capacity as usize) * HASH_BYTES,
+            "data does not match capacity"
+        );
+        assert!(
+            size_blockhash_1 + size_blockhash_2 <= capacity,
+            "size blockhashes does not match capacity"
+        );
         // Safety:
         //
         // capacity corresponds with length
@@ -60,11 +63,12 @@ impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
+#[repr(C, u32)]
 enum HashStorageStates {
-    NoHashes,
-    OneHash(Hash),
-    TwoHashes(Hash, Hash),
+    NoHashes = 0,
+    OneHash(Hash) = 1,
+    TwoHashes(Hash, Hash) = 2,
 }
 
 // Implements a state machine, see documentation/HashStorage.md for more information
@@ -83,9 +87,11 @@ impl HashStorage {
         match &self.recent_hashes {
             HashStorageStates::NoHashes => {
                 // State Transition 1
+                // only called the first time a user submits a hash
+                // assumes the storage starts off with some capacity
                 // no stored hashes, add the new hash
                 self.recent_hashes = HashStorageStates::OneHash(*recent_blockhash);
-                self.hashes[0] = new_hash;
+                self.proofs[0] = new_hash;
                 self.size_blockhash_1 = 1;
             }
             HashStorageStates::OneHash(rh) => {
@@ -93,13 +99,14 @@ impl HashStorage {
                     // State Transition 2 (implicit) and State Transition 1
                     // If the stored one hash is no longer valid, then replace it with the new valid one
                     self.recent_hashes = HashStorageStates::OneHash(*recent_blockhash);
-                    self.hashes[0] = new_hash;
+                    self.proofs[0] = new_hash;
                     self.size_blockhash_1 = 1;
                 } else if rh == recent_blockhash {
                     // State Transition 3
                     // If another proof is being added using the same recent_blockhash
                     self.check_for_duplicate(new_hash);
-                    self.hashes[self.size_blockhash_1 as usize] = new_hash;
+                    self.realloc_if_necessary(data_account)?;
+                    self.proofs[self.size_blockhash_1 as usize] = new_hash;
                     self.size_blockhash_1 += 1;
                 } else {
                     // State Transition 4
@@ -107,31 +114,79 @@ impl HashStorage {
                     // add the new hash to the second region
                     // TODO: enforce that the old hash (new hash?) is in slot 1
                     self.recent_hashes = HashStorageStates::TwoHashes(*rh, *recent_blockhash);
+                    // realloc ordered after updating the state to satisfy the borrow checker
+                    // should not matter, for realloc, as it doesn't interact with recent_hashes
+                    self.realloc_if_necessary(data_account)?;
+
                     // region 2 begins at the end of region 1
-                    self.hashes[self.size_blockhash_1 as usize] = new_hash;
+                    self.proofs[self.size_blockhash_1 as usize] = new_hash;
                     self.size_blockhash_2 += 1;
                 }
             }
             HashStorageStates::TwoHashes(rh1, rh2) => {
                 let rh1_is_valid = valid_hashes.contains(rh1);
                 let rh2_is_valid = valid_hashes.contains(&rh2);
-                if (rh1_is_valid && rh2_is_valid) {
+
+                if rh1_is_valid && rh2_is_valid {
                     // State Transition 6
-                } else {
-                    // State Transition 5
-                    if (rh1_is_valid) {
-                    } else if (rh2_is_valid) {
+                    self.check_for_duplicate(new_hash);
+                    // borrow checker won't allow me to put the realloc up here
+                    if *rh1 == new_hash {
+                        self.realloc_if_necessary(data_account)?;
+                        self.proofs[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
+                            self.proofs[self.size_blockhash_1 as usize];
+                        self.proofs[self.size_blockhash_1 as usize] = new_hash;
+                        self.size_blockhash_1 += 1;
                     } else {
-                        // State Transition 2
+                        self.realloc_if_necessary(data_account)?;
+                        self.proofs[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
+                            new_hash;
+                        self.size_blockhash_2 += 1;
                     }
+                } else if rh1_is_valid {
+                    // State Transition 5
+                    self.size_blockhash_2 = 0;
+                    self.proofs[self.size_blockhash_1 as usize] = new_hash;
+                    if *rh1 == new_hash {
+                        self.recent_hashes = HashStorageStates::OneHash(*rh1);
+                        self.size_blockhash_1 += 1;
+                    } else {
+                        // State Transition 4
+                        self.recent_hashes = HashStorageStates::TwoHashes(*rh1, *recent_blockhash);
+                        self.size_blockhash_2 = 1;
+                    }
+                } else if rh2_is_valid {
+                    // copy region 2 to region 1
+                    for i in 0..min(self.size_blockhash_1, self.size_blockhash_2) {
+                        self.proofs[i as usize] = self.proofs
+                            [(self.size_blockhash_1 + self.size_blockhash_2 - 1 - i) as usize];
+                    }
+                    self.size_blockhash_1 = self.size_blockhash_2;
+                    self.size_blockhash_2 = 0;
+                    self.proofs[self.size_blockhash_1 as usize] = new_hash;
+                    // State Transition 5
+                    if *rh2 == new_hash {
+                        self.recent_hashes = HashStorageStates::OneHash(*rh2);
+                        self.size_blockhash_1 += 1;
+                    } else {
+                        // State Transition 4
+                        self.recent_hashes = HashStorageStates::TwoHashes(*rh2, *recent_blockhash);
+                        self.size_blockhash_2 = 1;
+                    }
+                } else {
+                    // State Transition 5 (implicit), 2 (implicit), 1
+                    self.recent_hashes = HashStorageStates::OneHash(*recent_blockhash);
+                    self.proofs[0] = new_hash;
+                    self.size_blockhash_1 = 1;
+                    self.size_blockhash_2 = 0;
                 }
 
-                if valid_hashes.contains(rh1) && valid_hashes.contains(rh2) {
-                    // State Transition 6
-                } else {
-                    // State Transition 5
-                    if true {}
-                }
+                //if valid_hashes.contains(rh1) && valid_hashes.contains(rh2) {
+                //    // State Transition 6
+                //} else {
+                //    // State Transition 5
+                //    if true {}
+                //}
             }
         }
         //let is_two_hash_state = self.size_blockhash_2 > 0;
@@ -230,7 +285,11 @@ impl HashStorage {
     }
 
     // realloc invalidates `&mut self`, so it takes `&mut &mut self` in order to correct this
-    fn realloc(self: &mut &mut Self, data_account: &AccountInfo) -> ProgramResult {
+    fn realloc_if_necessary(self: &mut &mut Self, data_account: &AccountInfo) -> ProgramResult {
+        if self.capacity < self.size_blockhash_1 + self.size_blockhash_2 {
+            return Ok(());
+        }
+
         let increase = min(
             self.capacity as usize * HASH_BYTES,
             MAX_PERMITTED_DATA_INCREASE,
@@ -252,9 +311,10 @@ impl HashStorage {
 
     fn check_for_duplicate(&self, new_hash: Hash) {
         assert!(
-            self.hashes[0..(self.size_blockhash_1 + self.size_blockhash_2) as usize]
+            !self.proofs[0..(self.size_blockhash_1 + self.size_blockhash_2) as usize]
                 .iter()
-                .any(|hash| *hash == new_hash)
+                .any(|hash| *hash == new_hash),
+            "duplicate hash"
         );
     }
 
@@ -269,14 +329,26 @@ impl HashStorage {
 mod test {
     use std::{cell::RefCell, rc::Rc};
 
+    use std::sync::{Mutex, OnceLock};
+
+    fn utility_with_global_mutex<F, R>(f: F) -> R
+    where
+        F: FnOnce() -> R,
+    {
+        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+        let lock = LOCK.get_or_init(|| Mutex::new(()));
+        let _guard = lock.lock().unwrap();
+        f()
+    }
+
     use solana_program::{
         account_info::AccountInfo, blake3::HASH_BYTES, hash::Hash, program_error::ProgramError,
         pubkey::Pubkey,
     };
 
-    use crate::comptoken_generated::COMPTOKEN_ADDRESS;
+    use crate::{comptoken_generated::COMPTOKEN_ADDRESS, ValidHashes};
 
-    use super::HashStorage;
+    use super::{HashStorage, HashStorageStates};
 
     #[repr(align(32))]
     #[repr(C)]
@@ -294,11 +366,6 @@ mod test {
         pubkey: COMPTOKEN_ADDRESS,
     }
     .pubkey;
-
-    #[repr(align(32))]
-    struct Data {
-        arr: [[u8; 128]; 2],
-    }
 
     fn create_dummy_data_account<'a>(lamports: &'a mut u64, data: &'a mut [u8]) -> AccountInfo<'a> {
         eprintln!("{:p} ", &ALIGNED_ZERO_PUBKEY);
@@ -319,11 +386,10 @@ mod test {
         capacity: u32,
         size_blockhash_1: u32,
         size_blockhash_2: u32,
-        recent_blockhash_1: Hash,
-        recent_blockhash_2: Hash,
-        hashes: &[Hash],
+        recent_blockhashes: HashStorageStates,
+        proofs: &[Hash],
     ) {
-        assert!(data.len() >= 96 + hashes.len() * 32);
+        assert!(data.len() >= 96 + proofs.len() * 32);
 
         let data_ptr = data.as_mut_ptr();
         let capacity_ptr = data_ptr as *mut u32;
@@ -336,256 +402,273 @@ mod test {
             let size_blockhash_2_ptr = data_ptr.offset(8) as *mut u32;
             *size_blockhash_2_ptr = size_blockhash_2.to_be();
 
-            let recent_blockhash_1_ptr = data_ptr.offset(32) as *mut Hash;
-            *recent_blockhash_1_ptr = recent_blockhash_1;
+            let recent_blockhashes_ptr = data_ptr.offset(28) as *mut HashStorageStates;
+            *recent_blockhashes_ptr = recent_blockhashes;
 
-            let recent_blockhash_2_ptr = data_ptr.offset(64) as *mut Hash;
-            *recent_blockhash_2_ptr = recent_blockhash_2;
-
-            for (i, hash) in hashes.iter().enumerate() {
+            for (i, hash) in proofs.iter().enumerate() {
                 let hash_ptr = data_ptr.offset((96 + i * 32) as isize) as *mut Hash;
                 *hash_ptr = *hash;
             }
         }
     }
 
-    #[test]
-    fn test_try_from_empty_data_account() {
+    struct TestValuesInput<'a> {
+        data: &'a mut [u8],
+        data_size: usize,
+        capacity: u32,
+        size_blockhash_1: u32,
+        size_blockhash_2: u32,
+        recent_blockhashes: HashStorageStates,
+        proofs: &'a [Hash],
+        valid_blockhashes: ValidHashes,
+        new_proofs: &'a [(Hash, Hash)], // (recent_hash, proof)
+    }
+
+    struct TestValuesOutput<'a> {
+        capacity: u32,
+        size_blockhash_1: u32,
+        size_blockhash_2: u32,
+        recent_blockhashes: HashStorageStates,
+        proofs: &'a [Hash],
+    }
+
+    struct TestValues<'a> {
+        inputs: TestValuesInput<'a>,
+        outputs: Option<TestValuesOutput<'a>>,
+    }
+
+    static mut DATA: RefCell<[u8; 512]> = RefCell::new([0u8; 512]);
+
+    fn run_test(test_values: TestValues) {
+        let mut inputs = test_values.inputs;
         let lamports = &mut 999_999_999u64;
-        let data: &mut [u8] = &mut [0; 128];
+        let mut final_data_size = inputs.data_size;
+        while (final_data_size < (inputs.new_proofs.len() + inputs.proofs.len()) * 32 + 96) {
+            final_data_size += final_data_size;
+        }
+        if final_data_size > inputs.data.len() {
+            panic!("test requires more space than the buffer");
+        }
+
+        let data: &mut [u8] = &mut inputs.data;
         write_data(
             data,
-            1,
-            0,
-            0,
-            Hash::new_from_array([0; HASH_BYTES]),
-            Hash::new_from_array([1; HASH_BYTES]),
-            &[],
+            inputs.capacity,
+            inputs.size_blockhash_1,
+            inputs.size_blockhash_2,
+            inputs.recent_blockhashes,
+            inputs.proofs,
         );
-
         let dummy_account = create_dummy_data_account(lamports, data);
-        let hs: &mut HashStorage = dummy_account
+        let mut hs: &mut HashStorage = dummy_account
             .try_borrow_mut_data()
             .unwrap()
             .as_mut()
             .try_into()
-            .unwrap();
+            .expect("no issues creating HashStorage");
 
-        assert_eq!(hs.capacity, 1, "capacity should be 1");
+        for (recent_blockhash, proof) in inputs.new_proofs {
+            hs.insert(
+                recent_blockhash,
+                *proof,
+                inputs.valid_blockhashes,
+                &dummy_account,
+            )
+            .unwrap();
+        }
+
+        let outputs = test_values
+            .outputs
+            .expect("outputs should be Some if it didn't already panic");
+
+        assert_eq!(hs.capacity, outputs.capacity, "capacity should be 1");
         assert_eq!(
             hs.capacity as usize,
-            hs.hashes.len(),
+            hs.proofs.len(),
             "capacity should equal hashes.len()"
         );
-        assert_eq!(hs.size_blockhash_1, 0, "size_blockhash_1 should be 0");
-        assert_eq!(hs.size_blockhash_2, 0, "size_blockhash_2 should be 0");
         assert_eq!(
-            hs.recent_blockhash_1,
-            Hash::new_from_array([0; 32]),
-            "Hash should be all zeros, (ones in bs58)"
+            hs.size_blockhash_1, outputs.size_blockhash_1,
+            "size_blockhash_1 should be {}",
+            outputs.size_blockhash_1
         );
         assert_eq!(
-            hs.recent_blockhash_2,
-            Hash::new_from_array([1; 32]),
-            "Hash should be all ones, (not in bs58)"
+            hs.size_blockhash_2, outputs.size_blockhash_2,
+            "size_blockhash_2 should be {}",
+            outputs.size_blockhash_2
         );
+
+        assert_eq!(
+            hs.recent_hashes, outputs.recent_blockhashes,
+            "Recent Blockhashes were wrong"
+        );
+        for (proof, output_proof) in hs.proofs.into_iter().zip(outputs.proofs) {
+            assert_eq!(
+                proof, output_proof,
+                "proof: \'{}\' should equal \'{}\'",
+                proof, output_proof
+            )
+        }
     }
 
     #[test]
+    fn test_try_from_empty_data_account() {
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut [0; 128],
+                data_size: 128,
+                capacity: 1,
+                size_blockhash_1: 0,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                proofs: &[],
+                valid_blockhashes: ValidHashes::Two(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                new_proofs: &[],
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 1,
+                size_blockhash_1: 0,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                proofs: &[],
+            }),
+        });
+    }
+
+    #[test]
+    #[should_panic(expected = "data does not match capacity")]
     fn test_try_from_incorrect_capacity() {
-        let lamports = &mut 999_999_999u64;
-        let empty_data: &mut [u8] = &mut [0; 128];
-        let dummy_account = create_dummy_data_account(lamports, empty_data);
-        let hs_result: Result<&mut HashStorage, ProgramError> = dummy_account
-            .try_borrow_mut_data()
-            .unwrap()
-            .as_mut()
-            .try_into();
-        match hs_result {
-            Err(ProgramError::InvalidAccountData) => {}
-            _ => assert!(false, "Should return InvalidAccountData"),
-        }
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut [0; 128],
+                data_size: 128,
+                capacity: 1,
+                size_blockhash_1: 0,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                proofs: &[],
+                valid_blockhashes: ValidHashes::Two(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                new_proofs: &[(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                )],
+            },
+            outputs: None,
+        });
     }
 
     #[test]
     fn test_insert() {
-        let lamports = &mut 999_999_999u64;
-        let data: &mut [u8] = &mut [0; 128];
-        write_data(
-            data,
-            1,
-            0,
-            0,
-            Hash::new_from_array([0; HASH_BYTES]),
-            Hash::new_from_array([1; HASH_BYTES]),
-            &[],
-        );
-
-        let dummy_account = create_dummy_data_account(lamports, data);
-        let mut hs: &mut HashStorage = dummy_account
-            .try_borrow_mut_data()
-            .unwrap()
-            .as_mut()
-            .try_into()
-            .unwrap();
-
-        hs.insert(
-            &Hash::new_from_array([0; HASH_BYTES]),
-            Hash::new_from_array([1; HASH_BYTES]),
-            crate::ValidHashes::One(Hash::new_from_array([0; HASH_BYTES])),
-            &dummy_account,
-        )
-        .unwrap();
-
-        assert_eq!(hs.capacity, 1, "capacity should be 1");
-        assert_eq!(
-            hs.capacity as usize,
-            hs.hashes.len(),
-            "capacity should equal hashes.len()"
-        );
-        assert_eq!(hs.size_blockhash_1, 1, "size_blockhash_1 should be 1");
-        assert_eq!(hs.size_blockhash_2, 0, "size_blockhash_2 should be 0");
-        assert_eq!(
-            hs.recent_blockhash_1,
-            Hash::new_from_array([0; HASH_BYTES]),
-            "recent_blockhash_1 should be all zeros, (ones in bs58)"
-        );
-        assert_eq!(
-            hs.recent_blockhash_2,
-            Hash::new_from_array([1; HASH_BYTES]),
-            "recent_blockhash_2 should be all ones, (not in bs58)"
-        );
-        assert_eq!(
-            hs.hashes[0],
-            Hash::new_from_array([1; HASH_BYTES]),
-            "hashes[0] should be all ones (not in bs58)"
-        );
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut [0; 128],
+                data_size: 128,
+                capacity: 1,
+                size_blockhash_1: 0,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                proofs: &[],
+                valid_blockhashes: ValidHashes::Two(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                new_proofs: &[],
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 1,
+                size_blockhash_1: 1,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                proofs: &[Hash::new_from_array([1; HASH_BYTES])],
+            }),
+        });
     }
 
     #[test]
     fn test_insert_realloc() {
-        let lamports = &mut 999_999_999u64;
-        let mut arr = Data { arr: [[0; 128]; 2] };
-        let data: &mut [u8] = &mut arr.arr[0];
-        write_data(
-            data,
-            1,
-            1,
-            0,
-            Hash::new_from_array([0; HASH_BYTES]),
-            Hash::new_from_array([1; HASH_BYTES]),
-            &[Hash::new_from_array([1; HASH_BYTES])],
-        );
-
-        let dummy_account = create_dummy_data_account(lamports, data);
-        let mut hs: &mut HashStorage = dummy_account
-            .try_borrow_mut_data()
-            .unwrap()
-            .as_mut()
-            .try_into()
-            .unwrap();
-
-        hs.insert(
-            &Hash::new_from_array([0; HASH_BYTES]),
-            Hash::new_from_array([2; HASH_BYTES]),
-            crate::ValidHashes::One(Hash::new_from_array([0; HASH_BYTES])),
-            &dummy_account,
-        )
-        .unwrap();
-
-        assert_eq!(hs.capacity, 2, "capacity should be 2");
-        assert_eq!(
-            hs.capacity as usize,
-            hs.hashes.len(),
-            "capacity should equal hashes.len()"
-        );
-        assert_eq!(hs.size_blockhash_1, 2, "size_blockhash_1 should be 2");
-        assert_eq!(hs.size_blockhash_2, 0, "size_blockhash_2 should be 0");
-        assert_eq!(
-            hs.recent_blockhash_1,
-            Hash::new_from_array([0; HASH_BYTES]),
-            "recent_blockhash_1 should be all zeros, (ones in bs58)"
-        );
-        assert_eq!(
-            hs.recent_blockhash_2,
-            Hash::new_from_array([1; HASH_BYTES]),
-            "recent_blockhash_2 should be all ones, (not in bs58)"
-        );
-        assert_eq!(
-            hs.hashes[0],
-            Hash::new_from_array([1; HASH_BYTES]),
-            "hashes[0] should be all ones (not in bs58)"
-        );
-        assert_eq!(
-            hs.hashes[1],
-            Hash::new_from_array([2; HASH_BYTES]),
-            "hashes[0] should be all ones (not in bs58)"
-        );
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut [0; 160],
+                data_size: 128,
+                capacity: 1,
+                size_blockhash_1: 1,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                proofs: &[Hash::new_from_array([1; HASH_BYTES])],
+                valid_blockhashes: ValidHashes::Two(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                new_proofs: &[(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([2; HASH_BYTES]),
+                )],
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 2,
+                size_blockhash_1: 2,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                proofs: &[
+                    Hash::new_from_array([1; HASH_BYTES]),
+                    Hash::new_from_array([2; HASH_BYTES]),
+                ],
+            }),
+        });
     }
 
     #[test]
+    #[should_panic(expected = "duplicate hash")]
     fn test_insert_duplicate() {
-        let lamports = &mut 999_999_999u64;
-        let mut arr = Data { arr: [[0; 128]; 2] };
-        let mut arr: ([u8; 160], [u8; 96]) = unsafe { std::mem::transmute(arr) };
-        let data: &mut [u8] = &mut arr.0;
-        write_data(
-            data,
-            2,
-            1,
-            0,
-            Hash::new_from_array([0; HASH_BYTES]),
-            Hash::new_from_array([1; HASH_BYTES]),
-            &[Hash::new_from_array([1; HASH_BYTES])],
-        );
-
-        let dummy_account = create_dummy_data_account(lamports, data);
-        let mut hs: &mut HashStorage = dummy_account
-            .try_borrow_mut_data()
-            .unwrap()
-            .as_mut()
-            .try_into()
-            .unwrap();
-
-        let result = hs.insert(
-            &Hash::new_from_array([0; HASH_BYTES]),
-            Hash::new_from_array([1; HASH_BYTES]),
-            crate::ValidHashes::One(Hash::new_from_array([0; HASH_BYTES])),
-            &dummy_account,
-        );
-
-        match result {
-            Err(ProgramError::InvalidInstructionData) => {}
-            _ => assert!(false, "should have failed to insert"),
-        }
-
-        assert_eq!(hs.capacity, 2, "capacity should be 2");
-        assert_eq!(
-            hs.capacity as usize,
-            hs.hashes.len(),
-            "capacity should equal hashes.len()"
-        );
-        assert_eq!(hs.size_blockhash_1, 1, "size_blockhash_1 should be 1");
-        assert_eq!(hs.size_blockhash_2, 0, "size_blockhash_2 should be 0");
-        assert_eq!(
-            hs.recent_blockhash_1,
-            Hash::new_from_array([0; HASH_BYTES]),
-            "recent_blockhash_1 should be all zeros, (ones in bs58)"
-        );
-        assert_eq!(
-            hs.recent_blockhash_2,
-            Hash::new_from_array([1; HASH_BYTES]),
-            "recent_blockhash_2 should be all ones, (not in bs58)"
-        );
-        assert_eq!(
-            hs.hashes[0],
-            Hash::new_from_array([1; HASH_BYTES]),
-            "hashes[0] should be all ones (not in bs58)"
-        );
-        assert_eq!(
-            hs.hashes[1],
-            Hash::new_from_array([0; HASH_BYTES]),
-            "hashes[0] should be all zeroes (ones in bs58)"
-        );
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut [0; 128],
+                data_size: 128,
+                capacity: 1,
+                size_blockhash_1: 1,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                proofs: &[Hash::new_from_array([1; HASH_BYTES])],
+                valid_blockhashes: ValidHashes::Two(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                ),
+                new_proofs: &[(
+                    Hash::new_from_array([0; HASH_BYTES]),
+                    Hash::new_from_array([1; HASH_BYTES]),
+                )],
+            },
+            outputs: None,
+        });
     }
 }
