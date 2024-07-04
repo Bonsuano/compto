@@ -126,161 +126,80 @@ impl HashStorage {
             HashStorageStates::TwoHashes(rh1, rh2) => {
                 let rh1_is_valid = valid_hashes.contains(rh1);
                 let rh2_is_valid = valid_hashes.contains(&rh2);
+                let rh1_is_a_match = rh1 == recent_blockhash;
 
                 if rh1_is_valid && rh2_is_valid {
                     // State Transition 6
                     self.check_for_duplicate(new_proof);
-                    // borrow checker won't allow me to put the realloc up here
-                    if *rh1 == new_proof {
-                        self.realloc_if_necessary(data_account)?;
+                    self.realloc_if_necessary(data_account)?;
+                    if rh1_is_a_match {
+                        // user's recent_blockhash matches the first section (recent_blockhash_1)
+                        // copy the first hash to the end of the second region to the end of the
+                        // second region, to make space for the first region to grow by one.
                         self.proofs[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
                             self.proofs[self.size_blockhash_1 as usize];
                         self.proofs[self.size_blockhash_1 as usize] = new_proof;
                         self.size_blockhash_1 += 1;
                     } else {
-                        self.realloc_if_necessary(data_account)?;
+                        // user's recent_blockhash matches the second section (recent_blockhash_2)
+                        // grow second region by one.
                         self.proofs[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
                             new_proof;
                         self.size_blockhash_2 += 1;
                     }
                 } else if rh1_is_valid {
                     // State Transition 5
+                    // Second region is old. Invalidate the second region.
                     self.size_blockhash_2 = 0;
                     self.proofs[self.size_blockhash_1 as usize] = new_proof;
-                    if *rh1 == new_proof {
+                    if rh1_is_a_match {
                         self.recent_hashes = HashStorageStates::OneHash(*rh1);
                         self.size_blockhash_1 += 1;
                     } else {
                         // State Transition 4
+                        // If rh1 is valid but not a match, then begin a new second region
                         self.recent_hashes = HashStorageStates::TwoHashes(*rh1, *recent_blockhash);
                         self.size_blockhash_2 = 1;
                     }
                 } else if rh2_is_valid {
+                    // State Transition 5
+                    // First region is old. Invalidate / replace the first region.
                     // copy region 2 to region 1
+                    // to save on unneccessary copying...
+                    // copies all of region 2 to region 1 if region 2 is smaller than region 1
+                    // copies only size_region_1 from the end of region 2 to region 1
+                    // if region 2 is larger than region 1
                     for i in 0..min(self.size_blockhash_1, self.size_blockhash_2) {
                         self.proofs[i as usize] = self.proofs
                             [(self.size_blockhash_1 + self.size_blockhash_2 - 1 - i) as usize];
                     }
                     self.size_blockhash_1 = self.size_blockhash_2;
+                    // now that region 2 is copied to region 1, invalidate region 2
                     self.size_blockhash_2 = 0;
+
+                    // add new proof to region 1
                     self.proofs[self.size_blockhash_1 as usize] = new_proof;
-                    // State Transition 5
-                    if *rh2 == new_proof {
+                    if rh2 == recent_blockhash {
+                        // there is a match, add to region 1 (formerly region 2)
                         self.recent_hashes = HashStorageStates::OneHash(*rh2);
                         self.size_blockhash_1 += 1;
                     } else {
                         // State Transition 4
+                        // now that region 2 is copied to region 1, begin a new second region
                         self.recent_hashes = HashStorageStates::TwoHashes(*rh2, *recent_blockhash);
                         self.size_blockhash_2 = 1;
                     }
                 } else {
                     // State Transition 5 (implicit), 2 (implicit), 1
+                    // If neither recent_hash_1 nor recent_hash_2 are valid, then
+                    // invalidate both regions and start over with one proof in the first region
                     self.recent_hashes = HashStorageStates::OneHash(*recent_blockhash);
                     self.proofs[0] = new_proof;
                     self.size_blockhash_1 = 1;
                     self.size_blockhash_2 = 0;
                 }
-
-                //if valid_hashes.contains(rh1) && valid_hashes.contains(rh2) {
-                //    // State Transition 6
-                //} else {
-                //    // State Transition 5
-                //    if true {}
-                //}
             }
         }
-        //let is_two_hash_state = self.size_blockhash_2 > 0;
-
-        //let rh1_is_valid = valid_hashes.contains(&self.recent_blockhash_1);
-        //let rh2_is_valid = valid_hashes.contains(&self.recent_blockhash_2);
-
-        //// State Transition 5
-        //// If 2 blockhashes -> 1 blockhash
-        ////    size_blockhash_2 = 0
-
-        //// if recent_blockhash_2 is no longer valid
-        ////      set size_blockhash_2 to 0
-        ////      [state transition 3]
-        //if self.size_blockhash_2 > 0 && !valid_hashes.contains(&self.recent_blockhash_2) {
-        //    self.size_blockhash_2 = 0;
-        //}
-
-        //// If recent_blockhash_1 is no longer a valid recent_hash
-        ////    copy all the hashes in the second region to the first region
-        ////      (some optimizations have been made to prevent unnecessary copies)
-        ////      [state transition 3/4]
-        //if self.size_blockhash_1 > 0 && !valid_hashes.contains(&self.recent_blockhash_1) {
-        //    for i in 0..min(self.size_blockhash_1, self.size_blockhash_2) {
-        //        self.hashes[i as usize] =
-        //            self.hashes[(self.size_blockhash_1 + self.size_blockhash_2 - 1 - i) as usize];
-        //    }
-        //    self.size_blockhash_1 = self.size_blockhash_2;
-        //    self.size_blockhash_2 = 0;
-        //}
-
-        //// reallocate if necessary
-        //if self.capacity == self.size_blockhash_1 + self.size_blockhash_2 {
-        //    self.realloc(data_account)?;
-        //}
-
-        //// if the storage is empty
-        ////      insert hash into first region and increment size_blockhash_1
-        ////      [state transition 2/5]
-        //if self.size_blockhash_1 == 0 {
-        //    self.hashes[0] = new_hash;
-        //    self.size_blockhash_1 = 1;
-
-        //// If the provided hash matches recent_hash_1, then
-        ////      (1) the hash is checked against existing hashes
-        ////      (2) the first hash in the second region is moved to the end of the second region,
-        ////          the size of the second region does not increment
-        ////      (3) the hash is stored in the first region, at the end of size, increment size
-        ////      [state transition 2]
-        //} else if *recent_blockhash == self.recent_blockhash_1 {
-        //    if self.hashes[0..self.size_blockhash_1 as usize]
-        //        .iter()
-        //        .any(|hash| *hash == new_hash)
-        //    {
-        //        return Err(ProgramError::InvalidInstructionData);
-        //    }
-        //    self.hashes[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
-        //        self.hashes[self.size_blockhash_1 as usize];
-        //    self.hashes[self.size_blockhash_1 as usize] = new_hash;
-        //    self.size_blockhash_1 += 1;
-
-        //// If the provided hash matches recent_hash_2 then
-        ////      (1) the hash is checked against existing hashes
-        ////      (2) the hash is stored in the second region, at the end of size, increment size
-        ////      [no state transition]
-        //} else if *recent_blockhash == self.recent_blockhash_2 {
-        //    if self.hashes[self.size_blockhash_2 as usize
-        //        ..(self.size_blockhash_1 + self.size_blockhash_2) as usize]
-        //        .iter()
-        //        .any(|hash| *hash == new_hash)
-        //    {
-        //        return Err(ProgramError::InvalidInstructionData);
-        //    }
-        //    self.hashes[(self.size_blockhash_1 + self.size_blockhash_2) as usize] = new_hash;
-        //    self.size_blockhash_2 += 1;
-
-        //// If the provided hash does not match recent_hash_1 or recent_hash_2, then this triggers the
-        //// 1 hash -> 2 hashes transition
-        ////     (1) recent_hash_1 is moved to overwrite recent_hash_2
-        ////     (2) size_hash_1 is moved to overwrite size_hash_2
-        ////     (3) the provided recent_hash is stored in recent_hash_1
-        ////     (4) size_hash_1 is set to 0
-        ////     (5) from here do the same as if the provided hash matches recent_hash_1
-        ////      [state transition 1]
-        //} else {
-        //    self.recent_blockhash_2 = self.recent_blockhash_1;
-        //    self.size_blockhash_2 = self.size_blockhash_1;
-        //    self.recent_blockhash_1 = *recent_blockhash;
-        //    self.size_blockhash_1 = 0;
-        //    self.hashes[(self.size_blockhash_1 + self.size_blockhash_2) as usize] =
-        //        self.hashes[self.size_blockhash_1 as usize];
-        //    self.hashes[self.size_blockhash_1 as usize] = new_hash;
-        //    self.size_blockhash_1 += 1;
-        //}
         Ok(())
     }
 
@@ -328,18 +247,6 @@ impl HashStorage {
 #[cfg(test)]
 mod test {
     use std::{cell::RefCell, rc::Rc};
-
-    use std::sync::{Mutex, OnceLock};
-
-    fn utility_with_global_mutex<F, R>(f: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
-        let lock = LOCK.get_or_init(|| Mutex::new(()));
-        let _guard = lock.lock().unwrap();
-        f()
-    }
 
     use solana_program::{
         account_info::AccountInfo, blake3::HASH_BYTES, hash::Hash, program_error::ProgramError,
