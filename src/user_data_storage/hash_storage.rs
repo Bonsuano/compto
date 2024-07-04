@@ -671,30 +671,242 @@ mod test {
     }
 
     #[test]
-    #[ignore]
     fn test_event_five() {
-        // TODO: implement
-        todo!()
+        // tests the first region
+        let mut aligned_data = AlignedData {
+            data_len: 192,
+            data: [0; 256],
+        };
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut aligned_data.data,
+                data_size: aligned_data.data_len as usize,
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                proofs: &[POSSIBLE_NEW_PROOFS[2], POSSIBLE_NEW_PROOFS[1]],
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[0],
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                ..Default::default()
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 3,
+                size_blockhash_1: 2,
+                size_blockhash_2: 1,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[0],
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                proofs: &[
+                    POSSIBLE_NEW_PROOFS[2],
+                    POSSIBLE_NEW_PROOFS[0],
+                    POSSIBLE_NEW_PROOFS[1],
+                ],
+            }),
+        });
     }
 
     #[test]
-    #[ignore]
+    fn test_event_five_alt() {
+        // tests the second region
+        let mut aligned_data = AlignedData {
+            data_len: 192,
+            data: [0; 256],
+        };
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut aligned_data.data,
+                data_size: aligned_data.data_len as usize,
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                proofs: &[POSSIBLE_NEW_PROOFS[2], POSSIBLE_NEW_PROOFS[1]],
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[0],
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[1], POSSIBLE_NEW_PROOFS[0])],
+                ..Default::default()
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 2,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[0],
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                proofs: &[
+                    POSSIBLE_NEW_PROOFS[2],
+                    POSSIBLE_NEW_PROOFS[1],
+                    POSSIBLE_NEW_PROOFS[0],
+                ],
+            }),
+        });
+    }
+
+    #[test]
     fn test_event_six() {
-        // TODO: implement
-        todo!()
+        // checks region 1
+        let mut aligned_data = AlignedData {
+            data_len: 192,
+            data: [0; 256],
+        };
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut aligned_data.data,
+                data_size: aligned_data.data_len as usize,
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                proofs: &[POSSIBLE_NEW_PROOFS[2], POSSIBLE_NEW_PROOFS[1]],
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[0],
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[0], POSSIBLE_NEW_PROOFS[0])],
+                valid_blockhashes: ValidHashes::One(&POSSIBLE_RECENT_BLOCKHASHES[0]),
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 3,
+                size_blockhash_1: 2,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::OneHash(POSSIBLE_RECENT_BLOCKHASHES[0]),
+                proofs: &[POSSIBLE_NEW_PROOFS[2], POSSIBLE_NEW_PROOFS[0]],
+            }),
+        });
     }
 
     #[test]
-    #[ignore]
+    fn test_event_six_alt() {
+        // checks region 2
+        let mut aligned_data = AlignedData {
+            data_len: 192,
+            data: [0; 256],
+        };
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut aligned_data.data,
+                data_size: aligned_data.data_len as usize,
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                proofs: &[POSSIBLE_NEW_PROOFS[2], POSSIBLE_NEW_PROOFS[1]],
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[0],
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[1], POSSIBLE_NEW_PROOFS[0])],
+                valid_blockhashes: ValidHashes::One(&POSSIBLE_RECENT_BLOCKHASHES[1]),
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 3,
+                size_blockhash_1: 2,
+                size_blockhash_2: 0,
+                recent_blockhashes: HashStorageStates::OneHash(POSSIBLE_RECENT_BLOCKHASHES[1]),
+                proofs: &[POSSIBLE_NEW_PROOFS[1], POSSIBLE_NEW_PROOFS[0]],
+            }),
+        });
+    }
+
+    #[test]
     fn test_event_seven() {
-        // TODO: implement
-        todo!()
+        // checks region 1
+        let mut aligned_data = AlignedData {
+            data_len: 192,
+            data: [0; 256],
+        };
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut aligned_data.data,
+                data_size: aligned_data.data_len as usize,
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                proofs: &[POSSIBLE_NEW_PROOFS[2], POSSIBLE_NEW_PROOFS[1]],
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[0],
+                    POSSIBLE_RECENT_BLOCKHASHES[2],
+                ),
+                new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[1], POSSIBLE_NEW_PROOFS[0])],
+                ..Default::default()
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[0],
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                proofs: &[POSSIBLE_NEW_PROOFS[2], POSSIBLE_NEW_PROOFS[0]],
+            }),
+        });
     }
 
     #[test]
-    #[ignore]
+    fn test_event_seven_alt() {
+        // checks region 2
+        let mut aligned_data = AlignedData {
+            data_len: 192,
+            data: [0; 256],
+        };
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut aligned_data.data,
+                data_size: aligned_data.data_len as usize,
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                proofs: &[POSSIBLE_NEW_PROOFS[2], POSSIBLE_NEW_PROOFS[1]],
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[2],
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[0], POSSIBLE_NEW_PROOFS[0])],
+                ..Default::default()
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                    POSSIBLE_RECENT_BLOCKHASHES[0],
+                ),
+                proofs: &[POSSIBLE_NEW_PROOFS[1], POSSIBLE_NEW_PROOFS[0]],
+            }),
+        });
+    }
+
+    #[test]
     fn test_event_eight() {
-        // TODO: implement
-        todo!()
+        let mut aligned_data = AlignedData {
+            data_len: 192,
+            data: [0; 256],
+        };
+        run_test(TestValues {
+            inputs: TestValuesInput {
+                data: &mut aligned_data.data,
+                data_size: aligned_data.data_len as usize,
+                capacity: 3,
+                size_blockhash_1: 1,
+                size_blockhash_2: 1,
+                proofs: &[POSSIBLE_NEW_PROOFS[2], POSSIBLE_NEW_PROOFS[1]],
+                recent_blockhashes: HashStorageStates::TwoHashes(
+                    POSSIBLE_RECENT_BLOCKHASHES[2],
+                    POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                valid_blockhashes: ValidHashes::One(&POSSIBLE_RECENT_BLOCKHASHES[0]),
+                ..Default::default()
+            },
+            outputs: Some(TestValuesOutput {
+                capacity: 3,
+                size_blockhash_1: 1,
+                ..Default::default()
+            }),
+        });
     }
 }
