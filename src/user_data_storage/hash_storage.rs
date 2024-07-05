@@ -237,7 +237,9 @@ mod test {
     use std::{cell::RefCell, rc::Rc};
 
     use solana_program::{
-        account_info::AccountInfo, blake3::HASH_BYTES, hash::Hash, pubkey::Pubkey,
+        account_info::AccountInfo,
+        hash::{Hash, HASH_BYTES},
+        pubkey::Pubkey,
     };
 
     use crate::{comptoken_generated::COMPTOKEN_ADDRESS, ValidHashes};

@@ -105,6 +105,7 @@ TODO: vvv Add titles and arrows vvv
 ### ASCII Memory Layout
 
 ```
+<<<<<<< HEAD
 HashStorageState
                                   +----------------+----------------+
                                   |   Discriminant: usize           |
