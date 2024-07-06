@@ -1,6 +1,5 @@
 use std::cmp::min;
 
-
 use solana_program::{
     account_info::AccountInfo,
     blake3::HASH_BYTES,
@@ -162,7 +161,8 @@ impl HashStorage {
                     // copies only size_region_1 from the end of region 2 to region 1
                     // if region 2 is larger than region 1
                     for i in 0..min(self.size_blockhash_1, self.size_blockhash_2) {
-                        self.proofs[i] = self.proofs[self.size_blockhash_1 + self.size_blockhash_2 - 1 - i];
+                        self.proofs[i] =
+                            self.proofs[self.size_blockhash_1 + self.size_blockhash_2 - 1 - i];
                     }
                     self.size_blockhash_1 = self.size_blockhash_2;
                     // now that region 2 is copied to region 1, invalidate region 2
@@ -234,12 +234,12 @@ impl HashStorage {
 
 #[cfg(test)]
 mod test {
-    use std::{cell::RefCell, rc::Rc};
     use solana_program::{
         account_info::AccountInfo,
         hash::{Hash, HASH_BYTES},
         pubkey::Pubkey,
     };
+    use std::{cell::RefCell, rc::Rc};
 
     use crate::{comptoken_generated::COMPTOKEN_ADDRESS, ValidHashes};
 
@@ -247,9 +247,9 @@ mod test {
 
     #[repr(C)]
     struct AccountInfoPubkey {
-        // the size of the data account on the blockchain. 
+        // the size of the data account on the blockchain.
         // used for checking if the size increase is too much, which shouldn't ever be a concern in our tests
-        // We need to add this because solana-program's realloc function takes a reference to the Pubkey and 
+        // We need to add this because solana-program's realloc function takes a reference to the Pubkey and
         // assumes the size of the account is right before the Pubkey.
         // Normally AccountInfo should come from the solana runtime. This is a hack to make the tests work.
         original_data_len: u32,
@@ -289,15 +289,27 @@ mod test {
     use hex_literal::hex;
 
     const POSSIBLE_RECENT_BLOCKHASHES: [Hash; 3] = [
-        Hash::new_from_array(hex!("5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9")),
-        Hash::new_from_array(hex!("6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b")),
-        Hash::new_from_array(hex!("d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35")),
+        Hash::new_from_array(hex!(
+            "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+        )),
+        Hash::new_from_array(hex!(
+            "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+        )),
+        Hash::new_from_array(hex!(
+            "d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35"
+        )),
     ];
 
     const POSSIBLE_NEW_PROOFS: [Hash; 3] = [
-        Hash::new_from_array(hex!("4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce")),
-        Hash::new_from_array(hex!("4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a")),
-        Hash::new_from_array(hex!("ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d")),
+        Hash::new_from_array(hex!(
+            "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+        )),
+        Hash::new_from_array(hex!(
+            "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a"
+        )),
+        Hash::new_from_array(hex!(
+            "ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d"
+        )),
     ];
 
     #[derive(Debug)]
@@ -835,6 +847,10 @@ mod test {
                     POSSIBLE_RECENT_BLOCKHASHES[2],
                 ),
                 new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[1], POSSIBLE_NEW_PROOFS[0])],
+                valid_blockhashes: ValidHashes::Two(
+                    &POSSIBLE_RECENT_BLOCKHASHES[0],
+                    &POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
                 ..Default::default()
             },
             outputs: Some(TestValuesOutput {
@@ -870,6 +886,10 @@ mod test {
                     POSSIBLE_RECENT_BLOCKHASHES[1],
                 ),
                 new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[0], POSSIBLE_NEW_PROOFS[0])],
+                valid_blockhashes: ValidHashes::Two(
+                    &POSSIBLE_RECENT_BLOCKHASHES[0],
+                    &POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
                 ..Default::default()
             },
             outputs: Some(TestValuesOutput {
