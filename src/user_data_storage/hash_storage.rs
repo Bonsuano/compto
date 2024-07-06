@@ -598,6 +598,10 @@ mod test {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
                 data_size: aligned_data.data_len as usize,
+                valid_blockhashes: ValidHashes::Two(
+                    &POSSIBLE_RECENT_BLOCKHASHES[0],
+                    &POSSIBLE_NEW_PROOFS[1],
+                ),
                 ..Default::default()
             },
             outputs: Some(Default::default()),
@@ -621,6 +625,10 @@ mod test {
                 recent_blockhashes: HashStorageStates::OneHash(POSSIBLE_RECENT_BLOCKHASHES[0]),
                 proofs: &[POSSIBLE_NEW_PROOFS[0]],
                 new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[0], POSSIBLE_NEW_PROOFS[1])],
+                valid_blockhashes: ValidHashes::Two(
+                    &POSSIBLE_RECENT_BLOCKHASHES[0],
+                    &POSSIBLE_NEW_PROOFS[1],
+                ),
                 ..Default::default()
             },
             outputs: Some(TestValuesOutput {
@@ -648,6 +656,10 @@ mod test {
                 recent_blockhashes: HashStorageStates::OneHash(POSSIBLE_RECENT_BLOCKHASHES[0]),
                 proofs: &[POSSIBLE_NEW_PROOFS[0]],
                 new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[1], POSSIBLE_NEW_PROOFS[1])],
+                valid_blockhashes: ValidHashes::Two(
+                    &POSSIBLE_RECENT_BLOCKHASHES[0],
+                    &POSSIBLE_NEW_PROOFS[1],
+                ),
                 ..Default::default()
             },
             outputs: Some(TestValuesOutput {
@@ -677,6 +689,10 @@ mod test {
                 size_blockhash_1: 1,
                 proofs: &[POSSIBLE_NEW_PROOFS[1]],
                 recent_blockhashes: HashStorageStates::OneHash(POSSIBLE_RECENT_BLOCKHASHES[2]),
+                valid_blockhashes: ValidHashes::Two(
+                    &POSSIBLE_RECENT_BLOCKHASHES[0],
+                    &POSSIBLE_NEW_PROOFS[1],
+                ),
                 ..Default::default()
             },
             outputs: Some(Default::default()),
@@ -702,6 +718,10 @@ mod test {
                 recent_blockhashes: HashStorageStates::TwoHashes(
                     POSSIBLE_RECENT_BLOCKHASHES[0],
                     POSSIBLE_RECENT_BLOCKHASHES[1],
+                ),
+                valid_blockhashes: ValidHashes::Two(
+                    &POSSIBLE_RECENT_BLOCKHASHES[0],
+                    &POSSIBLE_NEW_PROOFS[1],
                 ),
                 ..Default::default()
             },
@@ -742,6 +762,10 @@ mod test {
                     POSSIBLE_RECENT_BLOCKHASHES[1],
                 ),
                 new_proofs: &[(POSSIBLE_RECENT_BLOCKHASHES[1], POSSIBLE_NEW_PROOFS[0])],
+                valid_blockhashes: ValidHashes::Two(
+                    &POSSIBLE_RECENT_BLOCKHASHES[0],
+                    &POSSIBLE_NEW_PROOFS[1],
+                ),
                 ..Default::default()
             },
             outputs: Some(TestValuesOutput {
