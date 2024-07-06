@@ -1,5 +1,6 @@
 use std::cmp::min;
 
+
 use solana_program::{
     account_info::AccountInfo,
     blake3::HASH_BYTES,
@@ -13,7 +14,7 @@ use crate::ValidHashes;
 #[repr(C)]
 #[derive(Debug)]
 pub struct HashStorage {
-    capacity: usize, // assumed to be u64
+    capacity: usize, // this structure assumes usize is 64 bits
     size_blockhash_1: usize,
     size_blockhash_2: usize,
     recent_hashes: HashStorageStates,
@@ -161,8 +162,7 @@ impl HashStorage {
                     // copies only size_region_1 from the end of region 2 to region 1
                     // if region 2 is larger than region 1
                     for i in 0..min(self.size_blockhash_1, self.size_blockhash_2) {
-                        self.proofs[i] =
-                            self.proofs[self.size_blockhash_1 + self.size_blockhash_2 - 1 - i];
+                        self.proofs[i] = self.proofs[self.size_blockhash_1 + self.size_blockhash_2 - 1 - i];
                     }
                     self.size_blockhash_1 = self.size_blockhash_2;
                     // now that region 2 is copied to region 1, invalidate region 2
@@ -235,7 +235,6 @@ impl HashStorage {
 #[cfg(test)]
 mod test {
     use std::{cell::RefCell, rc::Rc};
-
     use solana_program::{
         account_info::AccountInfo,
         hash::{Hash, HASH_BYTES},
@@ -247,21 +246,28 @@ mod test {
     use super::{HashStorage, HashStorageStates};
 
     #[repr(C)]
-    #[repr(align(8))]
-    struct AlignedPubkey {
-        original_data_len: u32, // realloc dereferences this, so make sure it is defined behavior
+    struct AccountInfoPubkey {
+        // the size of the data account on the blockchain. 
+        // used for checking if the size increase is too much, which shouldn't ever be a concern in our tests
+        // We need to add this because solana-program's realloc function takes a reference to the Pubkey and 
+        // assumes the size of the account is right before the Pubkey.
+        // Normally AccountInfo should come from the solana runtime. This is a hack to make the tests work.
+        original_data_len: u32,
         pubkey: Pubkey,
     }
 
     #[repr(align(8))]
     #[repr(C)]
-    struct AlignedData<const N: usize> {
-        data_len: u64, // realloc dereferences this, so make sure it is defined behavior
+    struct AccountInfoAlignedData<const N: usize> {
+        // similar to AccountInfoPubkey, this is a hack to make the tests work.
+        // solana-program realloc (specifically  `original_data_len()`) makes assumptions.
+        // This satisfies those assumptions for our simulated AccountData.
+        data_len: u64,
         data: [u8; N],
     }
 
-    const ALIGNED_ZERO_PUBKEY: AlignedPubkey = AlignedPubkey {
-        original_data_len: 0, // used for checking if the size increase is too much, which shouldn't ever be a concern in our tests
+    const ALIGNED_ZERO_PUBKEY: AccountInfoPubkey = AccountInfoPubkey {
+        original_data_len: 0,
         pubkey: Pubkey::new_from_array([0; HASH_BYTES]),
     };
     const TOKEN: Pubkey = COMPTOKEN_ADDRESS;
@@ -280,16 +286,18 @@ mod test {
         }
     }
 
+    use hex_literal::hex;
+
     const POSSIBLE_RECENT_BLOCKHASHES: [Hash; 3] = [
-        Hash::new_from_array([255; HASH_BYTES]),
-        Hash::new_from_array([254; HASH_BYTES]),
-        Hash::new_from_array([253; HASH_BYTES]),
+        Hash::new_from_array(hex!("5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9")),
+        Hash::new_from_array(hex!("6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b")),
+        Hash::new_from_array(hex!("d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35")),
     ];
 
     const POSSIBLE_NEW_PROOFS: [Hash; 3] = [
-        Hash::new_from_array([0; HASH_BYTES]),
-        Hash::new_from_array([1; HASH_BYTES]),
-        Hash::new_from_array([2; HASH_BYTES]),
+        Hash::new_from_array(hex!("4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce")),
+        Hash::new_from_array(hex!("4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a")),
+        Hash::new_from_array(hex!("ef2d127de37b942baad06145e54b0c619a1f22327b2ebbcfbec78f5564afe39d")),
     ];
 
     #[derive(Debug)]
@@ -467,7 +475,7 @@ mod test {
 
     #[test]
     fn test_try_from_empty_data_account() {
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 0,
             data: [0; 128],
         };
@@ -489,7 +497,7 @@ mod test {
     #[test]
     #[should_panic(expected = "data does not match capacity")]
     fn test_try_from_incorrect_capacity() {
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 0,
             data: [0; 160],
         };
@@ -505,7 +513,7 @@ mod test {
 
     #[test]
     fn test_insert() {
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 0,
             data: [0; 256],
         };
@@ -521,7 +529,7 @@ mod test {
 
     #[test]
     fn test_insert_realloc() {
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 128,
             data: [0; 256],
         };
@@ -547,7 +555,7 @@ mod test {
     #[test]
     #[should_panic(expected = "duplicate hash")]
     fn test_insert_duplicate() {
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 128,
             data: [0; 256],
         };
@@ -567,9 +575,10 @@ mod test {
     }
 
     #[test]
+    // No recent_hashes -> One recent_hash
     fn test_event_one() {
         // identical to insert
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 128,
             data: [0; 256],
         };
@@ -584,9 +593,10 @@ mod test {
     }
 
     #[test]
+    // One recent_hash -> Same recent_hash
     fn test_event_two() {
         // also covered by realloc
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 160,
             data: [0; 256],
         };
@@ -611,8 +621,9 @@ mod test {
     }
 
     #[test]
+    // One recent_hash -> Two recent_hashes
     fn test_event_three() {
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 160,
             data: [0; 256],
         };
@@ -641,8 +652,9 @@ mod test {
     }
 
     #[test]
+    // One recent_hash -> New recent_hash
     fn test_event_four() {
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 128,
             data: [0; 256],
         };
@@ -660,9 +672,10 @@ mod test {
     }
 
     #[test]
+    // Two recent_hashes -> Same two recent_hashes
     fn test_event_five() {
         // tests the first region
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 192,
             data: [0; 256],
         };
@@ -700,7 +713,7 @@ mod test {
     #[test]
     fn test_event_five_alt() {
         // tests the second region
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 192,
             data: [0; 256],
         };
@@ -737,9 +750,10 @@ mod test {
     }
 
     #[test]
+    // Two recent_hashes -> Only the less old recent_hash is valid
     fn test_event_six() {
         // checks region 1
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 192,
             data: [0; 256],
         };
@@ -771,7 +785,7 @@ mod test {
     #[test]
     fn test_event_six_alt() {
         // checks region 2
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 192,
             data: [0; 256],
         };
@@ -801,9 +815,10 @@ mod test {
     }
 
     #[test]
+    // Two recent_hashes -> The less old recent_hash + new recent_hash
     fn test_event_seven() {
         // checks region 1
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 192,
             data: [0; 256],
         };
@@ -838,7 +853,7 @@ mod test {
     #[test]
     fn test_event_seven_alt() {
         // checks region 2
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 192,
             data: [0; 256],
         };
@@ -871,8 +886,9 @@ mod test {
     }
 
     #[test]
+    // Two recent_hashes -> New recent_hash
     fn test_event_eight() {
-        let mut aligned_data = AlignedData {
+        let mut aligned_data = AccountInfoAlignedData {
             data_len: 192,
             data: [0; 256],
         };
