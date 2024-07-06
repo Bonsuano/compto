@@ -4,10 +4,10 @@ mod user_data_storage;
 extern crate bs58;
 
 use comptoken_proof::ComptokenProof;
-use solana_program::{
+use spl_token_2022::instruction::mint_to;
+use spl_token_2022::solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
-    entrypoint::ProgramResult,
     hash::Hash,
     msg,
     program::invoke_signed,
@@ -15,10 +15,11 @@ use solana_program::{
     system_instruction::create_account,
     sysvar::slot_history::ProgramError,
 };
-use spl_token::instruction::mint_to;
 use user_data_storage::HashStorage;
 // declare and export the program's entrypoint
 entrypoint!(process_instruction);
+
+type ProgramResult = Result<(), ProgramError>;
 
 // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN test_client.js
 const STATIC_ACCOUNT_SPACE: u64 = 4096;
@@ -30,7 +31,7 @@ const STATIC_ACCOUNT_SPACE: u64 = 4096;
 mod comptoken_generated;
 #[cfg(not(feature = "testmode"))]
 mod comptoken_generated {
-    use solana_program::{pubkey, pubkey::Pubkey};
+    use spl_token_2022::solana_program::{pubkey, pubkey::Pubkey};
     pub const COMPTOKEN_ADDRESS: Pubkey = pubkey!("11111111111111111111111111111111");
     pub const COMPTO_STATIC_ADDRESS_SEED: u8 = 255;
 }
@@ -113,7 +114,7 @@ fn mint(
     accounts: &[AccountInfo],
 ) -> ProgramResult {
     let instruction = mint_to(
-        &spl_token::id(),
+        &spl_token_2022::id(),
         &COMPTOKEN_ADDRESS,
         &destination,
         &mint_pda,
@@ -161,8 +162,8 @@ pub fn test_mint(
     let account_info_iter = &mut accounts.iter();
     let destination_account = next_account_info(account_info_iter)?;
     let mint_authority_account = next_account_info(account_info_iter)?;
-    let token_account = next_account_info(account_info_iter)?;
-    let comptoken_account = next_account_info(account_info_iter)?;
+    let _token_account = next_account_info(account_info_iter)?;
+    let _comptoken_account = next_account_info(account_info_iter)?;
 
     verify_comptoken_user_account(destination_account)?;
 
@@ -217,6 +218,19 @@ fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResul
         get_valid_hashes(),
         data_account,
     )
+}
+
+pub fn create_user_data_account(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    //  accounts order:
+    //      destination comptoken account
+    //      mint authority account
+    //      spl_token account
+    //      comptoken program account
+    todo!()
 }
 
 pub fn mint_comptokens(

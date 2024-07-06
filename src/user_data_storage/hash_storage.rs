@@ -1,6 +1,6 @@
 use std::cmp::min;
 
-use solana_program::{
+use spl_token_2022::solana_program::{
     account_info::AccountInfo,
     blake3::HASH_BYTES,
     entrypoint::{ProgramResult, MAX_PERMITTED_DATA_INCREASE},

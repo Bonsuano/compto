@@ -1,9 +1,9 @@
 use std::mem;
 
-use solana_program::{
+use spl_token_2022::solana_program::{
     hash::{Hash, Hasher, HASH_BYTES},
+    msg,
     pubkey::Pubkey,
-    msg
 };
 
 // ensure this remains consistent with comptoken_proof.js
@@ -29,7 +29,6 @@ pub fn verify_proof(block: &ComptokenProof) -> bool {
     let equal_hash: bool = block.generate_hash() == block.hash;
     msg!("equal_hash: {:?}", equal_hash);
     return leading_zeros && recent_blockhash && new_hash && equal_hash;
-    
 }
 
 pub const VERIFY_DATA_SIZE: usize = HASH_BYTES + mem::size_of::<u64>() + HASH_BYTES;
@@ -94,7 +93,7 @@ impl<'a> ComptokenProof<'a> {
 mod test {
 
     use super::*;
-    use solana_program::pubkey::PUBKEY_BYTES;
+    use spl_token_2022::solana_program::pubkey::PUBKEY_BYTES;
 
     const ZERO_PUBKEY: Pubkey = Pubkey::new_from_array([0; PUBKEY_BYTES]);
 
@@ -136,7 +135,7 @@ mod test {
 
         let recent_hash = Hash::new_from_array([1; 32]);
         let pubkey = Pubkey::new_from_array([2; PUBKEY_BYTES]);
-        let nonce: u64 = 0x03030303_03030303; 
+        let nonce: u64 = 0x03030303_03030303;
         let mut v = Vec::<u8>::with_capacity(VERIFY_DATA_SIZE);
         let mut hasher = Hasher::default();
 

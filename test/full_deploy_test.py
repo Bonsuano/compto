@@ -153,7 +153,7 @@ def generateComptokenAddressFile():
 //      (1) create_program_address is not safe if using a user provided bump.
 //      (2) find_program_address is expensive and we want to avoid iterations.
 
-use solana_program::{{pubkey, pubkey::Pubkey}};
+use spl_token_2022::solana_program::{{pubkey, pubkey::Pubkey}};
 
 pub const COMPTOKEN_ADDRESS: Pubkey = pubkey!("{comptoken_id}");
 
