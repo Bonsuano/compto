@@ -239,7 +239,7 @@ mod test {
         hash::{Hash, HASH_BYTES},
         pubkey::Pubkey,
     };
-    use std::{cell::RefCell, ops::Index, rc::Rc};
+    use std::{cell::RefCell, rc::Rc};
 
     use crate::{comptoken_generated::COMPTOKEN_ADDRESS, ValidHashes};
 
@@ -262,7 +262,7 @@ mod test {
         // similar to AccountInfoPubkey, this is a hack to make the tests work.
         // solana-program realloc (specifically  `original_data_len()`) makes assumptions.
         // This satisfies those assumptions for our simulated AccountData.
-        data_len: u64,
+        data_len: usize,
         data: [u8; N],
     }
 
@@ -455,10 +455,10 @@ mod test {
             hs.capacity, outputs.capacity,
         );
         assert_eq!(
-            hs.capacity as usize,
+            hs.capacity,
             hs.proofs.len(),
             "capacity: '{}' should equal hashes.len(): '{}'",
-            hs.capacity as usize,
+            hs.capacity,
             hs.proofs.len(),
         );
         assert_eq!(
@@ -494,7 +494,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 new_proofs: &[],
                 ..Default::default()
             },
@@ -517,7 +517,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 ..Default::default()
             },
             ..Default::default()
@@ -533,7 +533,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 ..Default::default()
             },
             outputs: Some(Default::default()),
@@ -549,7 +549,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 capacity: 1,
                 size_blockhash_1: 1,
                 recent_blockhashes: HashStorageStates::OneHash(POSSIBLE_RECENT_BLOCKHASHES[0]),
@@ -576,7 +576,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 recent_blockhashes: HashStorageStates::OneHash(POSSIBLE_RECENT_BLOCKHASHES[0]),
                 proofs: &[POSSIBLE_NEW_PROOFS[0]],
@@ -598,7 +598,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 valid_blockhashes: ValidHashes::One(&POSSIBLE_RECENT_BLOCKHASHES[0]),
                 recent_blockhashes: HashStorageStates::NoHashes,
                 proofs: &[],
@@ -625,7 +625,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 valid_blockhashes: ValidHashes::One(&POSSIBLE_RECENT_BLOCKHASHES[0]),
                 recent_blockhashes: HashStorageStates::OneHash(POSSIBLE_RECENT_BLOCKHASHES[0]),
@@ -652,7 +652,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 valid_blockhashes: ValidHashes::Two(
                     &POSSIBLE_RECENT_BLOCKHASHES[0],
@@ -686,7 +686,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 valid_blockhashes: ValidHashes::One(&POSSIBLE_RECENT_BLOCKHASHES[1]),
                 recent_blockhashes: HashStorageStates::OneHash(POSSIBLE_RECENT_BLOCKHASHES[0]),
@@ -714,7 +714,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 size_blockhash_2: 1,
                 valid_blockhashes: ValidHashes::Two(
@@ -756,7 +756,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 size_blockhash_2: 1,
                 valid_blockhashes: ValidHashes::Two(
@@ -799,7 +799,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 size_blockhash_2: 1,
                 valid_blockhashes: ValidHashes::One(&POSSIBLE_RECENT_BLOCKHASHES[1]),
@@ -831,7 +831,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 size_blockhash_2: 1,
                 valid_blockhashes: ValidHashes::One(&POSSIBLE_RECENT_BLOCKHASHES[1]),
@@ -864,7 +864,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 size_blockhash_2: 1,
                 valid_blockhashes: ValidHashes::Two(
@@ -902,7 +902,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 size_blockhash_2: 1,
                 valid_blockhashes: ValidHashes::Two(
@@ -940,7 +940,7 @@ mod test {
         run_test(TestValues {
             inputs: TestValuesInput {
                 data: &mut aligned_data.data,
-                data_size: aligned_data.data_len as usize,
+                data_size: aligned_data.data_len,
                 size_blockhash_1: 1,
                 size_blockhash_2: 1,
                 valid_blockhashes: ValidHashes::One(&POSSIBLE_RECENT_BLOCKHASHES[2]),
