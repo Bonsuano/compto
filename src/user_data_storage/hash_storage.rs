@@ -10,14 +10,16 @@ use spl_token_2022::solana_program::{
 
 use crate::ValidHashes;
 
+pub const HASH_STORAGE_SIZE: usize = 96;
+
 #[repr(C)]
 #[derive(Debug)]
 pub struct HashStorage {
-    capacity: usize, // this structure assumes usize is 64 bits
-    size_blockhash_1: usize,
-    size_blockhash_2: usize,
-    recent_hashes: HashStorageStates,
-    proofs: [Hash],
+    pub capacity: usize, // this structure assumes usize is 64 bits
+    pub size_blockhash_1: usize,
+    pub size_blockhash_2: usize,
+    pub recent_hashes: HashStorageStates,
+    pub proofs: [Hash],
 }
 
 impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
@@ -30,7 +32,7 @@ impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
         // if data.len() != <sizeof HashStorage w/ capacity Hashes>
         assert_eq!(
             data.len(),
-            96 + capacity * HASH_BYTES,
+            HASH_STORAGE_SIZE + capacity * HASH_BYTES,
             "data does not match capacity"
         );
         assert!(
@@ -43,21 +45,19 @@ impl<'a> TryFrom<&mut [u8]> for &mut HashStorage {
         // size_blockhash_1 and size_blockhash_2 are within possible bounds
         // Hash's are valid with any bit pattern
         let new_len = (data.len() / 32) - 3;
-        unsafe {
-            let data_hashes =
-                core::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut Hash, new_len);
-            let result: &mut HashStorage = std::mem::transmute(data_hashes);
-            result.capacity = usize::from_le(result.capacity);
-            result.size_blockhash_1 = usize::from_le(result.size_blockhash_1);
-            result.size_blockhash_2 = usize::from_le(result.size_blockhash_2);
-            Ok(result)
-        }
+        let data_hashes =
+            unsafe { core::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut Hash, new_len) };
+        let result = unsafe { &mut *(data_hashes as *mut _ as *mut HashStorage) };
+        result.capacity = usize::from_le(result.capacity);
+        result.size_blockhash_1 = usize::from_le(result.size_blockhash_1);
+        result.size_blockhash_2 = usize::from_le(result.size_blockhash_2);
+        Ok(result)
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 #[repr(C, usize)]
-enum HashStorageStates {
+pub enum HashStorageStates {
     NoHashes = 0,
     OneHash(Hash) = 1,
     TwoHashes(Hash, Hash) = 2,
@@ -208,7 +208,7 @@ impl HashStorage {
             let self_ptr: *mut Self = *self;
             let data = core::slice::from_raw_parts_mut(
                 self_ptr as *mut u8,
-                self.capacity * HASH_BYTES + 96,
+                self.capacity * HASH_BYTES + HASH_STORAGE_SIZE,
             );
             self.write_data();
             *self = data.try_into()?;
@@ -230,6 +230,21 @@ impl HashStorage {
         self.size_blockhash_1 = self.size_blockhash_1.to_le();
         self.size_blockhash_2 = self.size_blockhash_2.to_le();
     }
+
+    /// # Safety
+    ///
+    /// bytes must point to a valid HashStorage.  
+    /// in particular, the capacity must correspond to the length, and
+    /// the blockhash sizes must combined be no larger than capacity
+    pub unsafe fn try_from_unchecked<'a>(bytes: &'a mut [u8]) -> &'a mut HashStorage {
+        let new_len = (bytes.len() / HASH_BYTES) - (HASH_STORAGE_SIZE / HASH_BYTES);
+        let data_hashes = unsafe { core::slice::from_raw_parts_mut(bytes.as_mut_ptr(), new_len) };
+        let result = unsafe { &mut *(data_hashes as *mut _ as *mut HashStorage) };
+        result.capacity = usize::from_le(result.capacity);
+        result.size_blockhash_1 = usize::from_le(result.size_blockhash_1);
+        result.size_blockhash_2 = usize::from_le(result.size_blockhash_2);
+        result
+    }
 }
 
 #[cfg(test)]
@@ -243,7 +258,7 @@ mod test {
 
     use crate::{comptoken_generated::COMPTOKEN_ADDRESS, ValidHashes};
 
-    use super::{HashStorage, HashStorageStates};
+    use super::*;
 
     #[repr(C)]
     struct AccountInfoPubkey {
@@ -379,26 +394,15 @@ mod test {
         recent_blockhashes: HashStorageStates,
         proofs: &[Hash],
     ) {
-        assert!(data.len() >= 96 + proofs.len() * 32);
+        assert!(data.len() >= HASH_STORAGE_SIZE + proofs.len() * 32);
 
-        let data_ptr = data.as_mut_ptr();
-        let capacity_ptr = data_ptr as *mut usize;
-        unsafe {
-            *capacity_ptr = capacity.to_le();
-
-            let size_blockhash_1_ptr = data_ptr.offset(8) as *mut usize;
-            *size_blockhash_1_ptr = size_blockhash_1.to_le();
-
-            let size_blockhash_2_ptr = data_ptr.offset(16) as *mut usize;
-            *size_blockhash_2_ptr = size_blockhash_2.to_le();
-
-            let recent_blockhashes_ptr = data_ptr.offset(24) as *mut HashStorageStates;
-            *recent_blockhashes_ptr = recent_blockhashes;
-
-            for (i, hash) in proofs.iter().enumerate() {
-                let hash_ptr = data_ptr.offset((96 + i * 32) as isize) as *mut Hash;
-                *hash_ptr = *hash;
-            }
+        let hs = unsafe { HashStorage::try_from_unchecked(data) };
+        hs.capacity = capacity.to_le();
+        hs.size_blockhash_1 = size_blockhash_1.to_le();
+        hs.size_blockhash_2 = size_blockhash_2.to_le();
+        hs.recent_hashes = recent_blockhashes;
+        for (i, proof) in proofs.iter().enumerate() {
+            hs.proofs[i] = *proof;
         }
     }
 
@@ -406,7 +410,9 @@ mod test {
         let inputs = test_values.inputs;
         let lamports = &mut 999_999_999u64;
         let mut final_data_size = inputs.data_size;
-        while final_data_size < (inputs.new_proofs.len() + inputs.proofs.len()) * 32 + 96 {
+        while final_data_size
+            < (inputs.new_proofs.len() + inputs.proofs.len()) * 32 + HASH_STORAGE_SIZE
+        {
             final_data_size += final_data_size;
         }
         if final_data_size > inputs.data.len() {

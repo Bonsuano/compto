@@ -18,6 +18,7 @@ COMPTO_TEST_ACCOUNT = CACHE_PATH / "compto_test_account.json"
 COMPTO_MINT_AUTHORITY_JSON = CACHE_PATH / "compto_mint_authority.json"
 COMPTO_ADDRESS_FILE = PROJECT_PATH / "src/comptoken_generated.rs"
 COMPTO_STATIC_PDA = CACHE_PATH / "compto_static_pda.json"
+TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 
 class SubprocessFailedException(Exception):
@@ -38,7 +39,9 @@ def getProgramId():
 
 
 def createToken():
-    run(f"spl-token create-token -v --output json > {COMPTOKEN_ID_JSON}")
+    run(
+        f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-token -v  --output json > {COMPTOKEN_ID_JSON}"
+    )
 
 
 def createKeyPair(outfile: Path):
@@ -47,7 +50,9 @@ def createKeyPair(outfile: Path):
 
 def createComptoAccount():
     createKeyPair(COMPTO_TEST_ACCOUNT)
-    run(f"spl-token create-account {getTokenAddress()} {COMPTO_TEST_ACCOUNT}")
+    run(
+        f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-account {getTokenAddress()} {COMPTO_TEST_ACCOUNT}"
+    )
 
 
 def getPubkey(path: Path) -> str:
@@ -66,16 +71,18 @@ def deploy():
 
 def setComptoMintAuthority():
     run(
-        f"spl-token authorize {getTokenAddress()} mint {getProgramId()} --output json > {COMPTO_MINT_AUTHORITY_JSON}"
+        f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} authorize {getTokenAddress()} mint {getProgramId()} --output json > {COMPTO_MINT_AUTHORITY_JSON}"
     )
 
 
 def checkIfCurrentMintAuthorityExists() -> bool:
     # TODO: find a more efficient way to do this
     try:
-        json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get(
-            "MintAuthority"
-        )
+        json.loads(
+            run(
+                f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} display {getTokenAddress()} --output json"
+            )
+        ).get("MintAuthority")
         return True
     except (FileNotFoundError, SubprocessFailedException, json.decoder.JSONDecodeError):
         return False
@@ -85,9 +92,11 @@ def checkIfCurrentMintAuthorityExists() -> bool:
 
 
 def getCurrentMintAuthority() -> str:
-    return json.loads(run(f"spl-token display {getTokenAddress()} --output json")).get(
-        "MintAuthority"
-    )
+    return json.loads(
+        run(
+            f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} display {getTokenAddress()} --output json"
+        )
+    ).get("MintAuthority")
 
 
 def setStaticPda():
@@ -112,7 +121,7 @@ def getComptoMd5():
 # ========================
 
 
-def checkIfProgamIdChanged():
+def checkIfProgamIdChanged() -> bool:
     # Only deploy if the program id has changed
     if not COMPTO_PROGRAM_ID_JSON.exists():
         return False

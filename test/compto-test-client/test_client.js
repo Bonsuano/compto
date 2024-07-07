@@ -2,6 +2,7 @@ import {
     Connection,
     Keypair,
     LAMPORTS_PER_SOL,
+    PublicKey,
     SystemProgram,
     Transaction,
     TransactionInstruction,
@@ -10,9 +11,9 @@ import {
 
 import {
     AuthorityType,
-    TOKEN_PROGRAM_ID,
+    TOKEN_2022_PROGRAM_ID,
     setAuthority,
-    unpackMint,
+    unpackMint
 } from '@solana/spl-token';
 
 import {
@@ -24,7 +25,6 @@ import {
     static_pda_pubkey,
 } from './common.js';
 
-import { mintComptokens } from "./comptoken_proof.js";
 
 const temp_keypair = Keypair.generate();
 
@@ -40,6 +40,7 @@ let connection = new Connection('http://localhost:8899', 'recent');
 (async () => {
     await airdrop(temp_keypair.publicKey);
     await setMintAuthorityIfNeeded();
+    await createUserDataAccount();
     await testMint();
     await initializeStaticAccount();
     // await mintComptokens(connection, destination_pubkey, temp_keypair);
@@ -55,7 +56,7 @@ async function airdrop(pubkey) {
 
 async function setMintAuthorityIfNeeded() {
     const info = await connection.getAccountInfo(comptoken_pubkey, "confirmed");
-    const unpackedMint = unpackMint(comptoken_pubkey, info, TOKEN_PROGRAM_ID);
+    const unpackedMint = unpackMint(comptoken_pubkey, info, TOKEN_2022_PROGRAM_ID);
     if (unpackedMint.mintAuthority.toString() == static_pda_pubkey.toString()) {
         console.log("Mint Authority already set, skipping setAuthority Transaction");
     } else {
@@ -72,7 +73,10 @@ async function setMintAuthority(mint_authority_pubkey) {
         comptoken_pubkey,
         mint_authority_pubkey,
         AuthorityType.MintTokens,
-        static_pda_pubkey
+        static_pda_pubkey,
+        undefined,
+        undefined,
+        TOKEN_2022_PROGRAM_ID
     );
 }
 
@@ -84,7 +88,7 @@ async function testMint() {
         // the mint authority that will sign to mint the tokens
         { pubkey: static_pda_pubkey, isSigner: false, isWritable: false},
         // the token program that will mint the tokens when instructed by the mint authority
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
         // communicates to the token program which mint (and therefore which mint authority)
         // to mint the tokens from
         { pubkey: comptoken_pubkey, isSigner: false, isWritable: true },
@@ -140,6 +144,36 @@ async function initializeStaticAccount() {
     );
     let initializeStaticAccountResult = await sendAndConfirmTransaction(connection, initializeStaticAccountTransaction, [temp_keypair, temp_keypair]);
     console.log("initializeStaticAccount transaction confirmed", initializeStaticAccountResult);
+    
+}
+
+async function createUserDataAccount() {
+    // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN comptoken.rs
+    const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(128);
+    console.log("Rent exempt amount: ", rentExemptAmount);
+    let data = Buffer.alloc(9);
+    data.writeUInt8(Instruction.CREATE_USER_DATA_ACCOUNT, 0);
+    data.writeBigInt64LE(BigInt(rentExemptAmount), 1);
+    console.log("data: ", data);
+    let user_pda = PublicKey.findProgramAddressSync([temp_keypair.publicKey.toBytes()], compto_program_id_pubkey)
+    
+    let keys = [
+        // the payer of the rent for the account
+        { pubkey: temp_keypair.publicKey, isSigner: true, isWritable: true },
+        { pubkey: user_pda[0], isSigner: false, isWritable: true },
+        // needed because compto program interacts with the system program to create the account
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false},
+    ];
+    let createUserDataAccountTransaction = new Transaction();
+    createUserDataAccountTransaction.add(
+        new TransactionInstruction({
+            keys: keys,
+            programId: compto_program_id_pubkey,
+            data: data,
+        }),
+    );
+    let createUserDataAccountResult = await sendAndConfirmTransaction(connection, createUserDataAccountTransaction, [temp_keypair, temp_keypair]);
+    console.log("createUserDataAccount transaction confirmed", createUserDataAccountResult);
     
 }
 // how to create a program address based using bumpseed
