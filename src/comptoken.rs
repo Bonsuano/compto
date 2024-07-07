@@ -67,10 +67,6 @@ pub fn process_instruction(
             initialize_static_data_account(program_id, accounts, &instruction_data[1..])
         }
         3 => {
-            msg!("Create User Data Account");
-            create_user_data_account(program_id, accounts, &instruction_data[1..])
-        }
-        4 => {
             msg!("Initialize User Data Account");
             initilize_user_data_account(program_id, accounts, &instruction_data[1..])
         }
@@ -230,50 +226,6 @@ fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) -> ProgramResul
     )
 }
 
-pub fn create_user_data_account(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    //  accounts order:
-    //      owner id
-    //      canonical user data pda
-    //      spl_token id
-    //      comptoken program id
-    msg!("instruction_data: {:?}", instruction_data);
-
-    let account_info_iter = &mut accounts.iter();
-    let owner_account = next_account_info(account_info_iter)?;
-
-    // verify_owner_account(owner_account)?;
-    // we do not need to verify that the client provided the correct mint authority
-    // if the wrong mint authority is provided, create_account will fail
-    let comptoken_user_data_pda =
-        Pubkey::find_program_address(&[&owner_account.key.to_bytes()], program_id).0;
-    let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
-    let lamports = u64::from_le_bytes(first_8_bytes);
-    msg!("Lamports: {:?}", lamports);
-
-    let create_acct_instr = create_account(
-        owner_account.key,
-        &comptoken_user_data_pda,
-        lamports,
-        128,
-        program_id,
-    );
-
-    let _result = invoke_signed(&create_acct_instr, accounts, &[COMPTO_STATIC_PDA_SEEDS])?;
-
-    //let initialize_instruction = Instruction {
-    //    program_id: *program_id,
-    //    accounts: vec![AccountMeta::new(comptoken_user_data_pda, false)],
-    //    data: vec![4],
-    //};
-
-    //let _result = invoke(&initialize_instruction, accounts)?;
-    Ok(())
-}
-
 pub fn initilize_user_data_account(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -288,9 +240,9 @@ pub fn initilize_user_data_account(
 
     let mut data = data_account.try_borrow_mut_data()?;
     let len = data.len();
-    assert!(data.iter().any(|b| *b != 0));
-    assert!(len > HASH_STORAGE_SIZE + HASH_BYTES);
-    assert!(len % HASH_BYTES != 0);
+    assert!(data.iter().any(|b| *b != 0), "All bytes should be zero for uninitialized data account");
+    assert!(len > HASH_STORAGE_SIZE + HASH_BYTES, "Data account is too small for a capacity of 1 hash");
+    assert!(len % HASH_BYTES != 0, "Data account should be a multiple of 32 bytes, so that the size and the last hash end at the same boundary");
 
     let hs = unsafe { HashStorage::try_from_unchecked(data.as_mut()) };
     hs.capacity = len / 32 - (HASH_STORAGE_SIZE / HASH_BYTES);
