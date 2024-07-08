@@ -95,6 +95,7 @@ impl HashStorage {
 mod test {
 
     use super::*;
+    use hex_literal::hex;
     use std::cmp::max;
 
     #[derive(Debug)]
@@ -125,13 +126,21 @@ mod test {
     }
 
     const POSSIBLE_BLOCKHASHES: [Hash; 2] = [
-        Hash::new_from_array([255; HASH_BYTES]),
-        Hash::new_from_array([254; HASH_BYTES]),
+        Hash::new_from_array(hex!(
+            "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9"
+        )),
+        Hash::new_from_array(hex!(
+            "6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b"
+        )),
     ];
 
     const POSSIBLE_PROOFS: [Hash; 2] = [
-        Hash::new_from_array([1; HASH_BYTES]),
-        Hash::new_from_array([2; HASH_BYTES]),
+        Hash::new_from_array(hex!(
+            "4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce"
+        )),
+        Hash::new_from_array(hex!(
+            "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a"
+        )),
     ];
 
     fn run_test(test_values: TestValues) {
