@@ -3,7 +3,7 @@ use solana_program::{hash::Hash, hash::HASH_BYTES, program_error::ProgramError};
 #[repr(C)]
 pub struct HashStorageBase<T: ?Sized> {
     length: usize,
-    recent_blockhash: Hash,
+    blockhash: Hash,
     data: T,
 }
 
@@ -70,10 +70,10 @@ impl<'a> IntoIterator for &'a mut HashStorage {
 }
 
 impl HashStorage {
-    pub fn insert(self: &mut Self, new_proof: &Hash, recent_blockhash: &Hash) {
+    pub fn insert(&mut self, new_proof: &Hash, recent_blockhash: &Hash) {
         // new_proof and recent_blockhash have already been verified
-        if self.recent_blockhash != *recent_blockhash {
-            self.recent_blockhash = *recent_blockhash;
+        if self.blockhash != *recent_blockhash {
+            self.blockhash = *recent_blockhash;
             self.length = 0;
         }
         assert!(!self.contains(new_proof), "proof should be new");
@@ -87,5 +87,115 @@ impl HashStorage {
 
     fn contains(&self, new_proof: &Hash) -> bool {
         self.into_iter().any(|proof| proof == new_proof)
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use super::*;
+    use std::cmp::max;
+
+    #[derive(Debug)]
+    struct ProofOfWork {
+        blockhash: Hash,
+        proof: Hash,
+    }
+
+    #[derive(Debug)]
+    struct TestValuesInput<'a> {
+        data: &'a mut [u8],
+        length: usize,
+        stored_blockhash: Hash,
+        proofs: &'a [Hash],
+        new_proofs: &'a [ProofOfWork],
+    }
+
+    #[derive(Debug)]
+    struct TestValuesOutput<'a> {
+        length: usize,
+        stored_blockhash: Hash,
+        proofs: &'a [Hash],
+    }
+
+    struct TestValues<'a> {
+        input: TestValuesInput<'a>,
+        output: Option<TestValuesOutput<'a>>,
+    }
+
+    const POSSIBLE_BLOCKHASHES: [Hash; 2] = [
+        Hash::new_from_array([255; HASH_BYTES]),
+        Hash::new_from_array([254; HASH_BYTES]),
+    ];
+
+    const POSSIBLE_PROOFS: [Hash; 2] = [
+        Hash::new_from_array([1; HASH_BYTES]),
+        Hash::new_from_array([2; HASH_BYTES]),
+    ];
+
+    fn run_test(test_values: TestValues) {
+        let input = test_values.input;
+        let output = test_values.output;
+        let max_length = max(input.length, output.as_ref().map_or(0, |o| o.length));
+        assert!(
+            input.data.len() >= METADATA_LEN + max_length * HASH_BYTES,
+            "input data len is not large enough for the test"
+        );
+
+        let hash_storage_data = unsafe {
+            std::slice::from_raw_parts_mut(
+                input.data.as_mut_ptr(),
+                input.length * HASH_BYTES + METADATA_LEN,
+            )
+        };
+
+        let hash_storage: &mut HashStorage = hash_storage_data
+            .try_into()
+            .expect("paniced already if failed");
+
+        hash_storage.length = input.length;
+        hash_storage.blockhash = input.stored_blockhash;
+        hash_storage
+            .into_iter()
+            .zip(input.proofs)
+            .for_each(|(hs_p, p)| *hs_p = *p);
+
+        for pow in input.new_proofs {
+            hash_storage.insert(&pow.proof, &pow.blockhash);
+        }
+
+        let hash_storage: &HashStorage = &hash_storage;
+        let output = output.expect("paniced already if not Some");
+
+        assert_eq!(
+            hash_storage.length, output.length,
+            "hash_storage is the correct length"
+        );
+        assert_eq!(
+            hash_storage.blockhash, output.stored_blockhash,
+            "hash_storage has the correct blockhash stored"
+        );
+        hash_storage
+            .into_iter()
+            .zip(output.proofs)
+            .for_each(|(proof, expected_proof)| assert_eq!(proof, expected_proof))
+    }
+
+    #[test]
+    fn test_try_from() {
+        run_test(TestValues {
+            input: TestValuesInput {
+                data: &mut [0_u8; METADATA_LEN + 1 * HASH_BYTES],
+                length: 0,
+                stored_blockhash: POSSIBLE_BLOCKHASHES[0],
+                proofs: &[],
+                new_proofs: &[],
+            },
+            output: Some(TestValuesOutput {
+                length: 0,
+                stored_blockhash: POSSIBLE_BLOCKHASHES[0],
+                proofs: &[],
+            }),
+        })
     }
 }
