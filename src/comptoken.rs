@@ -210,13 +210,13 @@ fn get_valid_hash<'a>() -> &'a Hash {
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
-    let mut hash_storage: &mut HashStorage = data_account
+    let hash_storage: &mut HashStorage = data_account
         .data
         .borrow_mut()
         .as_mut()
         .try_into()
         .expect("error already paniced");
-    hash_storage.insert(proof.hash, &proof.recent_block_hash, get_valid_hash())
+    hash_storage.insert(&proof.hash, &proof.recent_block_hash)
 }
 
 pub fn mint_comptokens(
