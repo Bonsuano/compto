@@ -70,14 +70,15 @@ impl<'a> IntoIterator for &'a mut HashStorage {
 }
 
 impl HashStorage {
-    pub fn insert(&mut self, new_proof: &Hash, recent_blockhash: &Hash) {
-        // new_proof and recent_blockhash have already been verified
-        if self.blockhash != *recent_blockhash {
-            self.blockhash = *recent_blockhash;
+    pub fn insert(&mut self, new_proof: &Hash, new_blockhash: &Hash) {
+        // new_proof and new_blockhash have already been verified
+        if self.blockhash != *new_blockhash {
+            self.blockhash = *new_blockhash;
             self.length = 0;
         }
         assert!(!self.contains(new_proof), "proof should be new");
 
+        eprintln!("length is : {}", self.length);
         match self.data.get_mut(self.length) {
             Some(proof) => *proof = *new_proof,
             None => panic!("User Data Account not large enough, consider reallocing"),
@@ -142,16 +143,8 @@ mod test {
             "input data len is not large enough for the test"
         );
 
-        let hash_storage_data = unsafe {
-            std::slice::from_raw_parts_mut(
-                input.data.as_mut_ptr(),
-                input.length * HASH_BYTES + METADATA_LEN,
-            )
-        };
-
-        let hash_storage: &mut HashStorage = hash_storage_data
-            .try_into()
-            .expect("paniced already if failed");
+        let hash_storage: &mut HashStorage =
+            input.data.try_into().expect("paniced already if failed");
 
         hash_storage.length = input.length;
         hash_storage.blockhash = input.stored_blockhash;
@@ -196,6 +189,66 @@ mod test {
                 stored_blockhash: POSSIBLE_BLOCKHASHES[0],
                 proofs: &[],
             }),
+        })
+    }
+
+    #[test]
+    fn test_insert() {
+        run_test(TestValues {
+            input: TestValuesInput {
+                data: &mut [0_u8; METADATA_LEN + 1 * HASH_BYTES],
+                length: 0,
+                stored_blockhash: POSSIBLE_BLOCKHASHES[0],
+                proofs: &[],
+                new_proofs: &[ProofOfWork {
+                    blockhash: POSSIBLE_BLOCKHASHES[0],
+                    proof: POSSIBLE_PROOFS[0],
+                }],
+            },
+            output: Some(TestValuesOutput {
+                length: 1,
+                stored_blockhash: POSSIBLE_BLOCKHASHES[0],
+                proofs: &[POSSIBLE_PROOFS[0]],
+            }),
+        })
+    }
+
+    #[test]
+    fn test_insert_new() {
+        run_test(TestValues {
+            input: TestValuesInput {
+                data: &mut [0_u8; METADATA_LEN + 1 * HASH_BYTES],
+                length: 1,
+                stored_blockhash: POSSIBLE_BLOCKHASHES[0],
+                proofs: &[POSSIBLE_PROOFS[0]],
+                new_proofs: &[ProofOfWork {
+                    blockhash: POSSIBLE_BLOCKHASHES[1],
+                    proof: POSSIBLE_PROOFS[1],
+                }],
+            },
+            output: Some(TestValuesOutput {
+                length: 1,
+                stored_blockhash: POSSIBLE_BLOCKHASHES[1],
+                proofs: &[POSSIBLE_PROOFS[1]],
+            }),
+        })
+    }
+
+    #[test]
+    #[should_panic(expected = "proof should be new")]
+    fn test_insert_duplicate() {
+        run_test(TestValues {
+            input: TestValuesInput {
+                data: &mut [0_u8; METADATA_LEN + 2 * HASH_BYTES],
+                length: 1,
+                stored_blockhash: POSSIBLE_BLOCKHASHES[0],
+                proofs: &[POSSIBLE_PROOFS[0]],
+                new_proofs: &[ProofOfWork {
+                    blockhash: POSSIBLE_BLOCKHASHES[0],
+                    proof: POSSIBLE_PROOFS[0],
+                }],
+            },
+            output: None,
         })
     }
 }
