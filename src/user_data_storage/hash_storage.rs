@@ -2,9 +2,10 @@ use solana_program::{hash::Hash, hash::HASH_BYTES, program_error::ProgramError};
 
 #[repr(C)]
 pub struct HashStorageBase<T: ?Sized> {
+    // capacity is stored in the fat pointer
     length: usize,
     blockhash: Hash,
-    data: T,
+    proofs: T,
 }
 
 const METADATA_LEN: usize = std::mem::size_of::<HashStorageBase<()>>();
@@ -15,11 +16,16 @@ impl TryFrom<&mut [u8]> for &mut HashStorage {
     type Error = ProgramError;
 
     fn try_from(data: &mut [u8]) -> Result<Self, Self::Error> {
-        // TODO validity checks
-        let new_len = (data.len() - METADATA_LEN) / HASH_BYTES;
+        assert!(data.len() > METADATA_LEN);
+        assert!((data.len() - METADATA_LEN) % HASH_BYTES == 0);
+
+        let capacity = (data.len() - METADATA_LEN) / HASH_BYTES;
         let data_hashes =
-            unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut Hash, new_len) };
-        Ok(unsafe { &mut *(data_hashes as *mut _ as *mut HashStorage) })
+            unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut Hash, capacity) };
+        let result = unsafe { &mut *(data_hashes as *mut _ as *mut HashStorage) };
+
+        assert!(result.length <= result.proofs.len());
+        Ok(result)
     }
 }
 
@@ -53,7 +59,7 @@ impl<'a> IntoIterator for &'a HashStorage {
 
     fn into_iter(self) -> Self::IntoIter {
         Iter {
-            iter: self.data.into_iter().take(self.length),
+            iter: self.proofs.into_iter().take(self.length),
         }
     }
 }
@@ -64,7 +70,7 @@ impl<'a> IntoIterator for &'a mut HashStorage {
 
     fn into_iter(self) -> Self::IntoIter {
         MutIter {
-            iter: self.data.iter_mut().take(self.length),
+            iter: self.proofs.iter_mut().take(self.length),
         }
     }
 }
@@ -79,7 +85,7 @@ impl HashStorage {
         assert!(!self.contains(new_proof), "proof should be new");
 
         eprintln!("length is : {}", self.length);
-        match self.data.get_mut(self.length) {
+        match self.proofs.get_mut(self.length) {
             Some(proof) => *proof = *new_proof,
             None => panic!("User Data Account not large enough, consider reallocing"),
         }
