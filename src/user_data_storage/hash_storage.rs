@@ -160,11 +160,10 @@ mod test {
         )),
     ];
 
-    // # SAFETY
-    //
-    // data must be large enough to hold a ProofStorage of length proofs.len()
+    /// # SAFETY
+    ///
+    /// data must be large enough to hold a ProofStorage of length proofs.len()
     unsafe fn write_data(data: &mut [u8], length: usize, blockhash: &Hash, proofs: &[Hash]) {
-        // data is checked before this, no need to ensure length
         let len_ptr = data.as_mut_ptr() as *mut usize;
         *len_ptr = length;
 
