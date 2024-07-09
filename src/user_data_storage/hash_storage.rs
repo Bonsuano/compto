@@ -13,6 +13,28 @@ pub const PROOF_STORAGE_MIN_SIZE: usize = std::mem::size_of::<ProofStorageBase<H
 
 pub type ProofStorage = ProofStorageBase<[Hash]>;
 
+impl ProofStorage {
+    pub fn insert(&mut self, new_proof: &Hash, new_blockhash: &Hash) {
+        // new_proof and new_blockhash have already been verified
+        if self.blockhash != *new_blockhash {
+            self.blockhash = *new_blockhash;
+            self.length = 0;
+        }
+        assert!(!self.contains(new_proof), "proof should be new");
+
+        match self.proofs.get_mut(self.length) {
+            // If proofs is not full, write the new proof into the next slot
+            Some(proof) => *proof = *new_proof,
+            None => panic!("User Data Account not large enough, consider reallocing"),
+        }
+        self.length += 1;
+    }
+
+    fn contains(&self, new_proof: &Hash) -> bool {
+        self.into_iter().any(|proof| proof == new_proof)
+    }
+}
+
 impl TryFrom<&mut [u8]> for &mut ProofStorage {
     type Error = ProgramError;
 
@@ -25,26 +47,23 @@ impl TryFrom<&mut [u8]> for &mut ProofStorage {
         // Step 1: Create a slice of Hashes from the account data array of bytes
         // This is not a strictly accurate slice of Hashes, since
         let data_hashes =
-            unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut Hash, capacity) };
+            unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut (), capacity) };
         // Step 2: Create a ProofStorage from the slice of Hashes
         // the chaining of `as` first converts a reference to a pointer, and then converts the pointer to a *ProofStorage* pointer
         // Then we convert the ProofStorage pointer to a mutable reference to a ProofStorage
         // This is how the rust docs say to do it... :/
         // https://doc.rust-lang.org/std/mem/fn.transmute.html
         let result = unsafe { &mut *(data_hashes as *mut _ as *mut ProofStorage) };
-        eprintln!("result: {:?}", result);
-        eprintln!("result.length: {}", result.length);
-        eprintln!("result.proofs.len(): {}", result.proofs.len());
         assert!(result.length <= result.proofs.len());
         Ok(result)
     }
 }
 
-pub struct Iter<'a> {
+pub struct HashIter<'a> {
     iter: std::iter::Take<std::slice::Iter<'a, Hash>>,
 }
 
-impl<'a> Iterator for Iter<'a> {
+impl<'a> Iterator for HashIter<'a> {
     type Item = &'a Hash;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -52,11 +71,11 @@ impl<'a> Iterator for Iter<'a> {
     }
 }
 
-pub struct MutIter<'a> {
+pub struct MutHashIter<'a> {
     iter: std::iter::Take<std::slice::IterMut<'a, Hash>>,
 }
 
-impl<'a> Iterator for MutIter<'a> {
+impl<'a> Iterator for MutHashIter<'a> {
     type Item = &'a mut Hash;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -66,10 +85,10 @@ impl<'a> Iterator for MutIter<'a> {
 
 impl<'a> IntoIterator for &'a ProofStorage {
     type Item = &'a Hash;
-    type IntoIter = Iter<'a>;
+    type IntoIter = HashIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        Iter {
+        HashIter {
             iter: self.proofs.into_iter().take(self.length),
         }
     }
@@ -77,34 +96,12 @@ impl<'a> IntoIterator for &'a ProofStorage {
 
 impl<'a> IntoIterator for &'a mut ProofStorage {
     type Item = &'a mut Hash;
-    type IntoIter = MutIter<'a>;
+    type IntoIter = MutHashIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        MutIter {
+        MutHashIter {
             iter: self.proofs.iter_mut().take(self.length),
         }
-    }
-}
-
-impl ProofStorage {
-    pub fn insert(&mut self, new_proof: &Hash, new_blockhash: &Hash) {
-        // new_proof and new_blockhash have already been verified
-        if self.blockhash != *new_blockhash {
-            self.blockhash = *new_blockhash;
-            self.length = 0;
-        }
-        assert!(!self.contains(new_proof), "proof should be new");
-
-        eprintln!("length is : {}", self.length);
-        match self.proofs.get_mut(self.length) {
-            Some(proof) => *proof = *new_proof,
-            None => panic!("User Data Account not large enough, consider reallocing"),
-        }
-        self.length += 1;
-    }
-
-    fn contains(&self, new_proof: &Hash) -> bool {
-        self.into_iter().any(|proof| proof == new_proof)
     }
 }
 
@@ -116,9 +113,9 @@ mod test {
     use std::cmp::max;
 
     #[derive(Debug)]
-    struct ProofOfWork {
-        blockhash: Hash,
+    struct ProofAndBlockhash {
         proof: Hash,
+        blockhash: Hash,
     }
 
     #[derive(Debug)]
@@ -127,7 +124,7 @@ mod test {
         length: usize,
         stored_blockhash: Hash,
         proofs: &'a [Hash],
-        new_proofs: &'a [ProofOfWork],
+        new_proofs: &'a [ProofAndBlockhash],
     }
 
     #[derive(Debug)]
@@ -244,9 +241,9 @@ mod test {
                 length: 0,
                 stored_blockhash: POSSIBLE_BLOCKHASHES[0],
                 proofs: &[],
-                new_proofs: &[ProofOfWork {
-                    blockhash: POSSIBLE_BLOCKHASHES[0],
+                new_proofs: &[ProofAndBlockhash {
                     proof: POSSIBLE_PROOFS[0],
+                    blockhash: POSSIBLE_BLOCKHASHES[0],
                 }],
             },
             output: Some(TestValuesOutput {
@@ -265,9 +262,9 @@ mod test {
                 length: 1,
                 stored_blockhash: POSSIBLE_BLOCKHASHES[0],
                 proofs: &[POSSIBLE_PROOFS[0]],
-                new_proofs: &[ProofOfWork {
-                    blockhash: POSSIBLE_BLOCKHASHES[1],
+                new_proofs: &[ProofAndBlockhash {
                     proof: POSSIBLE_PROOFS[1],
+                    blockhash: POSSIBLE_BLOCKHASHES[1],
                 }],
             },
             output: Some(TestValuesOutput {
@@ -284,14 +281,14 @@ mod test {
         run_test(TestValues {
             input: TestValuesInput {
                 // size is 1 proof bigger than it needs to be so that we can test the duplicate
-                // failure case specifically.
+                // failure case specifically and not worry about getting an out-of-size error.
                 data: &mut [0_u8; PROOF_STORAGE_MIN_SIZE + 1 * HASH_BYTES],
                 length: 1,
                 stored_blockhash: POSSIBLE_BLOCKHASHES[0],
                 proofs: &[POSSIBLE_PROOFS[0]],
-                new_proofs: &[ProofOfWork {
-                    blockhash: POSSIBLE_BLOCKHASHES[0],
+                new_proofs: &[ProofAndBlockhash {
                     proof: POSSIBLE_PROOFS[0],
+                    blockhash: POSSIBLE_BLOCKHASHES[0],
                 }],
             },
             output: None,
