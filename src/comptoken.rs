@@ -16,7 +16,7 @@ use solana_program::{
     sysvar::slot_history::ProgramError,
 };
 use spl_token::instruction::mint_to;
-use user_data_storage::HashStorage;
+use user_data_storage::ProofStorage;
 // declare and export the program's entrypoint
 entrypoint!(process_instruction);
 
@@ -210,12 +210,12 @@ fn get_valid_hash<'a>() -> &'a Hash {
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
-    let hash_storage: &mut HashStorage = data_account
+    let hash_storage: &mut ProofStorage = data_account
         .data
         .borrow_mut()
         .as_mut()
         .try_into()
-        .expect("error already paniced");
+        .expect("error already panicked");
     hash_storage.insert(&proof.hash, &proof.recent_block_hash)
 }
 
