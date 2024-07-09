@@ -2,33 +2,23 @@ use std::mem;
 
 use spl_token_2022::solana_program::{
     hash::{Hash, Hasher, HASH_BYTES},
-    msg,
     pubkey::Pubkey,
 };
 
 // ensure this remains consistent with comptoken_proof.js
 const MIN_NUM_ZEROED_BITS: u32 = 3; // TODO: replace with permanent value
 
-fn check_if_recent_blockhashes(_blockhash: &Hash) -> bool {
-    // TODO: get it to actually work
-    true
-}
-
-fn check_if_is_new_hash(_hash: &Hash) -> bool {
-    // TODO: implement
-    true
+fn check_if_recent_blockhashes(blockhash: &Hash) -> bool {
+    use super::get_valid_hash;
+    get_valid_hash() == blockhash
 }
 
 pub fn verify_proof(block: &ComptokenProof) -> bool {
     let leading_zeros: bool = ComptokenProof::leading_zeroes(&block.hash) >= MIN_NUM_ZEROED_BITS;
-    msg!("leading_zeros: {:?}", leading_zeros);
     let recent_blockhash: bool = check_if_recent_blockhashes(&block.recent_block_hash);
-    msg!("recent_blockhash: {:?}", recent_blockhash);
-    let new_hash: bool = check_if_is_new_hash(&block.hash);
-    msg!("new_hash: {:?}", new_hash);
     let equal_hash: bool = block.generate_hash() == block.hash;
-    msg!("equal_hash: {:?}", equal_hash);
-    return leading_zeros && recent_blockhash && new_hash && equal_hash;
+    // hash duplicate check is part of inserting
+    return leading_zeros && recent_blockhash && equal_hash;
 }
 
 pub const VERIFY_DATA_SIZE: usize = HASH_BYTES + mem::size_of::<u64>() + HASH_BYTES;
