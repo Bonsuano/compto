@@ -132,7 +132,7 @@ fn mint(
     invoke_signed(&instruction, accounts, &[COMPTO_STATIC_PDA_SEEDS])
 }
 
-fn verify_comptoken_user_account(account: &AccountInfo) -> ProgramResult {
+fn verify_comptoken_user_account(_account: &AccountInfo) -> ProgramResult {
     // TODO: verify comptoken user accounts
     Ok(())
 }
