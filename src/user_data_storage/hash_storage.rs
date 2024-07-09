@@ -23,7 +23,7 @@ impl TryFrom<&mut [u8]> for &mut ProofStorage {
         let capacity = ((data.len() - PROOF_STORAGE_MIN_SIZE) / HASH_BYTES) + 1;
         // Two step process to dynamically create ProofStorage from the account data array of bytes
         // Step 1: Create a slice of Hashes from the account data array of bytes
-        // This is not a strictly accurate slice of Hashes, since 
+        // This is not a strictly accurate slice of Hashes, since
         let data_hashes =
             unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut Hash, capacity) };
         // Step 2: Create a ProofStorage from the slice of Hashes
@@ -160,6 +160,23 @@ mod test {
         )),
     ];
 
+    // # SAFETY
+    //
+    // data must be large enough to hold a ProofStorage of length proofs.len()
+    unsafe fn write_data(data: &mut [u8], length: usize, blockhash: &Hash, proofs: &[Hash]) {
+        // data is checked before this, no need to ensure length
+        let len_ptr = data.as_mut_ptr() as *mut usize;
+        *len_ptr = length;
+
+        let blockhash_ptr = data.as_mut_ptr().offset(8) as *mut Hash;
+        *blockhash_ptr = *blockhash;
+
+        for (i, proof) in proofs.iter().enumerate() {
+            let proof_ptr = data.as_mut_ptr().offset((40 + i * HASH_BYTES) as isize) as *mut Hash;
+            *proof_ptr = *proof;
+        }
+    }
+
     fn run_test(test_values: TestValues) {
         let input = test_values.input;
         let output = test_values.output;
@@ -169,15 +186,17 @@ mod test {
             "input data len is not large enough for the test"
         );
 
+        unsafe {
+            write_data(
+                input.data,
+                input.length,
+                &input.stored_blockhash,
+                input.proofs,
+            )
+        }
+
         let hash_storage: &mut ProofStorage =
             input.data.try_into().expect("panicked already if failed");
-
-        hash_storage.length = input.length;
-        hash_storage.blockhash = input.stored_blockhash;
-        hash_storage
-            .into_iter()
-            .zip(input.proofs)
-            .for_each(|(hs_p, p)| *hs_p = *p);
 
         for pow in input.new_proofs {
             hash_storage.insert(&pow.proof, &pow.blockhash);
