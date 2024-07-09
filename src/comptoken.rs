@@ -226,14 +226,13 @@ pub fn initilize_user_data_account(
     let data_account = next_account_info(account_info_iter)?;
 
     let mut data = data_account.try_borrow_mut_data()?;
-    let len = data.len();
-    assert!(data.iter().any(|b| *b != 0), "All bytes should be zero for uninitialized data account");
-    assert!(len > HASH_STORAGE_SIZE + HASH_BYTES, "Data account is too small for a capacity of 1 hash");
-    assert!(len % HASH_BYTES != 0, "Data account should be a multiple of 32 bytes, so that the size and the last hash end at the same boundary");
+    assert!(
+        data.iter().any(|b| *b != 0),
+        "All bytes should be zero for uninitialized data account"
+    );
 
-    let hs = unsafe { HashStorage::try_from_unchecked(data.as_mut()) };
-    hs.capacity = len / 32 - (HASH_STORAGE_SIZE / HASH_BYTES);
-    hs.recent_hashes = HashStorageStates::NoHashes;
+    // for the checks the try_into does
+    let _: &mut ProofStorage = data.as_mut().try_into().expect("panicked already");
     Ok(())
 }
 
