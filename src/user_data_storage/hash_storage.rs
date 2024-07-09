@@ -1,6 +1,4 @@
-use solana_program::{hash::Hash, hash::HASH_BYTES, program_error::ProgramError};
-
-pub const HASH_STORAGE_SIZE: usize = 96;
+use spl_token_2022::solana_program::{hash::Hash, hash::HASH_BYTES, program_error::ProgramError};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -46,11 +44,13 @@ impl TryFrom<&mut [u8]> for &mut ProofStorage {
 
         let capacity = ((data.len() - PROOF_STORAGE_MIN_SIZE) / HASH_BYTES) + 1;
         // Two step process to dynamically create ProofStorage from the account data array of bytes
-        // Step 1: Create a slice of Hashes from the account data array of bytes
-        // This is not a strictly accurate slice of Hashes, since
+        // Step 1: Create a slice from the account data array of bytes, so the wide pointer extra capacity
+        // field is correct after step 2
+        // This slice is not a strictly accurate representation of the data, since the size is incorrect,
+        // but step 2 will correct this
         let data_hashes =
-            unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut (), capacity) };
-        // Step 2: Create a ProofStorage from the slice of Hashes
+            unsafe { std::slice::from_raw_parts_mut(data.as_mut_ptr() as *mut _, capacity) };
+        // Step 2: Create a ProofStorage from the slice
         // the chaining of `as` first converts a reference to a pointer, and then converts the pointer to a *ProofStorage* pointer
         // Then we convert the ProofStorage pointer to a mutable reference to a ProofStorage
         // This is how the rust docs say to do it... :/
@@ -104,21 +104,6 @@ impl<'a> IntoIterator for &'a mut ProofStorage {
         MutHashIter {
             iter: self.proofs.iter_mut().take(self.length),
         }
-    }
-
-    /// # Safety
-    ///
-    /// bytes must point to a valid HashStorage.  
-    /// in particular, the capacity must correspond to the length, and
-    /// the blockhash sizes must combined be no larger than capacity
-    pub unsafe fn try_from_unchecked<'a>(bytes: &'a mut [u8]) -> &'a mut HashStorage {
-        let new_len = (bytes.len() / HASH_BYTES) - (HASH_STORAGE_SIZE / HASH_BYTES);
-        let data_hashes = unsafe { core::slice::from_raw_parts_mut(bytes.as_mut_ptr(), new_len) };
-        let result = unsafe { &mut *(data_hashes as *mut _ as *mut HashStorage) };
-        result.capacity = usize::from_le(result.capacity);
-        result.size_blockhash_1 = usize::from_le(result.size_blockhash_1);
-        result.size_blockhash_2 = usize::from_le(result.size_blockhash_2);
-        result
     }
 }
 

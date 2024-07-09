@@ -3,22 +3,23 @@ mod user_data_storage;
 
 extern crate bs58;
 
-use comptoken_proof::ComptokenProof;
-//use solana_program::instruction::{AccountMeta, Instruction};
-//use solana_program::program::invoke;
-use spl_token_2022::instruction::mint_to;
-use spl_token_2022::solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    entrypoint,
-    hash::{Hash, HASH_BYTES},
-    msg,
-    program::invoke_signed,
-    pubkey::Pubkey,
-    system_instruction::create_account,
-    sysvar::slot_history::ProgramError,
+use spl_token_2022::{
+    instruction::mint_to,
+    solana_program::{
+        account_info::{next_account_info, AccountInfo},
+        entrypoint,
+        hash::Hash,
+        msg,
+        program::invoke_signed,
+        pubkey::Pubkey,
+        system_instruction::create_account,
+        sysvar::slot_history::ProgramError,
+    },
 };
-use spl_token::instruction::mint_to;
+
+use comptoken_proof::ComptokenProof;
 use user_data_storage::ProofStorage;
+
 // declare and export the program's entrypoint
 entrypoint!(process_instruction);
 
@@ -194,21 +195,6 @@ fn verify_comptoken_proof_userdata<'a>(destination: &'a Pubkey, data: &[u8]) -> 
     msg!("block: {:?}", proof);
     assert!(comptoken_proof::verify_proof(&proof), "invalid proof");
     return proof;
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum ValidHashes<'a> {
-    One(&'a Hash),
-    Two(&'a Hash, &'a Hash),
-}
-
-impl<'a> ValidHashes<'a> {
-    pub fn contains(&self, hash: &Hash) -> bool {
-        match self {
-            Self::One(h) => *h == hash,
-            Self::Two(h1, h2) => *h1 == hash || *h2 == hash,
-        }
-    }
 }
 
 fn get_valid_hash<'a>() -> &'a Hash {
