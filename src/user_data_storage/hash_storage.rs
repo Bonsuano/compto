@@ -194,25 +194,25 @@ mod test {
             )
         }
 
-        let hash_storage: &mut ProofStorage =
+        let proof_storage: &mut ProofStorage =
             input.data.try_into().expect("panicked already if failed");
 
         for pow in input.new_proofs {
-            hash_storage.insert(&pow.proof, &pow.blockhash);
+            proof_storage.insert(&pow.proof, &pow.blockhash);
         }
 
-        let hash_storage: &ProofStorage = &hash_storage;
+        let proof_storage: &ProofStorage = &proof_storage;
         let output = output.expect("panicked already if not Some");
 
         assert_eq!(
-            hash_storage.length, output.length,
+            proof_storage.length, output.length,
             "hash_storage is the correct length"
         );
         assert_eq!(
-            hash_storage.blockhash, output.stored_blockhash,
+            proof_storage.blockhash, output.stored_blockhash,
             "hash_storage has the correct blockhash stored"
         );
-        hash_storage
+        proof_storage
             .into_iter()
             .zip(output.proofs)
             .for_each(|(proof, expected_proof)| assert_eq!(proof, expected_proof))
