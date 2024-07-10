@@ -1,5 +1,6 @@
 mod comptoken_proof;
 mod user_data_storage;
+mod comptoken_daily;
 
 extern crate bs58;
 
