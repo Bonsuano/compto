@@ -42,7 +42,7 @@ let connection = new Connection('http://localhost:8899', 'recent');
 (async () => {
     await airdrop(temp_keypair.publicKey);
     await setMintAuthorityIfNeeded();
-    await initializeUserDataAccount();
+    await createUserDataAccount();
     await testMint();
     await initializeStaticAccount();
     await mintComptokens(connection, destination_pubkey, temp_keypair);
@@ -149,7 +149,7 @@ async function initializeStaticAccount() {
     
 }
 
-async function initializeUserDataAccount() {
+async function createUserDataAccount() {
     // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN proof_storage.rs
     const PROOF_STORAGE_MIN_SIZE = 72;
     const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(PROOF_STORAGE_MIN_SIZE);

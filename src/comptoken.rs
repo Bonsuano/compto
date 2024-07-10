@@ -3,13 +3,13 @@ mod user_data_storage;
 
 extern crate bs58;
 
-use solana_program::hash::HASH_BYTES;
 use spl_token_2022::{
     instruction::mint_to,
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         entrypoint,
         hash::Hash,
+        hash::HASH_BYTES,
         msg,
         program::invoke_signed,
         pubkey::Pubkey,
@@ -256,11 +256,11 @@ pub fn create_user_data_account(
         &[&[&destination_account.key.as_ref(), &[bump]]],
     )?;
 
-    let mut data = data_account_info.try_borrow_mut_data()?;
-    let data = data.as_mut();
+    let mut binding = data_account_info.try_borrow_mut_data()?;
+    let data = binding.as_mut();
 
     // for the checks the try_into does
-    let _proof_storage: &mut ProofStorage = data.as_mut().try_into().expect("panicked already");
+    let _proof_storage: &mut ProofStorage = data.try_into().expect("panicked already");
 
     Ok(())
 }

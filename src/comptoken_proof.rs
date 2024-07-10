@@ -9,8 +9,7 @@ use spl_token_2022::solana_program::{
 const MIN_NUM_ZEROED_BITS: u32 = 3; // TODO: replace with permanent value
 
 fn check_if_recent_blockhashes(blockhash: &Hash) -> bool {
-    use super::get_valid_hash;
-    get_valid_hash() == blockhash
+    super::get_valid_hash() == blockhash
 }
 
 pub fn verify_proof(block: &ComptokenProof) -> bool {

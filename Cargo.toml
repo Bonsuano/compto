@@ -1,5 +1,5 @@
 [package]
-name = "compto-token"
+name = "comptoken"
 version = "0.1.0"
 edition = "2021"
 
