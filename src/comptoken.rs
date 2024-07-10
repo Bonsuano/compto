@@ -3,7 +3,7 @@ mod user_data_storage;
 
 extern crate bs58;
 
-use solana_program::{hash::HASH_BYTES, sysvar::Sysvar};
+use solana_program::hash::HASH_BYTES;
 use spl_token_2022::{
     instruction::mint_to,
     solana_program::{
