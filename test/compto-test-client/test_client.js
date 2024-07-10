@@ -13,7 +13,7 @@ import {
     AuthorityType,
     TOKEN_2022_PROGRAM_ID,
     setAuthority,
-    unpackMint
+    unpackMint,
 } from '@solana/spl-token';
 
 import {
@@ -25,9 +25,7 @@ import {
     static_pda_pubkey,
 } from './common.js';
 
-import {
-    mintComptokens,
-} from './comptoken_proof.js';
+import { mintComptokens, } from './comptoken_proof.js';
 
 
 const temp_keypair = Keypair.generate();
@@ -162,9 +160,11 @@ async function initializeUserDataAccount() {
     let createKeys = [
         // the payer of the rent for the account
         { pubkey: temp_keypair.publicKey, isSigner: true, isWritable: true },
+        // the payers comptoken wallet (comptoken token acct)
         { pubkey: destination_pubkey, isSigner: false, isWritable: false },
+        // the data account tied to the comptoken wallet
         { pubkey: user_pda, isSigner: false, isWritable: true },
-        { pubkey: comptoken_pubkey, isSigner: false, isWritable: false },
+        // system account is used to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false},
     ];
     let createData = Buffer.alloc(17);
@@ -181,10 +181,8 @@ async function initializeUserDataAccount() {
         }),
     );
     let initKeys = [
-        // the payer of the rent for the account
-        { pubkey: temp_keypair.publicKey, isSigner: true, isWritable: true },
+        // the data account to initialize
         { pubkey: user_pda, isSigner: false, isWritable: true },
-        { pubkey: comptoken_pubkey, isSigner: false, isWritable: false },
     ];
     let initData = Buffer.alloc(1);
     initData.writeUInt8(Instruction.INITIALIZE_USER_DATA_ACCOUNT, 0);

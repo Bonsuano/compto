@@ -225,6 +225,12 @@ pub fn create_user_data_account(
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
+    //  Account Order
+    //      users account
+    //      users Comptoken wallet
+    //      users Comptoken wallet's data account
+    //      System Program id
+
     let account_info_iter = &mut accounts.iter();
 
     let payer_account_info = next_account_info(account_info_iter)?;
@@ -263,10 +269,10 @@ pub fn initilize_user_data_account(
     _instruction_data: &[u8],
 ) -> ProgramResult {
     // accounts order
-    //      owner account
     //      user data account
+
     let account_info_iter = &mut accounts.iter();
-    let _owner_account = next_account_info(account_info_iter)?;
+    //let _owner_account = next_account_info(account_info_iter)?;
     let data_account = next_account_info(account_info_iter)?;
 
     let mut data = data_account.try_borrow_mut_data()?;
@@ -291,7 +297,7 @@ pub fn mint_comptokens(
     //      destination token account (writable)
     //      destination data account (writable)
     //      mint authority account
-    //      spl_token account
+    //      spl_token 2022 account
     //      comptoken program account (writable)
 
     let account_info_iter = &mut accounts.iter();
