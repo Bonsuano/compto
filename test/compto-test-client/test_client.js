@@ -25,7 +25,7 @@ import {
     static_pda_pubkey,
 } from './common.js';
 
-import { mintComptokens, } from './comptoken_proof.js';
+import { mintComptokens } from './comptoken_proof.js';
 
 
 const temp_keypair = Keypair.generate();
@@ -167,6 +167,7 @@ async function initializeUserDataAccount() {
         // system account is used to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false},
     ];
+    // 1 byte for the instruction, 8 bytes for the rent exempt amount, 8 bytes for the proof storage min size
     let createData = Buffer.alloc(17);
     createData.writeUInt8(Instruction.CREATE_USER_DATA_ACCOUNT, 0);
     createData.writeBigInt64LE(BigInt(rentExemptAmount), 1);
@@ -184,6 +185,3 @@ async function initializeUserDataAccount() {
     console.log("createUserDataAccount transaction confirmed", createUserDataAccountResult);
     
 }
-// how to create a program address based using bumpseed
-// const d2 = PublicKey.createProgramAddressSync(["compto", Buffer.alloc(1, bumpseed)], compto_program_id_pubkey);
-// const [derived_address, bumpseed] = PublicKey.findProgramAddressSync([STATIC_ACCOUNT_SEED], compto_program_id_pubkey);
