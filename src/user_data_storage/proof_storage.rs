@@ -9,6 +9,7 @@ pub struct ProofStorageBase<T: ?Sized> {
     proofs: T,
 }
 
+// MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN test_client.js
 pub const PROOF_STORAGE_MIN_SIZE: usize = std::mem::size_of::<ProofStorageBase<Hash>>();
 
 pub type ProofStorage = ProofStorageBase<[Hash]>;

@@ -1,4 +1,4 @@
-import { TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { PublicKey, Transaction, TransactionInstruction, sendAndConfirmTransaction } from '@solana/web3.js';
 import * as bs58_ from "bs58";
 import { assert } from "console";
@@ -77,13 +77,14 @@ export async function mintComptokens(connection, destination_pubkey, temp_keypai
         Buffer.from([Instruction.COMPTOKEN_MINT]),
         proof.serializeData(),
     ]);
+    let user_pda = PublicKey.findProgramAddressSync([destination_pubkey.toBytes()], compto_program_id_pubkey)[0];
     let keys = [
         { pubkey: destination_pubkey, isSigner: false, isWritable: true },
-        { pubkey: PublicKey.default, isSigner: false, isWritable: true }, // TODO: get correct publicKey
+        { pubkey: user_pda, isSigner: false, isWritable: true }, // TODO: get correct publicKey
         { pubkey: static_pda_pubkey, isSigner: false, isWritable: false},
-        { pubkey: TOKEN_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
         { pubkey: comptoken_pubkey, isSigner: false, isWritable: true },
-        //{ pubkey: compto_program_id_pubkey, isSigner: false, isWritable: false },
+        { pubkey: compto_program_id_pubkey, isSigner: false, isWritable: false },
     ];
     let mintComptokensTransaction = new Transaction();
     mintComptokensTransaction.add(new TransactionInstruction({

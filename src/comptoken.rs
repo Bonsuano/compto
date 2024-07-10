@@ -3,6 +3,7 @@ mod user_data_storage;
 
 extern crate bs58;
 
+use solana_program::{hash::HASH_BYTES, sysvar::Sysvar};
 use spl_token_2022::{
     instruction::mint_to,
     solana_program::{
@@ -18,7 +19,7 @@ use spl_token_2022::{
 };
 
 use comptoken_proof::ComptokenProof;
-use user_data_storage::ProofStorage;
+use user_data_storage::{ProofStorage, PROOF_STORAGE_MIN_SIZE};
 
 // declare and export the program's entrypoint
 entrypoint!(process_instruction);
@@ -71,6 +72,10 @@ pub fn process_instruction(
         3 => {
             msg!("Initialize User Data Account");
             initilize_user_data_account(program_id, accounts, &instruction_data[1..])
+        }
+        4 => {
+            msg!("Create User Data Account");
+            create_user_data_account(program_id, accounts, &instruction_data[1..])
         }
         _ => {
             msg!("Invalid Instruction");
@@ -141,14 +146,16 @@ fn verify_comptoken_user_data_account(
     comptoken_user_data_account: &AccountInfo,
     comptoken_user_account: &AccountInfo,
     program_id: &Pubkey,
-) {
+) -> u8 {
     // if we ever need a user data account to sign something,
     // then we should return the bumpseed in this function
+    let (pda, bump) =
+        Pubkey::find_program_address(&[comptoken_user_account.key.as_ref()], program_id);
     assert_eq!(
-        *comptoken_user_data_account.key,
-        Pubkey::find_program_address(&[comptoken_user_account.key.as_ref()], program_id).0,
+        *comptoken_user_data_account.key, pda,
         "Invalid user data account"
     );
+    bump
 }
 
 pub fn test_mint(
@@ -213,6 +220,43 @@ fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
     proof_storage.insert(&proof.hash, &proof.recent_block_hash)
 }
 
+pub fn create_user_data_account(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    let account_info_iter = &mut accounts.iter();
+
+    let payer_account_info = next_account_info(account_info_iter)?;
+    let destination_account = next_account_info(account_info_iter)?;
+    let pda_account_info = next_account_info(account_info_iter)?;
+
+    // find space and minimum rent required for account
+    let rent_lamports =
+        u64::from_le_bytes(instruction_data[0..8].try_into().expect("correct size"));
+    let space = usize::from_le_bytes(instruction_data[8..16].try_into().expect("correct size"));
+    msg!("space: {}", space);
+    assert!(space >= PROOF_STORAGE_MIN_SIZE);
+    assert!((space - PROOF_STORAGE_MIN_SIZE) % HASH_BYTES == 0);
+
+    let bump =
+        verify_comptoken_user_data_account(pda_account_info, destination_account, program_id);
+
+    invoke_signed(
+        &spl_token_2022::solana_program::system_instruction::create_account(
+            &payer_account_info.key,
+            &pda_account_info.key,
+            rent_lamports,
+            space.try_into().expect("correct size"),
+            program_id,
+        ),
+        &[payer_account_info.clone(), pda_account_info.clone()],
+        &[&[&destination_account.key.as_ref(), &[bump]]],
+    )?;
+
+    Ok(())
+}
+
 pub fn initilize_user_data_account(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -226,8 +270,10 @@ pub fn initilize_user_data_account(
     let data_account = next_account_info(account_info_iter)?;
 
     let mut data = data_account.try_borrow_mut_data()?;
+    let data = data.as_mut();
+    msg!("data: {:?}", data);
     assert!(
-        data.iter().any(|b| *b != 0),
+        data.iter().all(|b| *b == 0),
         "All bytes should be zero for uninitialized data account"
     );
 
@@ -257,13 +303,13 @@ pub fn mint_comptokens(
 
     verify_comptoken_user_account(destination_account)?;
     let proof = verify_comptoken_proof_userdata(destination_account.key, instruction_data);
-    verify_comptoken_user_data_account(data_account, destination_account, program_id);
+    let _ = verify_comptoken_user_data_account(data_account, destination_account, program_id);
 
     msg!("data/accounts verified");
     let amount = 2;
     // now save the hash to the account, returning an error if the hash already exists
     store_hash(proof, data_account);
-
+    msg!("stored the proof");
     mint(
         mint_authority_account.key,
         &destination_account.key,
