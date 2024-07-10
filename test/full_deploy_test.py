@@ -14,8 +14,7 @@ COMPTO_MD5_JSON = CACHE_PATH / "compto_md5sum.json"
 COMPTO_PROGRAM_ID_JSON = CACHE_PATH / "compto_program_id.json"
 COMPTO_SO = PROJECT_PATH / "target/deploy/comptoken.so"
 COMPTOKEN_ID_JSON = CACHE_PATH / "comptoken_id.json"
-COMPTO_TEST_ACCOUNT = CACHE_PATH / "compto_test_account.json"
-COMPTO_MINT_AUTHORITY_JSON = CACHE_PATH / "compto_mint_authority.json"
+COMPTO_TEST_ACCOUNT_JSON = CACHE_PATH / "compto_test_account.json"
 COMPTO_ADDRESS_FILE = PROJECT_PATH / "src/comptoken_generated.rs"
 COMPTO_STATIC_PDA = CACHE_PATH / "compto_static_pda.json"
 TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
@@ -49,9 +48,9 @@ def createKeyPair(outfile: Path):
 
 
 def createComptoAccount():
-    createKeyPair(COMPTO_TEST_ACCOUNT)
+    createKeyPair(COMPTO_TEST_ACCOUNT_JSON)
     run(
-        f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-account {getTokenAddress()} {COMPTO_TEST_ACCOUNT}"
+        f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-account {getTokenAddress()} {COMPTO_TEST_ACCOUNT_JSON}"
     )
 
 
@@ -66,12 +65,6 @@ def getAccountBalance(pubkey: str):
 def deploy():
     run(
         f"solana program deploy -v {COMPTO_SO} --output json > {COMPTO_PROGRAM_ID_JSON}"
-    )
-
-
-def setComptoMintAuthority():
-    run(
-        f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} authorize {getTokenAddress()} mint {getProgramId()} --output json > {COMPTO_MINT_AUTHORITY_JSON}"
     )
 
 
@@ -297,5 +290,5 @@ if __name__ == "__main__":
         print("Running Test Client...")
         output = runTestClient()
         print(output)
-        test_account = getPubkey(COMPTO_TEST_ACCOUNT)
+        test_account = getPubkey(COMPTO_TEST_ACCOUNT_JSON)
         print(f"Test Account {test_account} Balance: {getAccountBalance(test_account)}")
