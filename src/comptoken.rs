@@ -70,10 +70,6 @@ pub fn process_instruction(
             initialize_static_data_account(program_id, accounts, &instruction_data[1..])
         }
         3 => {
-            msg!("Initialize User Data Account");
-            initilize_user_data_account(program_id, accounts, &instruction_data[1..])
-        }
-        4 => {
             msg!("Create User Data Account");
             create_user_data_account(program_id, accounts, &instruction_data[1..])
         }
@@ -235,7 +231,7 @@ pub fn create_user_data_account(
 
     let payer_account_info = next_account_info(account_info_iter)?;
     let destination_account = next_account_info(account_info_iter)?;
-    let pda_account_info = next_account_info(account_info_iter)?;
+    let data_account_info = next_account_info(account_info_iter)?;
 
     // find space and minimum rent required for account
     let rent_lamports =
@@ -246,45 +242,26 @@ pub fn create_user_data_account(
     assert!((space - PROOF_STORAGE_MIN_SIZE) % HASH_BYTES == 0);
 
     let bump =
-        verify_comptoken_user_data_account(pda_account_info, destination_account, program_id);
+        verify_comptoken_user_data_account(data_account_info, destination_account, program_id);
 
     invoke_signed(
         &spl_token_2022::solana_program::system_instruction::create_account(
             &payer_account_info.key,
-            &pda_account_info.key,
+            &data_account_info.key,
             rent_lamports,
             space.try_into().expect("correct size"),
             program_id,
         ),
-        &[payer_account_info.clone(), pda_account_info.clone()],
+        &[payer_account_info.clone(), data_account_info.clone()],
         &[&[&destination_account.key.as_ref(), &[bump]]],
     )?;
 
-    Ok(())
-}
-
-pub fn initilize_user_data_account(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    _instruction_data: &[u8],
-) -> ProgramResult {
-    // accounts order
-    //      user data account
-
-    let account_info_iter = &mut accounts.iter();
-    //let _owner_account = next_account_info(account_info_iter)?;
-    let data_account = next_account_info(account_info_iter)?;
-
-    let mut data = data_account.try_borrow_mut_data()?;
+    let mut data = data_account_info.try_borrow_mut_data()?;
     let data = data.as_mut();
-    msg!("data: {:?}", data);
-    assert!(
-        data.iter().all(|b| *b == 0),
-        "All bytes should be zero for uninitialized data account"
-    );
 
     // for the checks the try_into does
-    let _: &mut ProofStorage = data.as_mut().try_into().expect("panicked already");
+    let _proof_storage: &mut ProofStorage = data.as_mut().try_into().expect("panicked already");
+
     Ok(())
 }
 

@@ -180,20 +180,6 @@ async function initializeUserDataAccount() {
             data: createData,
         }),
     );
-    let initKeys = [
-        // the data account to initialize
-        { pubkey: user_pda, isSigner: false, isWritable: true },
-    ];
-    let initData = Buffer.alloc(1);
-    initData.writeUInt8(Instruction.INITIALIZE_USER_DATA_ACCOUNT, 0);
-    console.log("initData: ", initData);
-    createUserDataAccountTransaction.add(
-        new TransactionInstruction({
-            keys: initKeys,
-            programId: compto_program_id_pubkey,
-            data: initData,
-        }),
-    );
     let createUserDataAccountResult = await sendAndConfirmTransaction(connection, createUserDataAccountTransaction, [temp_keypair]);
     console.log("createUserDataAccount transaction confirmed", createUserDataAccountResult);
     
