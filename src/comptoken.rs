@@ -27,6 +27,7 @@ use global_data::GlobalData;
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::{
     verify_comptoken_user_account, verify_comptoken_user_data_account, verify_global_data_account,
+    verify_interest_bank_account, verify_ubi_bank_account,
 };
 
 // declare and export the program's entrypoint
@@ -297,19 +298,25 @@ pub fn mint_comptokens(
 
 // under construction
 pub fn daily_distribution_event(
-    _program_id: &Pubkey,
+    program_id: &Pubkey,
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
     //      Comptoken Mint Acct (not mint authority)
-    //      Comptoken Static Data Acct (also mint authority)
-    //      Comptoken Static Bank Acct
+    //      Comptoken Global Data Acct (also mint authority)
+    //      Comptoken Interest Bank Acct
+    //      Comptoken UBI Bank Acct
 
     let account_info_iter = &mut accounts.iter();
     let comptoken_mint_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
     let unpaid_interest_bank = next_account_info(account_info_iter)?;
+    let ubi_bank = next_account_info(account_info_iter)?;
+
+    verify_global_data_account(global_data_account, program_id);
+    verify_interest_bank_account(unpaid_interest_bank, program_id);
+    verify_ubi_bank_account(ubi_bank, program_id);
 
     // get old days info
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
