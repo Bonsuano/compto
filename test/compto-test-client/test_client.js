@@ -46,7 +46,7 @@ let connection = new Connection('http://localhost:8899', 'recent');
     await testMint();
     await createGlobalDataAccount();
     await mintComptokens(connection, destination_pubkey, temp_keypair);
-    await dailyDistributionEvent();
+    // await dailyDistributionEvent();
 })();
 
 
@@ -181,7 +181,7 @@ async function dailyDistributionEvent() {
         // the comptoken Mint
         { pubkey: comptoken_pubkey, isSigner: false, isWritable: false },
         // the Global Comptoken Data Account (also mint authority)
-        { pubkey: static_pda_pubkey, isSigner: false, isWritable: true },
+        { pubkey: global_data_pda_pubkey, isSigner: false, isWritable: true },
         // the Comptoken Interest Bank Account
         { pubkey: PublicKey.default, isSigner: false, isWritable: true }, // TODO get currect bank pubkey
     ];
@@ -194,6 +194,6 @@ async function dailyDistributionEvent() {
         }),
     );
     let dailyDistributionEventResult = await sendAndConfirmTransaction(connection, dailyDistributionEventTransaction, [temp_keypair, temp_keypair]);
-    console.log("initializeStaticAccount transaction confirmed", dailyDistributionEventResult);
+    console.log("DailyDistributionEvent transaction confirmed", dailyDistributionEventResult);
     
 }
