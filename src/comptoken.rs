@@ -1,5 +1,5 @@
 mod comptoken_proof;
-mod static_data;
+mod global_data;
 mod user_data_storage;
 
 extern crate bs58;
@@ -22,7 +22,7 @@ use spl_token_2022::{
 };
 
 use comptoken_proof::ComptokenProof;
-use static_data::StaticData;
+use global_data::GlobalData;
 use user_data_storage::{ProofStorage, PROOF_STORAGE_MIN_SIZE};
 
 // declare and export the program's entrypoint
@@ -71,15 +71,15 @@ pub fn process_instruction(
         }
         2 => {
             msg!("Initialize Static Data Account");
-            create_static_data_account(program_id, accounts, &instruction_data[1..])
+            create_global_data_account(program_id, accounts, &instruction_data[1..])
         }
         3 => {
             msg!("Create User Data Account");
             create_user_data_account(program_id, accounts, &instruction_data[1..])
         }
         4 => {
-            msg!("Daily Update");
-            todo!()
+            msg!("Perform Daily Distribution Event");
+            daily_distribution_event(program_id, accounts, &instruction_data[1..])
         }
         _ => {
             msg!("Invalid Instruction");
@@ -88,7 +88,7 @@ pub fn process_instruction(
     }
 }
 
-pub fn create_static_data_account(
+pub fn create_global_data_account(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
@@ -101,27 +101,25 @@ pub fn create_static_data_account(
 
     let account_info_iter = &mut accounts.iter();
     let owner_account = next_account_info(account_info_iter)?;
-    let static_data_account = next_account_info(account_info_iter)?;
-
-    // verify_owner_account(owner_account)?;
-    // we do not need to verify that the client provided the correct static data account
-    // if the wrong account is provided, create_account will fail
-    let static_data_account_pubkey =
+    let global_data_account = next_account_info(account_info_iter)?;
+    let global_data_account_pubkey =
         Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id)?;
+    // necessary because we use the user provided pubkey to retrieve the data
+    assert_eq!(global_data_account_pubkey, *global_data_account.key);
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
     let lamports = u64::from_be_bytes(first_8_bytes);
     msg!("Lamports: {:?}", lamports);
 
     let create_acct_instr = create_account(
         owner_account.key,
-        &static_data_account_pubkey,
+        &global_data_account_pubkey,
         lamports,
         STATIC_ACCOUNT_SPACE,
         program_id,
     );
     let _result = invoke_signed(&create_acct_instr, accounts, &[COMPTO_STATIC_PDA_SEEDS])?;
-    let static_data: &mut StaticData = static_data_account.try_into().unwrap();
-    static_data.initialize();
+    let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
+    global_data.initialize();
     Ok(())
 }
 
@@ -314,7 +312,8 @@ pub fn mint_comptokens(
     Ok(())
 }
 
-pub fn daily(
+// under construction
+pub fn daily_distribution_event(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
@@ -326,18 +325,18 @@ pub fn daily(
 
     let account_info_iter = &mut accounts.iter();
     let comptoken_mint_account = next_account_info(account_info_iter)?;
-    let static_data_account = next_account_info(account_info_iter)?;
-    let static_bank_account = next_account_info(account_info_iter)?;
+    let global_data_account = next_account_info(account_info_iter)?;
+    let unpaid_interest_bank = next_account_info(account_info_iter)?;
 
     // get old days info
-    let static_data: &mut StaticData = static_data_account.try_into().unwrap();
+    let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
 
     // get new days info
     let comptoken_mint =
         Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
 
-    // calculate interest/water mark
-    let days_supply = static_data.old_supply - comptoken_mint.supply;
+    // calculate interest/high water mark
+    let days_supply = comptoken_mint.supply - global_data.old_supply;
     // TODO interest (ensure accuracy)
     let interest_rate = 0;
     let interest = days_supply * interest_rate;
@@ -345,13 +344,13 @@ pub fn daily(
 
     // store data
     mint(
-        static_data_account.key,
-        static_bank_account.key,
+        global_data_account.key,
+        unpaid_interest_bank.key,
         interest,
         accounts,
     )?;
 
-    static_data.old_supply += days_supply + interest;
+    global_data.old_supply += days_supply + interest;
     //
 
     todo!()
