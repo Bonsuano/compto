@@ -46,7 +46,7 @@ let connection = new Connection('http://localhost:8899', 'recent');
     await testMint();
     await initializeStaticAccount();
     await mintComptokens(connection, destination_pubkey, temp_keypair);
-    await daily();
+    await dailyDistributionEvent();
 })();
 
 
@@ -174,10 +174,10 @@ async function createUserDataAccount() {
 }
 
 // TODO rename
-async function daily() {
+async function dailyDistributionEvent() {
     // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN comptoken.rs
     let data = Buffer.alloc(1);
-    data.writeUInt8(Instruction.DAILY, 0);
+    data.writeUInt8(Instruction.DAILY_DISTRIBUTION_EVENT, 0);
     console.log("data: ", data);
     let keys = [
         // the comptoken Mint
@@ -187,15 +187,15 @@ async function daily() {
         // the Comptoken Interest Bank Account
         { pubkey: PublicKey.default, isSigner: false, isWritable: true }, // TODO get currect bank pubkey
     ];
-    let dailyTransaction = new Transaction();
-    dailyTransaction.add(
+    let dailyDistributionEventTransaction = new Transaction();
+    dailyDistributionEventTransaction.add(
         new TransactionInstruction({
             keys: keys,
             programId: compto_program_id_pubkey,
             data: data,
         }),
     );
-    let dailyResult = await sendAndConfirmTransaction(connection, dailyTransaction, [temp_keypair, temp_keypair]);
-    console.log("initializeStaticAccount transaction confirmed", dailyResult);
+    let dailyDistributionEventResult = await sendAndConfirmTransaction(connection, dailyDistributionEventTransaction, [temp_keypair, temp_keypair]);
+    console.log("initializeStaticAccount transaction confirmed", dailyDistributionEventResult);
     
 }
