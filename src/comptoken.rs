@@ -33,20 +33,8 @@ type ProgramResult = Result<(), ProgramError>;
 // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN test_client.js
 const STATIC_ACCOUNT_SPACE: u64 = 4096;
 
-// full_deploy_test.py generates a comptoken_generated.rs
-// The first build must not have the testmode feature enabled so that a ProgramId is created.
-// full_deploy_test.py handles this case gracefully by building twice on the first usage.
-#[cfg(feature = "testmode")]
-mod comptoken_generated;
-#[cfg(not(feature = "testmode"))]
-mod comptoken_generated {
-    use spl_token_2022::solana_program::{pubkey, pubkey::Pubkey};
-    pub const COMPTOKEN_ADDRESS: Pubkey = pubkey!("11111111111111111111111111111111");
-    pub const COMPTO_STATIC_ADDRESS_SEED: u8 = 255;
-}
-use comptoken_generated::{COMPTOKEN_ADDRESS, COMPTO_STATIC_ADDRESS_SEED};
-
-const COMPTO_STATIC_PDA_SEEDS: &[&[u8]] = &[&[COMPTO_STATIC_ADDRESS_SEED]];
+mod generated;
+use generated::{COMPTOKEN_ADDRESS, COMPTO_STATIC_PDA_SEEDS};
 
 // #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 // pub struct DataAccount {
