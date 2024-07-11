@@ -120,23 +120,6 @@ pub fn create_global_data_account(
     Ok(())
 }
 
-fn mint(
-    mint_pda: &Pubkey,
-    destination: &Pubkey,
-    amount: u64,
-    accounts: &[AccountInfo],
-) -> ProgramResult {
-    let instruction = mint_to(
-        &spl_token_2022::id(),
-        &COMPTOKEN_MINT_ACCOUNT_ADDRESS,
-        &destination,
-        &mint_pda,
-        &[&mint_pda],
-        amount,
-    )?;
-    invoke_signed(&instruction, accounts, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])
-}
-
 pub fn test_mint(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -189,16 +172,6 @@ fn verify_comptoken_proof_userdata<'a>(
         "invalid proof"
     );
     return proof;
-}
-
-fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
-    let proof_storage: &mut UserData = data_account
-        .data
-        .borrow_mut()
-        .as_mut()
-        .try_into()
-        .expect("error already panicked");
-    proof_storage.insert(&proof.hash, &proof.recent_block_hash)
 }
 
 pub fn create_user_data_account(
@@ -343,4 +316,31 @@ pub fn daily_distribution_event(
 
     global_data.old_supply += days_supply + interest;
     //
+}
+
+fn mint(
+    mint_pda: &Pubkey,
+    destination: &Pubkey,
+    amount: u64,
+    accounts: &[AccountInfo],
+) -> ProgramResult {
+    let instruction = mint_to(
+        &spl_token_2022::id(),
+        &COMPTOKEN_MINT_ACCOUNT_ADDRESS,
+        &destination,
+        &mint_pda,
+        &[&mint_pda],
+        amount,
+    )?;
+    invoke_signed(&instruction, accounts, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])
+}
+
+fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
+    let proof_storage: &mut UserData = data_account
+        .data
+        .borrow_mut()
+        .as_mut()
+        .try_into()
+        .expect("error already panicked");
+    proof_storage.insert(&proof.hash, &proof.recent_block_hash)
 }
