@@ -15,8 +15,9 @@ COMPTO_PROGRAM_ID_JSON = CACHE_PATH / "compto_program_id.json"
 COMPTO_SO = PROJECT_PATH / "target/deploy/comptoken.so"
 COMPTOKEN_ID_JSON = CACHE_PATH / "comptoken_id.json"
 COMPTO_TEST_ACCOUNT_JSON = CACHE_PATH / "compto_test_account.json"
-COMPTO_ADDRESS_FILE = PROJECT_PATH / "src/comptoken_generated.rs"
-COMPTO_STATIC_PDA = CACHE_PATH / "compto_static_pda.json"
+COMPTO_MINT_AUTHORITY_JSON = CACHE_PATH / "compto_mint_authority.json"
+COMPTO_ADDRESS_FILE = PROJECT_PATH / "src/generated/comptoken_generated.rs"
+COMPTO_STATIC_PDA = CACHE_PATH / "compto_global_data_pda.json"
 TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 
@@ -157,9 +158,9 @@ def generateComptokenAddressFile():
 
 use spl_token_2022::solana_program::{{pubkey, pubkey::Pubkey}};
 
-pub const COMPTOKEN_ADDRESS: Pubkey = pubkey!("{comptoken_id}");
+pub const COMPTOKEN_MINT_ACCOUNT_ADDRESS: Pubkey = pubkey!("{comptoken_id}");
 
-pub const COMPTO_STATIC_ADDRESS_SEED: u8 = {seed};
+pub const COMPTO_GLOBAL_DATA_ACCOUNT_SEED: u8 = {seed};
     """
 
     with open(COMPTO_ADDRESS_FILE, "w") as file:
