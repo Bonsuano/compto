@@ -1,6 +1,6 @@
 mod comptoken_proof;
+mod static_data;
 mod user_data_storage;
-mod comptoken_daily;
 
 extern crate bs58;
 
@@ -13,13 +13,16 @@ use spl_token_2022::{
         hash::HASH_BYTES,
         msg,
         program::invoke_signed,
+        program_pack::Pack,
         pubkey::Pubkey,
         system_instruction::create_account,
         sysvar::slot_history::ProgramError,
     },
+    state::Mint,
 };
 
 use comptoken_proof::ComptokenProof;
+use static_data::StaticData;
 use user_data_storage::{ProofStorage, PROOF_STORAGE_MIN_SIZE};
 
 // declare and export the program's entrypoint
@@ -68,11 +71,15 @@ pub fn process_instruction(
         }
         2 => {
             msg!("Initialize Static Data Account");
-            initialize_static_data_account(program_id, accounts, &instruction_data[1..])
+            create_static_data_account(program_id, accounts, &instruction_data[1..])
         }
         3 => {
             msg!("Create User Data Account");
             create_user_data_account(program_id, accounts, &instruction_data[1..])
+        }
+        4 => {
+            msg!("Daily Update");
+            todo!()
         }
         _ => {
             msg!("Invalid Instruction");
@@ -81,39 +88,40 @@ pub fn process_instruction(
     }
 }
 
-pub fn initialize_static_data_account(
+pub fn create_static_data_account(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
-    //      owner id
-    //      mint authority? pda
+    //      payer id
+    //      Static Data Account (also mint authority)
 
     msg!("instruction_data: {:?}", instruction_data);
 
     let account_info_iter = &mut accounts.iter();
     let owner_account = next_account_info(account_info_iter)?;
+    let static_data_account = next_account_info(account_info_iter)?;
 
     // verify_owner_account(owner_account)?;
-    // we do not need to verify that the client provided the correct mint authority
-    // if the wrong mint authority is provided, create_account will fail
-    let mint_authority_pda = Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id)?;
+    // we do not need to verify that the client provided the correct static data account
+    // if the wrong account is provided, create_account will fail
+    let static_data_account_pubkey =
+        Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id)?;
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
     let lamports = u64::from_be_bytes(first_8_bytes);
     msg!("Lamports: {:?}", lamports);
 
     let create_acct_instr = create_account(
         owner_account.key,
-        &mint_authority_pda,
+        &static_data_account_pubkey,
         lamports,
         STATIC_ACCOUNT_SPACE,
         program_id,
     );
-    // let createacct = SystemInstruction::CreateAccount { lamports: (1000), space: (256), owner: *program_id };
     let _result = invoke_signed(&create_acct_instr, accounts, &[COMPTO_STATIC_PDA_SEEDS])?;
-    // let data = accounts[0].try_borrow_mut_data()?;
-    // data[0] = 1;
+    let static_data: &mut StaticData = static_data_account.try_into().unwrap();
+    static_data.initialize();
     Ok(())
 }
 
@@ -257,11 +265,12 @@ pub fn create_user_data_account(
         &[&[&destination_account.key.as_ref(), &[bump]]],
     )?;
 
+    // initialize data account
     let mut binding = data_account_info.try_borrow_mut_data()?;
     let data = binding.as_mut();
 
-    // for the checks the try_into does
-    let _proof_storage: &mut ProofStorage = data.try_into().expect("panicked already");
+    let proof_storage: &mut ProofStorage = data.try_into().expect("panicked already");
+    proof_storage.initialize();
 
     Ok(())
 }
@@ -303,4 +312,47 @@ pub fn mint_comptokens(
 
     //todo!("implement minting and storing of hashing");
     Ok(())
+}
+
+pub fn daily(
+    _program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    _instruction_data: &[u8],
+) -> ProgramResult {
+    //  accounts order:
+    //      Comptoken Mint Acct (not mint authority)
+    //      Comptoken Static Data Acct (also mint authority)
+    //      Comptoken Static Bank Acct
+
+    let account_info_iter = &mut accounts.iter();
+    let comptoken_mint_account = next_account_info(account_info_iter)?;
+    let static_data_account = next_account_info(account_info_iter)?;
+    let static_bank_account = next_account_info(account_info_iter)?;
+
+    // get old days info
+    let static_data: &mut StaticData = static_data_account.try_into().unwrap();
+
+    // get new days info
+    let comptoken_mint =
+        Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
+
+    // calculate interest/water mark
+    let days_supply = static_data.old_supply - comptoken_mint.supply;
+    // TODO interest (ensure accuracy)
+    let interest_rate = 0;
+    let interest = days_supply * interest_rate;
+    // announce interest/ water mark/ new Blockhash
+
+    // store data
+    mint(
+        static_data_account.key,
+        static_bank_account.key,
+        interest,
+        accounts,
+    )?;
+
+    static_data.old_supply += days_supply + interest;
+    //
+
+    todo!()
 }
