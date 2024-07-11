@@ -81,6 +81,85 @@ pub fn process_instruction(
     }
 }
 
+pub fn test_mint(
+    _program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    //  accounts order:
+    //      destination comptoken account
+    //      mint authority account
+    //      spl_token account
+    //      comptoken program account
+
+    msg!("instruction_data: {:?}", instruction_data);
+    for account_info in accounts.iter() {
+        msg!("Public Key: {:?}", account_info.key);
+    }
+
+    let account_info_iter = &mut accounts.iter();
+    let destination_account = next_account_info(account_info_iter)?;
+    let mint_authority_account = next_account_info(account_info_iter)?;
+    let _token_account = next_account_info(account_info_iter)?;
+    let _comptoken_account = next_account_info(account_info_iter)?;
+
+    verify_comptoken_user_account(destination_account)?;
+
+    let amount = 2;
+
+    mint(
+        mint_authority_account.key,
+        destination_account.key,
+        amount,
+        accounts,
+    )
+}
+
+pub fn mint_comptokens(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    instruction_data: &[u8],
+) -> ProgramResult {
+    //  accounts order:
+    //      destination token account (writable)
+    //      destination data account (writable)
+    //      Comptoken Static Data Acct (also mint authority)
+    //      spl_token 2022 account
+    //      comptoken program account (writable)
+
+    let account_info_iter = &mut accounts.iter();
+    let destination_account = next_account_info(account_info_iter)?;
+    let data_account = next_account_info(account_info_iter)?;
+    let global_data_account = next_account_info(account_info_iter)?;
+    //let token_account = next_account_info(account_info_iter)?;
+    //let comptoken_account = next_account_info(account_info_iter)?;
+
+    verify_global_data_account(global_data_account, program_id);
+    let global_data: &mut GlobalData = global_data_account.try_into()?;
+    verify_comptoken_user_account(destination_account)?;
+    let proof = verify_comptoken_proof_userdata(
+        destination_account.key,
+        instruction_data,
+        &global_data.valid_blockhash,
+    );
+    let _ = verify_comptoken_user_data_account(data_account, destination_account, program_id);
+
+    msg!("data/accounts verified");
+    let amount = 2;
+    // now save the hash to the account, returning an error if the hash already exists
+    store_hash(proof, data_account);
+    msg!("stored the proof");
+    mint(
+        global_data_account.key,
+        &destination_account.key,
+        amount,
+        accounts,
+    )?;
+
+    //todo!("implement minting and storing of hashing");
+    Ok(())
+}
+
 pub fn create_global_data_account(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -118,60 +197,6 @@ pub fn create_global_data_account(
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     global_data.initialize();
     Ok(())
-}
-
-pub fn test_mint(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    //  accounts order:
-    //      destination comptoken account
-    //      mint authority account
-    //      spl_token account
-    //      comptoken program account
-
-    msg!("instruction_data: {:?}", instruction_data);
-    for account_info in accounts.iter() {
-        msg!("Public Key: {:?}", account_info.key);
-    }
-
-    let account_info_iter = &mut accounts.iter();
-    let destination_account = next_account_info(account_info_iter)?;
-    let mint_authority_account = next_account_info(account_info_iter)?;
-    let _token_account = next_account_info(account_info_iter)?;
-    let _comptoken_account = next_account_info(account_info_iter)?;
-
-    verify_comptoken_user_account(destination_account)?;
-
-    let amount = 2;
-
-    mint(
-        mint_authority_account.key,
-        destination_account.key,
-        amount,
-        accounts,
-    )
-}
-
-fn verify_comptoken_proof_userdata<'a>(
-    comptoken_wallet: &'a Pubkey,
-    data: &[u8],
-    valid_blockhash: &Hash,
-) -> ComptokenProof<'a> {
-    assert_eq!(
-        data.len(),
-        comptoken_proof::VERIFY_DATA_SIZE,
-        "Invalid proof size"
-    );
-    let proof =
-        ComptokenProof::from_bytes(comptoken_wallet, data.try_into().expect("correct size"));
-    msg!("block: {:?}", proof);
-    assert!(
-        comptoken_proof::verify_proof(&proof, valid_blockhash),
-        "invalid proof"
-    );
-    return proof;
 }
 
 pub fn create_user_data_account(
@@ -221,51 +246,6 @@ pub fn create_user_data_account(
     let proof_storage: &mut UserData = data.try_into().expect("panicked already");
     proof_storage.initialize();
 
-    Ok(())
-}
-
-pub fn mint_comptokens(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> ProgramResult {
-    //  accounts order:
-    //      destination token account (writable)
-    //      destination data account (writable)
-    //      Comptoken Static Data Acct (also mint authority)
-    //      spl_token 2022 account
-    //      comptoken program account (writable)
-
-    let account_info_iter = &mut accounts.iter();
-    let destination_account = next_account_info(account_info_iter)?;
-    let data_account = next_account_info(account_info_iter)?;
-    let global_data_account = next_account_info(account_info_iter)?;
-    //let token_account = next_account_info(account_info_iter)?;
-    //let comptoken_account = next_account_info(account_info_iter)?;
-
-    verify_global_data_account(global_data_account, program_id);
-    let global_data: &mut GlobalData = global_data_account.try_into()?;
-    verify_comptoken_user_account(destination_account)?;
-    let proof = verify_comptoken_proof_userdata(
-        destination_account.key,
-        instruction_data,
-        &global_data.valid_blockhash,
-    );
-    let _ = verify_comptoken_user_data_account(data_account, destination_account, program_id);
-
-    msg!("data/accounts verified");
-    let amount = 2;
-    // now save the hash to the account, returning an error if the hash already exists
-    store_hash(proof, data_account);
-    msg!("stored the proof");
-    mint(
-        global_data_account.key,
-        &destination_account.key,
-        amount,
-        accounts,
-    )?;
-
-    //todo!("implement minting and storing of hashing");
     Ok(())
 }
 
@@ -343,4 +323,24 @@ fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
         .try_into()
         .expect("error already panicked");
     proof_storage.insert(&proof.hash, &proof.recent_block_hash)
+}
+
+fn verify_comptoken_proof_userdata<'a>(
+    comptoken_wallet: &'a Pubkey,
+    data: &[u8],
+    valid_blockhash: &Hash,
+) -> ComptokenProof<'a> {
+    assert_eq!(
+        data.len(),
+        comptoken_proof::VERIFY_DATA_SIZE,
+        "Invalid proof size"
+    );
+    let proof =
+        ComptokenProof::from_bytes(comptoken_wallet, data.try_into().expect("correct size"));
+    msg!("block: {:?}", proof);
+    assert!(
+        comptoken_proof::verify_proof(&proof, valid_blockhash),
+        "invalid proof"
+    );
+    return proof;
 }
