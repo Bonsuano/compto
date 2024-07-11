@@ -1,6 +1,7 @@
 mod comptoken_proof;
 mod global_data;
 mod user_data_storage;
+mod verify_accounts;
 
 extern crate bs58;
 
@@ -24,6 +25,9 @@ use spl_token_2022::{
 use comptoken_proof::ComptokenProof;
 use global_data::GlobalData;
 use user_data_storage::{ProofStorage, PROOF_STORAGE_MIN_SIZE};
+use verify_accounts::{
+    verify_comptoken_user_account, verify_comptoken_user_data_account, verify_global_data_account,
+};
 
 // declare and export the program's entrypoint
 entrypoint!(process_instruction);
@@ -90,17 +94,18 @@ pub fn create_global_data_account(
     let account_info_iter = &mut accounts.iter();
     let owner_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
-    let global_data_account_pubkey =
-        Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id)?;
+    //let global_data_account_pubkey =
+    //    Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id)?;
     // necessary because we use the user provided pubkey to retrieve the data
-    assert_eq!(global_data_account_pubkey, *global_data_account.key);
+
+    verify_global_data_account(global_data_account, program_id);
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
     let lamports = u64::from_be_bytes(first_8_bytes);
     msg!("Lamports: {:?}", lamports);
 
     let create_acct_instr = create_account(
         owner_account.key,
-        &global_data_account_pubkey,
+        &global_data_account.key,
         lamports,
         STATIC_ACCOUNT_SPACE,
         program_id,
@@ -126,27 +131,6 @@ fn mint(
         amount,
     )?;
     invoke_signed(&instruction, accounts, &[COMPTO_STATIC_PDA_SEEDS])
-}
-
-fn verify_comptoken_user_account(_account: &AccountInfo) -> ProgramResult {
-    // TODO: verify comptoken user accounts
-    Ok(())
-}
-
-fn verify_comptoken_user_data_account(
-    comptoken_user_data_account: &AccountInfo,
-    comptoken_user_account: &AccountInfo,
-    program_id: &Pubkey,
-) -> u8 {
-    // if we ever need a user data account to sign something,
-    // then we should return the bumpseed in this function
-    let (pda, bump) =
-        Pubkey::find_program_address(&[comptoken_user_account.key.as_ref()], program_id);
-    assert_eq!(
-        *comptoken_user_data_account.key, pda,
-        "Invalid user data account"
-    );
-    bump
 }
 
 pub fn test_mint(
@@ -183,22 +167,24 @@ pub fn test_mint(
     )
 }
 
-fn verify_comptoken_proof_userdata<'a>(destination: &'a Pubkey, data: &[u8]) -> ComptokenProof<'a> {
+fn verify_comptoken_proof_userdata<'a>(
+    comptoken_wallet: &'a Pubkey,
+    data: &[u8],
+    valid_blockhash: &Hash,
+) -> ComptokenProof<'a> {
     assert_eq!(
         data.len(),
         comptoken_proof::VERIFY_DATA_SIZE,
         "Invalid proof size"
     );
-    let proof = ComptokenProof::from_bytes(destination, data.try_into().expect("correct size"));
+    let proof =
+        ComptokenProof::from_bytes(comptoken_wallet, data.try_into().expect("correct size"));
     msg!("block: {:?}", proof);
-    assert!(comptoken_proof::verify_proof(&proof), "invalid proof");
+    assert!(
+        comptoken_proof::verify_proof(&proof, valid_blockhash),
+        "invalid proof"
+    );
     return proof;
-}
-
-fn get_valid_hash<'a>() -> &'a Hash {
-    // TODO: implement
-    static VALID_HASH: Hash = Hash::new_from_array([0; 32]);
-    &VALID_HASH
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
@@ -269,19 +255,25 @@ pub fn mint_comptokens(
     //  accounts order:
     //      destination token account (writable)
     //      destination data account (writable)
-    //      mint authority account
+    //      Comptoken Static Data Acct (also mint authority)
     //      spl_token 2022 account
     //      comptoken program account (writable)
 
     let account_info_iter = &mut accounts.iter();
     let destination_account = next_account_info(account_info_iter)?;
     let data_account = next_account_info(account_info_iter)?;
-    let mint_authority_account = next_account_info(account_info_iter)?;
+    let global_data_account = next_account_info(account_info_iter)?;
     //let token_account = next_account_info(account_info_iter)?;
     //let comptoken_account = next_account_info(account_info_iter)?;
 
+    verify_global_data_account(global_data_account, program_id);
+    let global_data: &mut GlobalData = global_data_account.try_into()?;
     verify_comptoken_user_account(destination_account)?;
-    let proof = verify_comptoken_proof_userdata(destination_account.key, instruction_data);
+    let proof = verify_comptoken_proof_userdata(
+        destination_account.key,
+        instruction_data,
+        &global_data.valid_blockhash,
+    );
     let _ = verify_comptoken_user_data_account(data_account, destination_account, program_id);
 
     msg!("data/accounts verified");
@@ -290,7 +282,7 @@ pub fn mint_comptokens(
     store_hash(proof, data_account);
     msg!("stored the proof");
     mint(
-        mint_authority_account.key,
+        global_data_account.key,
         &destination_account.key,
         amount,
         accounts,
