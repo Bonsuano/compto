@@ -6,9 +6,9 @@ mod comptoken_generated;
 #[cfg(not(feature = "testmode"))]
 mod comptoken_generated {
     use spl_token_2022::solana_program::{pubkey, pubkey::Pubkey};
-    pub const COMPTOKEN_ADDRESS: Pubkey = pubkey!("11111111111111111111111111111111");
-    pub const COMPTO_STATIC_ADDRESS_SEED: u8 = 255;
+    pub const COMPTOKEN_MINT_ACCOUNT_ADDRESS: Pubkey = pubkey!("11111111111111111111111111111111");
+    pub const COMPTO_GLOBAL_DATA_ACCOUNT_SEED: u8 = 255;
 }
-pub use comptoken_generated::{COMPTOKEN_ADDRESS, COMPTO_STATIC_ADDRESS_SEED};
+pub use comptoken_generated::{COMPTOKEN_MINT_ACCOUNT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_SEED};
 
-pub const COMPTO_STATIC_PDA_SEEDS: &[&[u8]] = &[&[COMPTO_STATIC_ADDRESS_SEED]];
+pub const COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS: &[&[u8]] = &[&[COMPTO_GLOBAL_DATA_ACCOUNT_SEED]];

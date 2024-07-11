@@ -2,10 +2,11 @@ use spl_token_2022::solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey,
 };
 
-use crate::generated::COMPTO_STATIC_PDA_SEEDS;
+use crate::generated::COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS;
 
 pub fn verify_global_data_account(account: &AccountInfo, program_id: &Pubkey) -> Pubkey {
-    let result = Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id).unwrap();
+    let result =
+        Pubkey::create_program_address(COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS, program_id).unwrap();
     assert_eq!(*account.key, result);
     result
 }

@@ -35,10 +35,10 @@ entrypoint!(process_instruction);
 type ProgramResult = Result<(), ProgramError>;
 
 // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN test_client.js
-const STATIC_ACCOUNT_SPACE: u64 = 4096;
+const GLOBAL_DATA_ACCOUNT_SPACE: u64 = 4096;
 
 mod generated;
-use generated::{COMPTOKEN_ADDRESS, COMPTO_STATIC_PDA_SEEDS};
+use generated::{COMPTOKEN_MINT_ACCOUNT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS};
 
 // #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 // pub struct DataAccount {
@@ -86,31 +86,34 @@ pub fn create_global_data_account(
     instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
-    //      payer id
-    //      Static Data Account (also mint authority)
+    //      payer id (probably COMPTO's account)
+    //      global Data Account (also mint authority)
 
     msg!("instruction_data: {:?}", instruction_data);
 
     let account_info_iter = &mut accounts.iter();
-    let owner_account = next_account_info(account_info_iter)?;
+    let payer_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
-    //let global_data_account_pubkey =
-    //    Pubkey::create_program_address(COMPTO_STATIC_PDA_SEEDS, program_id)?;
-    // necessary because we use the user provided pubkey to retrieve the data
 
+    // necessary because we use the user provided pubkey to retrieve the data
     verify_global_data_account(global_data_account, program_id);
+
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
     let lamports = u64::from_be_bytes(first_8_bytes);
     msg!("Lamports: {:?}", lamports);
 
     let create_acct_instr = create_account(
-        owner_account.key,
+        payer_account.key,
         &global_data_account.key,
         lamports,
-        STATIC_ACCOUNT_SPACE,
+        GLOBAL_DATA_ACCOUNT_SPACE,
         program_id,
     );
-    let _result = invoke_signed(&create_acct_instr, accounts, &[COMPTO_STATIC_PDA_SEEDS])?;
+    let _result = invoke_signed(
+        &create_acct_instr,
+        accounts,
+        &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
+    )?;
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     global_data.initialize();
     Ok(())
@@ -124,13 +127,13 @@ fn mint(
 ) -> ProgramResult {
     let instruction = mint_to(
         &spl_token_2022::id(),
-        &COMPTOKEN_ADDRESS,
+        &COMPTOKEN_MINT_ACCOUNT_ADDRESS,
         &destination,
         &mint_pda,
         &[&mint_pda],
         amount,
     )?;
-    invoke_signed(&instruction, accounts, &[COMPTO_STATIC_PDA_SEEDS])
+    invoke_signed(&instruction, accounts, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])
 }
 
 pub fn test_mint(

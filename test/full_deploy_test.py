@@ -164,9 +164,9 @@ def generateComptokenAddressFile():
 
 use spl_token_2022::solana_program::{{pubkey, pubkey::Pubkey}};
 
-pub const COMPTOKEN_ADDRESS: Pubkey = pubkey!("{comptoken_id}");
+pub const COMPTOKEN_MINT_ACCOUNT_ADDRESS: Pubkey = pubkey!("{comptoken_id}");
 
-pub const COMPTO_STATIC_ADDRESS_SEED: u8 = {seed};
+pub const COMPTO_GLOBAL_DATA_ACCOUNT_SEED: u8 = {seed};
     """
 
     with open(COMPTO_ADDRESS_FILE, "w") as file:
