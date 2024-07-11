@@ -46,7 +46,7 @@ let connection = new Connection('http://localhost:8899', 'recent');
     await testMint();
     await initializeStaticAccount();
     await mintComptokens(connection, destination_pubkey, temp_keypair);
-    
+    await daily();
 })();
 
 
@@ -108,19 +108,6 @@ async function testMint() {
 }
 
 async function initializeStaticAccount() {
-    // createAccountTransaction = new Transaction();
-    // createAccountTransaction.add(SystemProgram.createAccount({
-    //     fromPubkey: temp_keypair.publicKey,
-    //     newAccountPubkey: static_pda_pubkey,
-    //     lamports: 1000, // Example lamports amount
-    //     space: 256, // Example space allocation in bytes
-    //     programId: compto_program_id_pubkey,
-    // }));
-    // let staticAccountResult = await sendAndConfirmTransaction(connection, createAccountTransaction, [temp_keypair, temp_keypair]);
-    // console.log("Static Account created");
-
-
-   
     // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN comptoken.rs
     const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(4096);
     console.log("Rent exempt amount: ", rentExemptAmount);
@@ -183,5 +170,32 @@ async function createUserDataAccount() {
     );
     let createUserDataAccountResult = await sendAndConfirmTransaction(connection, createUserDataAccountTransaction, [temp_keypair]);
     console.log("createUserDataAccount transaction confirmed", createUserDataAccountResult);
+    
+}
+
+// TODO rename
+async function daily() {
+    // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN comptoken.rs
+    let data = Buffer.alloc(1);
+    data.writeUInt8(Instruction.DAILY, 0);
+    console.log("data: ", data);
+    let keys = [
+        // the comptoken Mint
+        { pubkey: comptoken_pubkey, isSigner: false, isWritable: false },
+        // the Global Comptoken Data Account (also mint authority)
+        { pubkey: static_pda_pubkey, isSigner: false, isWritable: true },
+        // the Comptoken Interest Bank Account
+        { pubkey: PublicKey.default, isSigner: false, isWritable: true }, // TODO get currect bank pubkey
+    ];
+    let dailyTransaction = new Transaction();
+    dailyTransaction.add(
+        new TransactionInstruction({
+            keys: keys,
+            programId: compto_program_id_pubkey,
+            data: data,
+        }),
+    );
+    let dailyResult = await sendAndConfirmTransaction(connection, dailyTransaction, [temp_keypair, temp_keypair]);
+    console.log("initializeStaticAccount transaction confirmed", dailyResult);
     
 }

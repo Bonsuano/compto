@@ -79,7 +79,7 @@ pub fn process_instruction(
         }
         4 => {
             msg!("Daily Update");
-            todo!()
+            daily(program_id, accounts, &instruction_data[1..])
         }
         _ => {
             msg!("Invalid Instruction");
@@ -343,6 +343,7 @@ pub fn daily(
     let interest = days_supply * interest_rate;
     // announce interest/ water mark/ new Blockhash
 
+    todo!();
     // store data
     mint(
         static_data_account.key,
@@ -353,6 +354,4 @@ pub fn daily(
 
     static_data.old_supply += days_supply + interest;
     //
-
-    todo!()
 }

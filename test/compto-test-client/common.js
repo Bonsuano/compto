@@ -14,6 +14,7 @@ export const Instruction = {
     COMPTOKEN_MINT: 1,
     INITIALIZE_STATIC_ACCOUNT: 2,
     CREATE_USER_DATA_ACCOUNT: 3,
+    DAILY: 4,
 };
 
 // Read Cache Files
