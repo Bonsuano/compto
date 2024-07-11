@@ -1,6 +1,6 @@
 mod comptoken_proof;
 mod global_data;
-mod user_data_storage;
+mod user_data;
 mod verify_accounts;
 
 extern crate bs58;
@@ -24,7 +24,7 @@ use spl_token_2022::{
 
 use comptoken_proof::ComptokenProof;
 use global_data::GlobalData;
-use user_data_storage::{ProofStorage, PROOF_STORAGE_MIN_SIZE};
+use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::{
     verify_comptoken_user_account, verify_comptoken_user_data_account, verify_global_data_account,
 };
@@ -191,7 +191,7 @@ fn verify_comptoken_proof_userdata<'a>(
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
-    let proof_storage: &mut ProofStorage = data_account
+    let proof_storage: &mut UserData = data_account
         .data
         .borrow_mut()
         .as_mut()
@@ -222,8 +222,8 @@ pub fn create_user_data_account(
         u64::from_le_bytes(instruction_data[0..8].try_into().expect("correct size"));
     let space = usize::from_le_bytes(instruction_data[8..16].try_into().expect("correct size"));
     msg!("space: {}", space);
-    assert!(space >= PROOF_STORAGE_MIN_SIZE);
-    assert!((space - PROOF_STORAGE_MIN_SIZE) % HASH_BYTES == 0);
+    assert!(space >= USER_DATA_MIN_SIZE);
+    assert!((space - USER_DATA_MIN_SIZE) % HASH_BYTES == 0);
 
     let bump =
         verify_comptoken_user_data_account(data_account_info, destination_account, program_id);
@@ -244,7 +244,7 @@ pub fn create_user_data_account(
     let mut binding = data_account_info.try_borrow_mut_data()?;
     let data = binding.as_mut();
 
-    let proof_storage: &mut ProofStorage = data.try_into().expect("panicked already");
+    let proof_storage: &mut UserData = data.try_into().expect("panicked already");
     proof_storage.initialize();
 
     Ok(())
