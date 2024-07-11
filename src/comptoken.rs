@@ -99,7 +99,7 @@ pub fn create_global_data_account(
     verify_global_data_account(global_data_account, program_id);
 
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
-    let lamports = u64::from_be_bytes(first_8_bytes);
+    let lamports = u64::from_le_bytes(first_8_bytes);
     msg!("Lamports: {:?}", lamports);
 
     let create_acct_instr = create_account(

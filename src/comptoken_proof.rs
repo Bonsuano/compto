@@ -36,7 +36,7 @@ impl<'a> ComptokenProof<'a> {
 
         let recent_block_hash = Hash::new_from_array(bytes[range_1].try_into().unwrap());
         // this nonce is what the miner incremented to find a valid proof
-        let nonce = u64::from_be_bytes(bytes[range_2].try_into().unwrap());
+        let nonce = u64::from_le_bytes(bytes[range_2].try_into().unwrap());
         let hash = Hash::new_from_array(bytes[range_3].try_into().unwrap());
 
         ComptokenProof {
@@ -69,7 +69,7 @@ impl<'a> ComptokenProof<'a> {
         let mut hasher = Hasher::default();
         hasher.hash(&self.pubkey.to_bytes());
         hasher.hash(&self.recent_block_hash.to_bytes());
-        hasher.hash(&self.nonce.to_be_bytes());
+        hasher.hash(&self.nonce.to_le_bytes());
         hasher.result()
     }
 }

@@ -53,7 +53,7 @@ class ComptokenProof {
 
     mine() {
         while (ComptokenProof.leadingZeroes(this.hash) < MIN_NUM_ZEROED_BITS) {
-            this.nonce.writeUInt32BE(this.nonce.readUInt32BE() + 1);
+            this.nonce.writeUInt32LE(this.nonce.readUInt32LE() + 1);
             this.hash = this.generateHash();
         }
     }
