@@ -86,15 +86,15 @@ async function setMintAuthority(current_mint_authority_pubkey) {
 async function testMint() {
     let data = Buffer.from([Instruction.TEST]);
     let keys = [
+        // communicates to the token program which mint (and therefore which mint authority)
+        // to mint the tokens from
+        { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: true },
         // the address to receive the test tokens
         { pubkey: testuser_comptoken_wallet_pubkey, isSigner: false, isWritable: true },
         // the mint authority that will sign to mint the tokens
         { pubkey: global_data_account_pubkey, isSigner: false, isWritable: false },
         // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-        // communicates to the token program which mint (and therefore which mint authority)
-        // to mint the tokens from
-        { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: true },
     ];
     let testMintTransaction = new Transaction();
     testMintTransaction.add(
@@ -142,15 +142,15 @@ async function createUserDataAccount() {
     const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(PROOF_STORAGE_MIN_SIZE);
     console.log("Rent exempt amount: ", rentExemptAmount);
 
-    let user_pda = PublicKey.findProgramAddressSync([testuser_comptoken_wallet_pubkey.toBytes()], compto_program_id_pubkey)[0];
+    let user_data_account = PublicKey.findProgramAddressSync([testuser_comptoken_wallet_pubkey.toBytes()], compto_program_id_pubkey)[0];
 
     let createKeys = [
         // the payer of the rent for the account
         { pubkey: testuser_keypair.publicKey, isSigner: true, isWritable: true },
+        // the data account tied to the comptoken wallet
+        { pubkey: user_data_account, isSigner: false, isWritable: true },
         // the payers comptoken wallet (comptoken token acct)
         { pubkey: testuser_comptoken_wallet_pubkey, isSigner: false, isWritable: false },
-        // the data account tied to the comptoken wallet
-        { pubkey: user_pda, isSigner: false, isWritable: true },
         // system account is used to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ];
