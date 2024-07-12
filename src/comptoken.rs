@@ -39,7 +39,7 @@ type ProgramResult = Result<(), ProgramError>;
 const GLOBAL_DATA_ACCOUNT_SPACE: u64 = 4096;
 
 mod generated;
-use generated::{COMPTOKEN_MINT_ACCOUNT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS};
+use generated::{COMPTOKEN_MINT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS};
 
 // #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 // pub struct DataAccount {
@@ -309,7 +309,7 @@ fn mint(
 ) -> ProgramResult {
     let instruction = mint_to(
         &spl_token_2022::id(),
-        &COMPTOKEN_MINT_ACCOUNT_ADDRESS,
+        &COMPTOKEN_MINT_ADDRESS,
         &destination_wallet,
         &mint_authority,
         &[&mint_authority],

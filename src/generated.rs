@@ -6,13 +6,13 @@ mod comptoken_generated;
 #[cfg(not(feature = "testmode"))]
 mod comptoken_generated {
     use spl_token_2022::solana_program::{pubkey, pubkey::Pubkey};
-    pub const COMPTOKEN_MINT_ACCOUNT_ADDRESS: Pubkey = pubkey!("11111111111111111111111111111111");
+    pub const COMPTOKEN_MINT_ADDRESS: Pubkey = pubkey!("11111111111111111111111111111111");
     pub const COMPTO_GLOBAL_DATA_ACCOUNT_BUMP: u8 = 255;
     pub const COMPTO_INTEREST_BANK_ACCOUNT_BUMP: u8 = 255;
     pub const COMPTO_UBI_BANK_ACCOUNT_BUMP: u8 = 255;
 }
 pub use comptoken_generated::{
-    COMPTOKEN_MINT_ACCOUNT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_BUMP,
+    COMPTOKEN_MINT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_BUMP,
     COMPTO_INTEREST_BANK_ACCOUNT_BUMP, COMPTO_UBI_BANK_ACCOUNT_BUMP,
 };
 
