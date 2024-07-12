@@ -19,47 +19,47 @@ import {
 import {
     Instruction,
     compto_program_id_pubkey,
-    comptoken_pubkey,
-    destination_pubkey,
+    comptoken_mint_pubkey,
+    global_data_account_pubkey,
     me_keypair,
-    static_pda_pubkey,
+    testuser_comptoken_wallet_pubkey,
 } from './common.js';
 
 import { mintComptokens } from './comptoken_proof.js';
 
 
-const temp_keypair = Keypair.generate();
+const testuser_keypair = Keypair.generate();
 
 console.log("me: " + me_keypair.publicKey);
-console.log("destination: " + destination_pubkey);
-console.log("tempkeypair: " + temp_keypair.publicKey);
-console.log("compto_token: " + comptoken_pubkey);
-console.log("compto_program_id: " + compto_program_id_pubkey);
-console.log("static_pda: " + static_pda_pubkey);
+console.log("testuser comptoken wallet: " + testuser_comptoken_wallet_pubkey);
+console.log("testuser: " + testuser_keypair.publicKey);
+console.log("comptoken mint: " + comptoken_mint_pubkey);
+console.log("compto program id: " + compto_program_id_pubkey);
+console.log("global data account: " + global_data_account_pubkey);
 
 let connection = new Connection('http://localhost:8899', 'recent');
 
 (async () => {
-    await airdrop(temp_keypair.publicKey);
+    await airdrop(testuser_keypair.publicKey);
     await setMintAuthorityIfNeeded();
-    await createUserDataAccount();
     await testMint();
-    await initializeStaticAccount();
-    await mintComptokens(connection, destination_pubkey, temp_keypair);
-    
+    await createGlobalDataAccount();
+    await createUserDataAccount();
+    await mintComptokens(connection, testuser_comptoken_wallet_pubkey, testuser_keypair);
+    // await dailyDistributionEvent();
 })();
 
 
 async function airdrop(pubkey) {
-    let airdropSignature = await connection.requestAirdrop(pubkey, 3*LAMPORTS_PER_SOL,);
+    let airdropSignature = await connection.requestAirdrop(pubkey, 3 * LAMPORTS_PER_SOL,);
     await connection.confirmTransaction({ signature: airdropSignature });
     console.log("Airdrop confirmed");
 }
 
 async function setMintAuthorityIfNeeded() {
-    const info = await connection.getAccountInfo(comptoken_pubkey, "confirmed");
-    const unpackedMint = unpackMint(comptoken_pubkey, info, TOKEN_2022_PROGRAM_ID);
-    if (unpackedMint.mintAuthority.toString() == static_pda_pubkey.toString()) {
+    const info = await connection.getAccountInfo(comptoken_mint_pubkey, "confirmed");
+    const unpackedMint = unpackMint(comptoken_mint_pubkey, info, TOKEN_2022_PROGRAM_ID);
+    if (unpackedMint.mintAuthority.toString() == global_data_account_pubkey.toString()) {
         console.log("Mint Authority already set, skipping setAuthority Transaction");
     } else {
         console.log("Mint Authority not set, setting Authority");
@@ -67,15 +67,16 @@ async function setMintAuthorityIfNeeded() {
     }
 }
 
-async function setMintAuthority(mint_authority_pubkey) {
+async function setMintAuthority(current_mint_authority_pubkey) {
     let me_signer = { publicKey: me_keypair.publicKey, secretKey: me_keypair.secretKey }
+    let new_mint_authority = global_data_account_pubkey;
     const res = await setAuthority(
         connection,
         me_signer,
-        comptoken_pubkey,
-        mint_authority_pubkey,
+        comptoken_mint_pubkey,
+        current_mint_authority_pubkey,
         AuthorityType.MintTokens,
-        static_pda_pubkey,
+        new_mint_authority,
         undefined,
         undefined,
         TOKEN_2022_PROGRAM_ID
@@ -86,14 +87,14 @@ async function testMint() {
     let data = Buffer.from([Instruction.TEST]);
     let keys = [
         // the address to receive the test tokens
-        { pubkey: destination_pubkey, isSigner: false, isWritable: true },
+        { pubkey: testuser_comptoken_wallet_pubkey, isSigner: false, isWritable: true },
         // the mint authority that will sign to mint the tokens
-        { pubkey: static_pda_pubkey, isSigner: false, isWritable: false},
+        { pubkey: global_data_account_pubkey, isSigner: false, isWritable: false },
         // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
         // communicates to the token program which mint (and therefore which mint authority)
         // to mint the tokens from
-        { pubkey: comptoken_pubkey, isSigner: false, isWritable: true },
+        { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: true },
     ];
     let testMintTransaction = new Transaction();
     testMintTransaction.add(
@@ -103,50 +104,36 @@ async function testMint() {
             data: data,
         }),
     );
-    let testMintResult = await sendAndConfirmTransaction(connection, testMintTransaction, [temp_keypair, temp_keypair]);
+    let testMintResult = await sendAndConfirmTransaction(connection, testMintTransaction, [testuser_keypair, testuser_keypair]);
     console.log("testMint transaction confirmed", testMintResult);
 }
 
-async function initializeStaticAccount() {
-    // createAccountTransaction = new Transaction();
-    // createAccountTransaction.add(SystemProgram.createAccount({
-    //     fromPubkey: temp_keypair.publicKey,
-    //     newAccountPubkey: static_pda_pubkey,
-    //     lamports: 1000, // Example lamports amount
-    //     space: 256, // Example space allocation in bytes
-    //     programId: compto_program_id_pubkey,
-    // }));
-    // let staticAccountResult = await sendAndConfirmTransaction(connection, createAccountTransaction, [temp_keypair, temp_keypair]);
-    // console.log("Static Account created");
-
-
-   
+async function createGlobalDataAccount() {
     // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN comptoken.rs
     const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(4096);
     console.log("Rent exempt amount: ", rentExemptAmount);
     let data = Buffer.alloc(9);
     data.writeUInt8(Instruction.INITIALIZE_STATIC_ACCOUNT, 0);
-    data.writeBigInt64BE(BigInt(rentExemptAmount), 1);
+    data.writeBigInt64LE(BigInt(rentExemptAmount), 1);
     console.log("data: ", data);
     let keys = [
         // the payer of the rent for the account
-        { pubkey: temp_keypair.publicKey, isSigner: true, isWritable: true },
+        { pubkey: testuser_keypair.publicKey, isSigner: true, isWritable: true },
         // the address of the account to be created
-        { pubkey: static_pda_pubkey, isSigner: false, isWritable: true},
+        { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
         // needed because compto program interacts with the system program to create the account
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false}
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
     ];
-    let initializeStaticAccountTransaction = new Transaction();
-    initializeStaticAccountTransaction.add(
+    let createGlobalDataAccountTransaction = new Transaction();
+    createGlobalDataAccountTransaction.add(
         new TransactionInstruction({
             keys: keys,
             programId: compto_program_id_pubkey,
             data: data,
         }),
     );
-    let initializeStaticAccountResult = await sendAndConfirmTransaction(connection, initializeStaticAccountTransaction, [temp_keypair, temp_keypair]);
-    console.log("initializeStaticAccount transaction confirmed", initializeStaticAccountResult);
-    
+    let createGlobalDataAccountResult = await sendAndConfirmTransaction(connection, createGlobalDataAccountTransaction, [testuser_keypair, testuser_keypair]);
+    console.log("createGlobalDataAccount transaction confirmed", createGlobalDataAccountResult);
 }
 
 async function createUserDataAccount() {
@@ -155,17 +142,17 @@ async function createUserDataAccount() {
     const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(PROOF_STORAGE_MIN_SIZE);
     console.log("Rent exempt amount: ", rentExemptAmount);
 
-    let user_pda = PublicKey.findProgramAddressSync([destination_pubkey.toBytes()], compto_program_id_pubkey)[0];
-    
+    let user_pda = PublicKey.findProgramAddressSync([testuser_comptoken_wallet_pubkey.toBytes()], compto_program_id_pubkey)[0];
+
     let createKeys = [
         // the payer of the rent for the account
-        { pubkey: temp_keypair.publicKey, isSigner: true, isWritable: true },
+        { pubkey: testuser_keypair.publicKey, isSigner: true, isWritable: true },
         // the payers comptoken wallet (comptoken token acct)
-        { pubkey: destination_pubkey, isSigner: false, isWritable: false },
+        { pubkey: testuser_comptoken_wallet_pubkey, isSigner: false, isWritable: false },
         // the data account tied to the comptoken wallet
         { pubkey: user_pda, isSigner: false, isWritable: true },
         // system account is used to create the account
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false},
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
     ];
     // 1 byte for the instruction, 8 bytes for the rent exempt amount, 8 bytes for the proof storage min size
     let createData = Buffer.alloc(17);
@@ -181,7 +168,32 @@ async function createUserDataAccount() {
             data: createData,
         }),
     );
-    let createUserDataAccountResult = await sendAndConfirmTransaction(connection, createUserDataAccountTransaction, [temp_keypair]);
+    let createUserDataAccountResult = await sendAndConfirmTransaction(connection, createUserDataAccountTransaction, [testuser_keypair]);
     console.log("createUserDataAccount transaction confirmed", createUserDataAccountResult);
-    
+}
+
+async function dailyDistributionEvent() {
+    // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN comptoken.rs
+    let data = Buffer.alloc(1);
+    data.writeUInt8(Instruction.DAILY_DISTRIBUTION_EVENT, 0);
+    console.log("data: ", data);
+    let keys = [
+        // the comptoken Mint
+        { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: false },
+        // the Global Comptoken Data Account (also mint authority)
+        { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
+        // the Comptoken Interest Bank Account
+        { pubkey: PublicKey.default, isSigner: false, isWritable: true }, // TODO get currect bank pubkey
+    ];
+    let dailyDistributionEventTransaction = new Transaction();
+    dailyDistributionEventTransaction.add(
+        new TransactionInstruction({
+            keys: keys,
+            programId: compto_program_id_pubkey,
+            data: data,
+        }),
+    );
+    let dailyDistributionEventResult = await sendAndConfirmTransaction(connection, dailyDistributionEventTransaction, [testuser_keypair, testuser_keypair]);
+    console.log("DailyDistributionEvent transaction confirmed", dailyDistributionEventResult);
+
 }
