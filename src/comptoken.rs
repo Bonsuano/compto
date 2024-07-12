@@ -157,7 +157,8 @@ pub fn create_global_data_account(
     let lamports = u64::from_le_bytes(first_8_bytes);
     msg!("Lamports: {:?}", lamports);
 
-    let create_acct_instr = create_account(payer_account.key, &global_data_account.key, lamports, GLOBAL_DATA_ACCOUNT_SPACE, program_id);
+    let create_acct_instr =
+        create_account(payer_account.key, &global_data_account.key, lamports, GLOBAL_DATA_ACCOUNT_SPACE, program_id);
     let _result = invoke_signed(&create_acct_instr, accounts, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])?;
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     global_data.initialize();
