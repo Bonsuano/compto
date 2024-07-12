@@ -156,8 +156,8 @@ pub fn create_global_data_account(
     let account_info_iter = &mut accounts.iter();
     let payer_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
-    let _unpaid_interest_bank = next_account_info(account_info_iter)?;
-    let _ubi_bank = next_account_info(account_info_iter)?;
+    let unpaid_interest_bank = next_account_info(account_info_iter)?;
+    let ubi_bank = next_account_info(account_info_iter)?;
     let _solana_program = next_account_info(account_info_iter)?;
 
     // necessary because we use the user provided pubkey to retrieve the data
@@ -184,15 +184,29 @@ pub fn create_global_data_account(
         &accounts[..2],
         &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
     )?;
+
     create_account(
         payer_account.key,
         &unpaid_interest_bank_key,
         lamports_interest_bank,
         INTEREST_BANK_SPACE,
         program_id,
-        &[payer_account.clone(), _unpaid_interest_bank.clone()],
+        &[payer_account.clone(), unpaid_interest_bank.clone()],
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
+    init_comptoken_account(unpaid_interest_bank, program_id, &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS]);
+
+    create_account(
+        payer_account.key,
+        &ubi_bank_key,
+        lamports_interest_bank,
+        UBI_BANK_SPACE,
+        program_id,
+        &[payer_account.clone(), ubi_bank.clone()],
+        &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
+    )?;
+    init_comptoken_account(ubi_bank, program_id, &[COMPTO_UBI_BANK_ACCOUNT_SEEDS]);
+
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     global_data.initialize();
 
@@ -304,6 +318,16 @@ fn create_account(
     let create_acct_instr =
         system_instruction::create_account(payer_pubkey, &new_account_key, lamports, space, owner_key);
     invoke_signed(&create_acct_instr, accounts, signers_seeds)
+}
+
+fn init_comptoken_account(account: &AccountInfo, owner_key: &Pubkey, signer_seeds: &[&[&[u8]]]) -> ProgramResult {
+    let init_interest_bank_instr = spl_token_2022::instruction::initialize_account(
+        &spl_token_2022::ID,
+        &account.key,
+        &COMPTOKEN_MINT_ADDRESS,
+        &owner_key,
+    )?;
+    invoke_signed(&init_interest_bank_instr, &[account.clone()], signer_seeds)
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
