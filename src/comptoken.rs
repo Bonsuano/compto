@@ -87,10 +87,10 @@ pub fn test_mint(
     instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
-    //      destination comptoken account
-    //      mint authority account
-    //      spl_token account
-    //      comptoken program account
+    //      Testuser Comptoken Wallet
+    //      Mint Authority (also Global Data)
+    //      Solana Token 2022
+    //      Comptoken Mint account
 
     msg!("instruction_data: {:?}", instruction_data);
     for account_info in accounts.iter() {
@@ -98,18 +98,18 @@ pub fn test_mint(
     }
 
     let account_info_iter = &mut accounts.iter();
-    let destination_account = next_account_info(account_info_iter)?;
+    let user_comptoken_wallet_account = next_account_info(account_info_iter)?;
     let mint_authority_account = next_account_info(account_info_iter)?;
-    let _token_account = next_account_info(account_info_iter)?;
-    let _comptoken_account = next_account_info(account_info_iter)?;
+    let _solana_token_account = next_account_info(account_info_iter)?;
+    let _comptoken_mint_account = next_account_info(account_info_iter)?;
 
-    verify_comptoken_user_account(destination_account)?;
+    verify_comptoken_user_account(user_comptoken_wallet_account)?;
 
     let amount = 2;
 
     mint(
         mint_authority_account.key,
-        destination_account.key,
+        user_comptoken_wallet_account.key,
         amount,
         accounts,
     )
@@ -121,42 +121,45 @@ pub fn mint_comptokens(
     instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
-    //      destination token account (writable)
-    //      destination data account (writable)
-    //      Comptoken Static Data Acct (also mint authority)
-    //      spl_token 2022 account
-    //      comptoken program account (writable)
+    //      User Comptoken Wallet (writable)
+    //      User Data (writable)
+    //      Global Data (also Mint Authority)
+    //      Solana Token 2022
+    //      Comptoken Mint (writable)
 
     let account_info_iter = &mut accounts.iter();
-    let destination_account = next_account_info(account_info_iter)?;
-    let data_account = next_account_info(account_info_iter)?;
+    let user_comptoken_wallet_account = next_account_info(account_info_iter)?;
+    let user_data_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
-    //let token_account = next_account_info(account_info_iter)?;
-    //let comptoken_account = next_account_info(account_info_iter)?;
+    let _token_account = next_account_info(account_info_iter)?;
+    let _comptoken_account = next_account_info(account_info_iter)?;
 
     verify_global_data_account(global_data_account, program_id);
     let global_data: &mut GlobalData = global_data_account.try_into()?;
-    verify_comptoken_user_account(destination_account)?;
+    verify_comptoken_user_account(user_comptoken_wallet_account)?;
     let proof = verify_comptoken_proof_userdata(
-        destination_account.key,
+        user_comptoken_wallet_account.key,
         instruction_data,
         &global_data.valid_blockhash,
     );
-    let _ = verify_comptoken_user_data_account(data_account, destination_account, program_id);
+    let _ = verify_comptoken_user_data_account(
+        user_data_account,
+        user_comptoken_wallet_account,
+        program_id,
+    );
 
     msg!("data/accounts verified");
     let amount = 2;
     // now save the hash to the account, returning an error if the hash already exists
-    store_hash(proof, data_account);
+    store_hash(proof, user_data_account);
     msg!("stored the proof");
     mint(
         global_data_account.key,
-        &destination_account.key,
+        &user_comptoken_wallet_account.key,
         amount,
         accounts,
     )?;
 
-    //todo!("implement minting and storing of hashing");
     Ok(())
 }
 
@@ -166,8 +169,8 @@ pub fn create_global_data_account(
     instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
-    //      payer id (probably COMPTO's account)
-    //      global Data Account (also mint authority)
+    //      Payer (probably COMPTO's account)
+    //      Global Data Account (also mint authority)
 
     msg!("instruction_data: {:?}", instruction_data);
 
@@ -205,10 +208,10 @@ pub fn create_user_data_account(
     instruction_data: &[u8],
 ) -> ProgramResult {
     //  Account Order
-    //      users account
-    //      users Comptoken wallet
-    //      users Comptoken wallet's data account
-    //      System Program id
+    //      User's Solana Wallet
+    //      User's Comptoken Wallet
+    //      User's Data
+    //      System Program
 
     let account_info_iter = &mut accounts.iter();
 
@@ -243,8 +246,8 @@ pub fn create_user_data_account(
     let mut binding = data_account_info.try_borrow_mut_data()?;
     let data = binding.as_mut();
 
-    let proof_storage: &mut UserData = data.try_into().expect("panicked already");
-    proof_storage.initialize();
+    let user_data: &mut UserData = data.try_into().expect("panicked already");
+    user_data.initialize();
 
     Ok(())
 }
@@ -256,10 +259,10 @@ pub fn daily_distribution_event(
     _instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
-    //      Comptoken Mint Acct (not mint authority)
-    //      Comptoken Global Data Acct (also mint authority)
-    //      Comptoken Interest Bank Acct
-    //      Comptoken UBI Bank Acct
+    //      Comptoken Mint
+    //      Comptoken Global Data (also mint authority)
+    //      Comptoken Interest Bank
+    //      Comptoken UBI Bank
 
     let account_info_iter = &mut accounts.iter();
     let comptoken_mint_account = next_account_info(account_info_iter)?;
@@ -299,30 +302,30 @@ pub fn daily_distribution_event(
 }
 
 fn mint(
-    mint_pda: &Pubkey,
-    destination: &Pubkey,
+    mint_authority: &Pubkey,
+    destination_wallet: &Pubkey,
     amount: u64,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
     let instruction = mint_to(
         &spl_token_2022::id(),
         &COMPTOKEN_MINT_ACCOUNT_ADDRESS,
-        &destination,
-        &mint_pda,
-        &[&mint_pda],
+        &destination_wallet,
+        &mint_authority,
+        &[&mint_authority],
         amount,
     )?;
     invoke_signed(&instruction, accounts, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
-    let proof_storage: &mut UserData = data_account
+    let user_data: &mut UserData = data_account
         .data
         .borrow_mut()
         .as_mut()
         .try_into()
         .expect("error already panicked");
-    proof_storage.insert(&proof.hash, &proof.recent_block_hash)
+    user_data.insert(&proof.hash, &proof.recent_block_hash)
 }
 
 fn verify_comptoken_proof_userdata<'a>(
