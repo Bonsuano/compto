@@ -298,6 +298,7 @@ pub fn daily_distribution_event(
     let interest_rate = 0;
     let interest = daily_mining_total * interest_rate;
     let ubi = 0;
+    let new_hwm = global_data.high_water_mark;
     // announce interest/ water mark/ new Blockhash
 
     // store data
@@ -311,6 +312,7 @@ pub fn daily_distribution_event(
     )?;
 
     global_data.yesterday_supply += daily_mining_total + interest;
+    global_data.high_water_mark = new_hwm;
     //
     Ok(())
 }
