@@ -163,6 +163,7 @@ pub fn create_global_data_account(
     let ubi_bank = next_account_info(account_info_iter)?;
     let _comptoken_mint = next_account_info(account_info_iter)?;
     let _solana_program = next_account_info(account_info_iter)?;
+    let rent_sysvar = next_account_info(account_info_iter)?;
 
     // necessary because we use the user provided pubkey to retrieve the data
     verify_global_data_account(global_data_account, program_id);
@@ -198,7 +199,12 @@ pub fn create_global_data_account(
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created interest bank account");
-    init_comptoken_account(unpaid_interest_bank, global_data_account.key, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])?;
+    init_comptoken_account(
+        unpaid_interest_bank,
+        global_data_account.key,
+        &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
+        rent_sysvar,
+    )?;
     msg!("initialized interest bank account");
     create_account(
         payer_account.key,
@@ -210,7 +216,7 @@ pub fn create_global_data_account(
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created ubi bank account");
-    init_comptoken_account(ubi_bank, global_data_account.key, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])?;
+    init_comptoken_account(ubi_bank, global_data_account.key, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS], rent_sysvar)?;
     msg!("initialized ubi bank account");
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
@@ -326,7 +332,7 @@ fn create_account(
     invoke_signed(&create_acct_instr, accounts, signers_seeds)
 }
 
-fn init_comptoken_account(
+fn init_comptoken_account<'a>(
     account: &AccountInfo, owner_key: &Pubkey, signer_seeds: &[&[&[u8]]], rent_sysvar: &AccountInfo,
 ) -> ProgramResult {
     msg!("acct: {:?}", account);
@@ -337,8 +343,7 @@ fn init_comptoken_account(
         &COMPTOKEN_MINT_ADDRESS,
         &owner_key,
     )?;
-    let acct_infos = [account.clone(), rent_sysvar.clone()];
-    invoke_signed(&init_interest_bank_instr, &acct_infos, signer_seeds)
+    invoke_signed(&init_interest_bank_instr, &[account.clone()], signer_seeds)
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
