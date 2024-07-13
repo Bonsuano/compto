@@ -21,8 +21,10 @@ import {
     compto_program_id_pubkey,
     comptoken_mint_pubkey,
     global_data_account_pubkey,
+    interest_bank_account_pubkey,
     me_keypair,
     testuser_comptoken_wallet_pubkey,
+    ubi_bank_account_pubkey,
 } from './common.js';
 
 import { mintComptokens } from './comptoken_proof.js';
@@ -110,17 +112,28 @@ async function testMint() {
 
 async function createGlobalDataAccount() {
     // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN comptoken.rs
-    const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(4096);
-    console.log("Rent exempt amount: ", rentExemptAmount);
-    let data = Buffer.alloc(9);
+    const globalDataRentExemptAmount = await connection.getMinimumBalanceForRentExemption(4096);
+    const interestBankRentExemptAmount = await connection.getMinimumBalanceForRentExemption(256);
+    const ubiBankRentExemptAmount = await connection.getMinimumBalanceForRentExemption(256);
+    console.log("Rent exempt amount: ", globalDataRentExemptAmount);
+    // 1 byte for instruction 3 x 8 bytes for rent exemptionss
+    let data = Buffer.alloc(25);
     data.writeUInt8(Instruction.INITIALIZE_STATIC_ACCOUNT, 0);
-    data.writeBigInt64LE(BigInt(rentExemptAmount), 1);
+    data.writeBigInt64LE(BigInt(globalDataRentExemptAmount), 1);
+    data.writeBigInt64LE(BigInt(interestBankRentExemptAmount), 9);
+    data.writeBigInt64LE(BigInt(ubiBankRentExemptAmount), 17);
     console.log("data: ", data);
     let keys = [
         // the payer of the rent for the account
         { pubkey: testuser_keypair.publicKey, isSigner: true, isWritable: true },
-        // the address of the account to be created
+        // the address of the global data account to be created
         { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
+        // the address of the interest bank account to be created
+        { pubkey: interest_bank_account_pubkey, isSigner: false, isWritable: true },
+        // the address of the ubi bank account to be created
+        { pubkey: ubi_bank_account_pubkey, isSigner: false, isWritable: true },
+        // the comptoken mint account
+        { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: false },
         // needed because compto program interacts with the system program to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
     ];

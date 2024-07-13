@@ -5,7 +5,6 @@ mod verify_accounts;
 
 extern crate bs58;
 
-use solana_program::{lamports, pubkey};
 use spl_token_2022::{
     instruction::mint_to,
     solana_program::{
@@ -44,6 +43,9 @@ use generated::{
     COMPTOKEN_MINT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS, COMPTO_INTEREST_BANK_ACCOUNT_SEEDS,
     COMPTO_UBI_BANK_ACCOUNT_SEEDS,
 };
+
+const INTEREST_BANK_SPACE: u64 = 256; // TODO get actual size
+const UBI_BANK_SPACE: u64 = 256; // TODO get actual size
 
 // #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
 // pub struct DataAccount {
@@ -149,6 +151,7 @@ pub fn create_global_data_account(
     //      Global Data Account (also mint authority)
     //      Comptoken Interest Bank
     //      Comptoken UBI Bank
+    //      Comptoken Mint
     //      Solana Program
 
     msg!("instruction_data: {:?}", instruction_data);
@@ -158,14 +161,14 @@ pub fn create_global_data_account(
     let global_data_account = next_account_info(account_info_iter)?;
     let unpaid_interest_bank = next_account_info(account_info_iter)?;
     let ubi_bank = next_account_info(account_info_iter)?;
+    let _comptoken_mint = next_account_info(account_info_iter)?;
     let _solana_program = next_account_info(account_info_iter)?;
 
     // necessary because we use the user provided pubkey to retrieve the data
     verify_global_data_account(global_data_account, program_id);
+    verify_interest_bank_account(unpaid_interest_bank, program_id);
+    verify_ubi_bank_account(ubi_bank, program_id);
     // don't need to verify unpaid_interest_bank or ubi_bank b/c we are using static values
-    let unpaid_interest_bank_key =
-        Pubkey::create_program_address(COMPTO_INTEREST_BANK_ACCOUNT_SEEDS, program_id).unwrap();
-    let ubi_bank_key = Pubkey::create_program_address(COMPTO_UBI_BANK_ACCOUNT_SEEDS, program_id).unwrap();
 
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
     let lamports_global_data = u64::from_le_bytes(first_8_bytes);
@@ -184,28 +187,31 @@ pub fn create_global_data_account(
         &accounts[..2],
         &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
     )?;
-
+    msg!("created global data account");
     create_account(
         payer_account.key,
-        &unpaid_interest_bank_key,
+        &unpaid_interest_bank.key,
         lamports_interest_bank,
         INTEREST_BANK_SPACE,
         program_id,
         &[payer_account.clone(), unpaid_interest_bank.clone()],
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
-    init_comptoken_account(unpaid_interest_bank, program_id, &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS]);
-
+    msg!("created interest bank account");
+    init_comptoken_account(unpaid_interest_bank, program_id, &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS])?;
+    msg!("initialized interest bank account");
     create_account(
         payer_account.key,
-        &ubi_bank_key,
+        &ubi_bank.key,
         lamports_interest_bank,
         UBI_BANK_SPACE,
         program_id,
         &[payer_account.clone(), ubi_bank.clone()],
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
-    init_comptoken_account(ubi_bank, program_id, &[COMPTO_UBI_BANK_ACCOUNT_SEEDS]);
+    msg!("created ubi bank account");
+    init_comptoken_account(ubi_bank, program_id, &[COMPTO_UBI_BANK_ACCOUNT_SEEDS])?;
+    msg!("initialized ubi bank account");
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     global_data.initialize();
@@ -321,6 +327,8 @@ fn create_account(
 }
 
 fn init_comptoken_account(account: &AccountInfo, owner_key: &Pubkey, signer_seeds: &[&[&[u8]]]) -> ProgramResult {
+    msg!("acct: {:?}", account);
+    msg!("owner: {:?}", owner_key);
     let init_interest_bank_instr = spl_token_2022::instruction::initialize_account(
         &spl_token_2022::ID,
         &account.key,
