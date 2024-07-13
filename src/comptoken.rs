@@ -179,7 +179,7 @@ pub fn create_global_data_account(
     msg!("Lamports interest bank: {:?}", lamports_interest_bank);
     msg!("Lamports ubi bank: {:?}", lamports_ubi_bank);
 
-    create_account(
+    create_pda(
         payer_account.key,
         global_data_account.key,
         lamports_global_data,
@@ -189,7 +189,7 @@ pub fn create_global_data_account(
         &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
     )?;
     msg!("created global data account");
-    create_account(
+    create_pda(
         payer_account.key,
         &unpaid_interest_bank.key,
         lamports_interest_bank,
@@ -199,14 +199,9 @@ pub fn create_global_data_account(
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created interest bank account");
-    init_comptoken_account(
-        unpaid_interest_bank,
-        global_data_account.key,
-        &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
-        comptoken_mint,
-    )?;
+    init_comptoken_account(unpaid_interest_bank, program_id, &[], comptoken_mint)?;
     msg!("initialized interest bank account");
-    create_account(
+    create_pda(
         payer_account.key,
         &ubi_bank.key,
         lamports_interest_bank,
@@ -216,7 +211,7 @@ pub fn create_global_data_account(
         &[COMPTO_UBI_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created ubi bank account");
-    init_comptoken_account(ubi_bank, global_data_account.key, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS], _comptoken_mint)?;
+    init_comptoken_account(ubi_bank, program_id, &[], comptoken_mint)?;
     msg!("initialized ubi bank account");
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
@@ -250,7 +245,7 @@ pub fn create_user_data_account(
 
     let bump = verify_comptoken_user_data_account(user_data_account, user_comptoken_wallet_account, program_id);
 
-    create_account(
+    create_pda(
         payer_account.key,
         user_data_account.key,
         rent_lamports,
@@ -323,12 +318,13 @@ fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accou
     invoke_signed(&instruction, accounts, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])
 }
 
-fn create_account(
+fn create_pda(
     payer_pubkey: &Pubkey, new_account_key: &Pubkey, lamports: u64, space: u64, owner_key: &Pubkey,
     accounts: &[AccountInfo], signers_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let create_acct_instr =
         system_instruction::create_account(payer_pubkey, &new_account_key, lamports, space, owner_key);
+    // The PDA that is being created must sign for its own creation.
     invoke_signed(&create_acct_instr, accounts, signers_seeds)
 }
 

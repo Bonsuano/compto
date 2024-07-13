@@ -116,7 +116,7 @@ async function createGlobalDataAccount() {
     const interestBankRentExemptAmount = await connection.getMinimumBalanceForRentExemption(256);
     const ubiBankRentExemptAmount = await connection.getMinimumBalanceForRentExemption(256);
     console.log("Rent exempt amount: ", globalDataRentExemptAmount);
-    // 1 byte for instruction 3 x 8 bytes for rent exemptionss
+    // 1 byte for instruction 3 x 8 bytes for rent exemptions
     let data = Buffer.alloc(25);
     data.writeUInt8(Instruction.INITIALIZE_STATIC_ACCOUNT, 0);
     data.writeBigInt64LE(BigInt(globalDataRentExemptAmount), 1);

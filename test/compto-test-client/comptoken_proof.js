@@ -76,12 +76,12 @@ export async function mintComptokens(connection, destination_pubkey, temp_keypai
         Buffer.from([Instruction.COMPTOKEN_MINT]),
         proof.serializeData(),
     ]);
-    let user_data_account = PublicKey.findProgramAddressSync([destination_pubkey.toBytes()], compto_program_id_pubkey)[0];
+    let user_data_pda = PublicKey.findProgramAddressSync([destination_pubkey.toBytes()], compto_program_id_pubkey)[0];
     let keys = [
         { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: true },
         { pubkey: destination_pubkey, isSigner: false, isWritable: true },
         { pubkey: global_data_account_pubkey, isSigner: false, isWritable: false},
-        { pubkey: user_data_account, isSigner: false, isWritable: true },
+        { pubkey: user_data_pda, isSigner: false, isWritable: true },
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
     ];
     let mintComptokensTransaction = new Transaction();
