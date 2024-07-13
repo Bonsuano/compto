@@ -27,6 +27,7 @@ import {
     ubi_bank_account_pubkey,
 } from './common.js';
 
+import base58 from "bs58";
 import { mintComptokens } from './comptoken_proof.js';
 
 
@@ -135,7 +136,8 @@ async function createGlobalDataAccount() {
         // the comptoken mint account
         { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: false },
         // needed because compto program interacts with the system program to create the account
-        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false }
+        { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        { pubkey: PublicKey.decode(base58.decode("SysvarRent111111111111111111111111111111111")), isSigner: false, isWritable: false },
     ];
     let createGlobalDataAccountTransaction = new Transaction();
     createGlobalDataAccountTransaction.add(

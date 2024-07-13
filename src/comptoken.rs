@@ -198,7 +198,7 @@ pub fn create_global_data_account(
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created interest bank account");
-    init_comptoken_account(unpaid_interest_bank, program_id, &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS])?;
+    init_comptoken_account(unpaid_interest_bank, global_data_account.key, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])?;
     msg!("initialized interest bank account");
     create_account(
         payer_account.key,
@@ -210,7 +210,7 @@ pub fn create_global_data_account(
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created ubi bank account");
-    init_comptoken_account(ubi_bank, program_id, &[COMPTO_UBI_BANK_ACCOUNT_SEEDS])?;
+    init_comptoken_account(ubi_bank, global_data_account.key, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])?;
     msg!("initialized ubi bank account");
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
@@ -326,7 +326,9 @@ fn create_account(
     invoke_signed(&create_acct_instr, accounts, signers_seeds)
 }
 
-fn init_comptoken_account(account: &AccountInfo, owner_key: &Pubkey, signer_seeds: &[&[&[u8]]]) -> ProgramResult {
+fn init_comptoken_account(
+    account: &AccountInfo, owner_key: &Pubkey, signer_seeds: &[&[&[u8]]], rent_sysvar: &AccountInfo,
+) -> ProgramResult {
     msg!("acct: {:?}", account);
     msg!("owner: {:?}", owner_key);
     let init_interest_bank_instr = spl_token_2022::instruction::initialize_account(
@@ -335,7 +337,8 @@ fn init_comptoken_account(account: &AccountInfo, owner_key: &Pubkey, signer_seed
         &COMPTOKEN_MINT_ADDRESS,
         &owner_key,
     )?;
-    invoke_signed(&init_interest_bank_instr, &[account.clone()], signer_seeds)
+    let acct_infos = [account.clone(), rent_sysvar.clone()];
+    invoke_signed(&init_interest_bank_instr, &acct_infos, signer_seeds)
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
