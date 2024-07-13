@@ -293,10 +293,10 @@ pub fn daily_distribution_event(
     let comptoken_mint = Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
 
     // calculate interest/high water mark
-    let days_supply = comptoken_mint.supply - global_data.old_supply;
+    let daily_mining_total = comptoken_mint.supply - global_data.yesterday_supply;
     // TODO interest (ensure accuracy)
     let interest_rate = 0;
-    let interest = days_supply * interest_rate;
+    let interest = daily_mining_total * interest_rate;
     let ubi = 0;
     // announce interest/ water mark/ new Blockhash
 
@@ -310,7 +310,7 @@ pub fn daily_distribution_event(
         &[comptoken_mint_account.clone(), global_data_account.clone(), ubi_bank.clone()],
     )?;
 
-    global_data.old_supply += days_supply + interest;
+    global_data.yesterday_supply += daily_mining_total + interest;
     //
     Ok(())
 }

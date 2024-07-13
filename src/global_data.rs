@@ -7,7 +7,7 @@ use spl_token_2022::solana_program::hash::Hash;
 pub struct GlobalData {
     pub valid_blockhash: Hash,
     pub announced_blockhash: Hash,
-    pub old_supply: u64,
+    pub yesterday_supply: u64,
 }
 
 impl GlobalData {
