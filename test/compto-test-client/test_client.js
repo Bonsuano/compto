@@ -48,7 +48,7 @@ let connection = new Connection('http://localhost:8899', 'recent');
     await createGlobalDataAccount();
     await createUserDataAccount();
     await mintComptokens(connection, testuser_comptoken_wallet_pubkey, testuser_keypair);
-    // await dailyDistributionEvent();
+    await dailyDistributionEvent();
 })();
 
 
@@ -136,6 +136,7 @@ async function createGlobalDataAccount() {
         { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: false },
         // needed because compto program interacts with the system program to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
     ];
     let createGlobalDataAccountTransaction = new Transaction();
@@ -193,11 +194,15 @@ async function dailyDistributionEvent() {
     console.log("data: ", data);
     let keys = [
         // the comptoken Mint
-        { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: false },
+        { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: true },
         // the Global Comptoken Data Account (also mint authority)
         { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
         // the Comptoken Interest Bank Account
-        { pubkey: PublicKey.default, isSigner: false, isWritable: true }, // TODO get currect bank pubkey
+        { pubkey: interest_bank_account_pubkey, isSigner: false, isWritable: true },
+        // the Comptoken UBI Bank Account
+        { pubkey: ubi_bank_account_pubkey, isSigner: false, isWritable: true },
+        // the token program that will mint the tokens when instructed by the mint authority
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
     ];
     let dailyDistributionEventTransaction = new Transaction();
     dailyDistributionEventTransaction.add(

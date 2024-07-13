@@ -47,11 +47,6 @@ use generated::{
 const INTEREST_BANK_SPACE: u64 = 256; // TODO get actual size
 const UBI_BANK_SPACE: u64 = 256; // TODO get actual size
 
-// #[derive(Debug, Default, BorshDeserialize, BorshSerialize)]
-// pub struct DataAccount {
-//     pub hash: [u8; 32], // Assuming you want to store a 32-byte hash
-// }
-
 // program entrypoint's implementation
 pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
     msg!("instruction_data: {:?}", instruction_data);
@@ -65,8 +60,8 @@ pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instru
             mint_comptokens(program_id, accounts, &instruction_data[1..])
         }
         2 => {
-            msg!("Initialize Static Data Account");
-            create_global_data_account(program_id, accounts, &instruction_data[1..])
+            msg!("Initialize Comptoken Program");
+            initialize_comptoken_program(program_id, accounts, &instruction_data[1..])
         }
         3 => {
             msg!("Create User Data Account");
@@ -143,7 +138,7 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
     Ok(())
 }
 
-pub fn create_global_data_account(
+pub fn initialize_comptoken_program(
     program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8],
 ) -> ProgramResult {
     //  accounts order:
@@ -274,15 +269,21 @@ pub fn daily_distribution_event(
     //      Comptoken Global Data (also mint authority)
     //      Comptoken Interest Bank
     //      Comptoken UBI Bank
+    //      Solana Token Program
+
+    //for (i, acct) in accounts.iter().enumerate() {
+    //    msg!("account[{}]: {:?}", i, acct);
+    //}
 
     let account_info_iter = &mut accounts.iter();
     let comptoken_mint_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
-    let unpaid_interest_bank = next_account_info(account_info_iter)?;
+    let interest_bank = next_account_info(account_info_iter)?;
     let ubi_bank = next_account_info(account_info_iter)?;
+    let _solana_token_account = next_account_info(account_info_iter)?;
 
     verify_global_data_account(global_data_account, program_id);
-    verify_interest_bank_account(unpaid_interest_bank, program_id);
+    verify_interest_bank_account(interest_bank, program_id);
     verify_ubi_bank_account(ubi_bank, program_id);
 
     // get old days info
@@ -296,14 +297,22 @@ pub fn daily_distribution_event(
     // TODO interest (ensure accuracy)
     let interest_rate = 0;
     let interest = days_supply * interest_rate;
+    let ubi = 0;
     // announce interest/ water mark/ new Blockhash
 
-    todo!();
     // store data
-    mint(global_data_account.key, unpaid_interest_bank.key, interest, accounts)?;
+    //mint(global_data_account.key, unpaid_interest_bank.key, interest, &accounts[..3])?;
+    mint(global_data_account.key, interest_bank.key, interest, &accounts[..3])?;
+    mint(
+        global_data_account.key,
+        ubi_bank.key,
+        ubi,
+        &[comptoken_mint_account.clone(), global_data_account.clone(), ubi_bank.clone()],
+    )?;
 
     global_data.old_supply += days_supply + interest;
     //
+    Ok(())
 }
 
 fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accounts: &[AccountInfo]) -> ProgramResult {
@@ -331,17 +340,13 @@ fn create_pda(
 fn init_comptoken_account<'a>(
     account: &AccountInfo<'a>, owner_key: &Pubkey, signer_seeds: &[&[&[u8]]], mint: &AccountInfo<'a>,
 ) -> ProgramResult {
-    msg!("acct: {:?}", account);
-    msg!("owner: {:?}", owner_key);
-    msg!("mint: {:?}", mint.key);
-    msg!("rent: {:?}", COMPTOKEN_MINT_ADDRESS);
     let init_comptoken_account_instr = spl_token_2022::instruction::initialize_account3(
         &spl_token_2022::ID,
         &account.key,
         &COMPTOKEN_MINT_ADDRESS,
         &owner_key,
     )?;
-    invoke_signed(&init_comptoken_account_instr, &[mint.clone(), account.clone()], signer_seeds)
+    invoke_signed(&init_comptoken_account_instr, &[account.clone(), mint.clone()], signer_seeds)
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
