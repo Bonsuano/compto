@@ -8,6 +8,7 @@ pub struct GlobalData {
     pub valid_blockhash: Hash,
     pub announced_blockhash: Hash,
     pub old_supply: u64,
+    pub high_water_mark: u64,
 }
 
 impl GlobalData {
