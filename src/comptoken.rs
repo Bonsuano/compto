@@ -153,6 +153,7 @@ pub fn create_global_data_account(
     //      Comptoken UBI Bank
     //      Comptoken Mint
     //      Solana Program
+    //      Solana Token 2022 Program
 
     msg!("instruction_data: {:?}", instruction_data);
 
@@ -161,15 +162,14 @@ pub fn create_global_data_account(
     let global_data_account = next_account_info(account_info_iter)?;
     let unpaid_interest_bank = next_account_info(account_info_iter)?;
     let ubi_bank = next_account_info(account_info_iter)?;
-    let _comptoken_mint = next_account_info(account_info_iter)?;
+    let comptoken_mint = next_account_info(account_info_iter)?;
     let _solana_program = next_account_info(account_info_iter)?;
-    let rent_sysvar = next_account_info(account_info_iter)?;
+    let _token_2022_program = next_account_info(account_info_iter)?;
 
     // necessary because we use the user provided pubkey to retrieve the data
     verify_global_data_account(global_data_account, program_id);
     verify_interest_bank_account(unpaid_interest_bank, program_id);
     verify_ubi_bank_account(ubi_bank, program_id);
-    // don't need to verify unpaid_interest_bank or ubi_bank b/c we are using static values
 
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
     let lamports_global_data = u64::from_le_bytes(first_8_bytes);
@@ -203,7 +203,7 @@ pub fn create_global_data_account(
         unpaid_interest_bank,
         global_data_account.key,
         &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
-        _comptoken_mint,
+        comptoken_mint,
     )?;
     msg!("initialized interest bank account");
     create_account(
@@ -339,13 +339,13 @@ fn init_comptoken_account<'a>(
     msg!("owner: {:?}", owner_key);
     msg!("mint: {:?}", mint.key);
     msg!("rent: {:?}", COMPTOKEN_MINT_ADDRESS);
-    let init_interest_bank_instr = spl_token_2022::instruction::initialize_account3(
+    let init_comptoken_account_instr = spl_token_2022::instruction::initialize_account3(
         &spl_token_2022::ID,
         &account.key,
         &COMPTOKEN_MINT_ADDRESS,
         &owner_key,
     )?;
-    invoke_signed(&init_interest_bank_instr, &[mint.clone(), account.clone()], signer_seeds)
+    invoke_signed(&init_comptoken_account_instr, &[mint.clone(), account.clone()], signer_seeds)
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
