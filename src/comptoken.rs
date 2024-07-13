@@ -1,4 +1,5 @@
 mod comptoken_proof;
+mod constants;
 mod global_data;
 mod user_data;
 mod verify_accounts;
@@ -23,6 +24,7 @@ use spl_token_2022::{
 };
 
 use comptoken_proof::ComptokenProof;
+use constants::*;
 use global_data::GlobalData;
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::{
@@ -294,11 +296,16 @@ pub fn daily_distribution_event(
 
     // calculate interest/high water mark
     let daily_mining_total = comptoken_mint.supply - global_data.yesterday_supply;
+    let actual_high_water_mark_increase = calculate_high_water_mark_increase(global_data, daily_mining_total);
+    global_data.high_water_mark += actual_high_water_mark_increase;
+    let total_daily_distribution = actual_high_water_mark_increase * COMPTOKEN_DISTRIBUTION_MULTIPLIER;
+    let ubi_daily_distrubution = total_daily_distribution / 2;
+    let interest_daily_distribution = total_daily_distribution / 2;
+
     // TODO interest (ensure accuracy)
     let interest_rate = 0;
     let interest = daily_mining_total * interest_rate;
     let ubi = 0;
-    let new_hwm = global_data.high_water_mark;
     // announce interest/ water mark/ new Blockhash
 
     // store data
@@ -312,9 +319,20 @@ pub fn daily_distribution_event(
     )?;
 
     global_data.yesterday_supply += daily_mining_total + interest;
-    global_data.high_water_mark = new_hwm;
+    // global_data.high_water_mark = new_hwm;
     //
     Ok(())
+}
+
+fn calculate_high_water_mark_increase(global_data: &GlobalData, daily_mining_total: u64) -> u64 {
+    // if daily_mining_total is less than the high water mark, `high_water_mark_uncapped_increase` will be 0
+    let high_water_mark_uncapped_increase =
+        std::cmp::max(global_data.high_water_mark, daily_mining_total) - global_data.high_water_mark;
+    let max_daily_comptoken_supply_increase =
+        global_data.yesterday_supply * MAX_DAILY_COMPTOKEN_DISTRIBUTION_BASIS_PTS / BASIS_PTS_DIVISOR;
+    let max_allowable_high_water_mark_increase =
+        max_daily_comptoken_supply_increase / COMPTOKEN_DISTRIBUTION_MULTIPLIER;
+    std::cmp::min(high_water_mark_uncapped_increase, max_allowable_high_water_mark_increase)
 }
 
 fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accounts: &[AccountInfo]) -> ProgramResult {
