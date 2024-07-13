@@ -199,12 +199,7 @@ pub fn create_global_data_account(
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created interest bank account");
-    init_comptoken_account(
-        unpaid_interest_bank,
-        global_data_account.key,
-        &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
-        _comptoken_mint,
-    )?;
+    init_comptoken_account(unpaid_interest_bank, program_id, &[], _comptoken_mint)?;
     msg!("initialized interest bank account");
     create_account(
         payer_account.key,
@@ -216,7 +211,7 @@ pub fn create_global_data_account(
         &[COMPTO_UBI_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created ubi bank account");
-    init_comptoken_account(ubi_bank, global_data_account.key, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS], _comptoken_mint)?;
+    init_comptoken_account(ubi_bank, program_id, &[], _comptoken_mint)?;
     msg!("initialized ubi bank account");
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
