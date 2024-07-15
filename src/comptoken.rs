@@ -296,9 +296,14 @@ pub fn daily_distribution_event(
 
     // calculate interest/high water mark
     let daily_mining_total = comptoken_mint.supply - global_data.yesterday_supply;
-    let actual_high_water_mark_increase = calculate_high_water_mark_increase(global_data, daily_mining_total);
-    global_data.high_water_mark += actual_high_water_mark_increase;
-    let total_daily_distribution = actual_high_water_mark_increase * COMPTOKEN_DISTRIBUTION_MULTIPLIER;
+    let high_water_mark_increase = calculate_high_water_mark_increase(
+        global_data.yesterday_supply,
+        global_data.high_water_mark,
+        daily_mining_total,
+    );
+    global_data.high_water_mark += high_water_mark_increase;
+
+    let total_daily_distribution = high_water_mark_increase * COMPTOKEN_DISTRIBUTION_MULTIPLIER;
     let ubi_daily_distrubution = total_daily_distribution / 2;
     let interest_daily_distribution = total_daily_distribution / 2;
 
@@ -320,23 +325,25 @@ pub fn daily_distribution_event(
     Ok(())
 }
 
-fn calculate_high_water_mark_increase(global_data: &GlobalData, daily_mining_total: u64) -> u64 {
+fn calculate_high_water_mark_increase(yesterday_supply: u64, high_water_mark: u64, daily_mining_total: u64) -> u64 {
     // if daily_mining_total is less than the high water mark, `high_water_mark_uncapped_increase` will be 0
-    let high_water_mark_uncapped_increase =
-        std::cmp::max(global_data.high_water_mark, daily_mining_total) - global_data.high_water_mark;
-    let max_daily_comptoken_supply_increase =
-        global_data.yesterday_supply * MAX_DAILY_COMPTOKEN_DISTRIBUTION_BASIS_PTS / BASIS_PTS_DIVISOR;
-    let max_allowable_high_water_mark_increase =
-        max_daily_comptoken_supply_increase / COMPTOKEN_DISTRIBUTION_MULTIPLIER;
+    let high_water_mark_uncapped_increase = std::cmp::max(high_water_mark, daily_mining_total) - high_water_mark;
+    let max_allowable_high_water_mark_increase = calculate_max_allowable_hwm_increase(yesterday_supply);
     std::cmp::min(high_water_mark_uncapped_increase, max_allowable_high_water_mark_increase)
 }
 
-fn calculate_distripution_limiter_basis_points(supply: u64) -> u64 {
+fn calculate_distribution_limiter(supply: u64) -> f64 {
     if supply < MIN_SUPPLY_LIMIT_AMT {
-        return 1_000_000_000;
+        return 1_000_000_000_f64;
     }
     let x = supply - MIN_SUPPLY_LIMIT_AMT;
-    (f64::powf(x as f64, -ADJUST_FACTOR) * BASIS_PTS_DIVISOR as f64) as u64 + END_GOAL_PERCENT_INCREASE
+    f64::powf(x as f64, -ADJUST_FACTOR) + END_GOAL_PERCENT_INCREASE
+}
+
+fn calculate_max_allowable_hwm_increase(supply: u64) -> u64 {
+    // as casts are lossy
+    (supply as f64 * calculate_distribution_limiter(supply)).round_ties_even() as u64
+        / COMPTOKEN_DISTRIBUTION_MULTIPLIER
 }
 
 fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accounts: &[AccountInfo]) -> ProgramResult {
