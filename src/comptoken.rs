@@ -331,6 +331,14 @@ fn calculate_high_water_mark_increase(global_data: &GlobalData, daily_mining_tot
     std::cmp::min(high_water_mark_uncapped_increase, max_allowable_high_water_mark_increase)
 }
 
+fn calculate_distripution_limiter_basis_points(supply: u64) -> u64 {
+    if supply < MIN_SUPPLY_LIMIT_AMT {
+        return 1_000_000_000;
+    }
+    let x = supply - MIN_SUPPLY_LIMIT_AMT;
+    (f64::powf(x as f64, -ADJUST_FACTOR) * BASIS_PTS_DIVISOR as f64) as u64 + END_GOAL_PERCENT_INCREASE
+}
+
 fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accounts: &[AccountInfo]) -> ProgramResult {
     let instruction = mint_to(
         &spl_token_2022::id(),
