@@ -273,10 +273,6 @@ pub fn daily_distribution_event(
     //      Comptoken UBI Bank
     //      Solana Token Program
 
-    //for (i, acct) in accounts.iter().enumerate() {
-    //    msg!("account[{}]: {:?}", i, acct);
-    //}
-
     let account_info_iter = &mut accounts.iter();
     let comptoken_mint_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
@@ -310,7 +306,6 @@ pub fn daily_distribution_event(
     // announce interest/ water mark/ new Blockhash
 
     // store data
-    //mint(global_data_account.key, unpaid_interest_bank.key, interest, &accounts[..3])?;
     mint(global_data_account.key, interest_bank.key, interest_daily_distribution, &accounts[..3])?;
     mint(
         global_data_account.key,
@@ -328,14 +323,14 @@ pub fn daily_distribution_event(
 fn calculate_high_water_mark_increase(yesterday_supply: u64, high_water_mark: u64, daily_mining_total: u64) -> u64 {
     // if daily_mining_total is less than the high water mark, `high_water_mark_uncapped_increase` will be 0
     let high_water_mark_uncapped_increase = std::cmp::max(high_water_mark, daily_mining_total) - high_water_mark;
+    if yesterday_supply < MIN_SUPPLY_LIMIT_AMT {
+        return high_water_mark_uncapped_increase;
+    }
     let max_allowable_high_water_mark_increase = calculate_max_allowable_hwm_increase(yesterday_supply);
     std::cmp::min(high_water_mark_uncapped_increase, max_allowable_high_water_mark_increase)
 }
 
 fn calculate_distribution_limiter(supply: u64) -> f64 {
-    if supply < MIN_SUPPLY_LIMIT_AMT {
-        return 1_000_000_000_f64;
-    }
     let x = supply - MIN_SUPPLY_LIMIT_AMT;
     f64::powf(x as f64, -ADJUST_FACTOR) + END_GOAL_PERCENT_INCREASE
 }
