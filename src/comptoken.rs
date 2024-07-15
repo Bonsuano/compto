@@ -24,7 +24,6 @@ use spl_token_2022::{
 };
 
 use comptoken_proof::ComptokenProof;
-use constants::*;
 use global_data::{DailyDistributionValues, GlobalData};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::{
