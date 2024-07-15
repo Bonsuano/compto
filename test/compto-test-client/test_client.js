@@ -188,7 +188,6 @@ async function createUserDataAccount() {
 }
 
 async function dailyDistributionEvent() {
-    // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN comptoken.rs
     let data = Buffer.alloc(1);
     data.writeUInt8(Instruction.DAILY_DISTRIBUTION_EVENT, 0);
     console.log("data: ", data);
