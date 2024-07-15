@@ -302,23 +302,19 @@ pub fn daily_distribution_event(
     let ubi_daily_distrubution = total_daily_distribution / 2;
     let interest_daily_distribution = total_daily_distribution / 2;
 
-    // TODO interest (ensure accuracy)
-    let interest_rate = 0;
-    let interest = daily_mining_total * interest_rate;
-    let ubi = 0;
     // announce interest/ water mark/ new Blockhash
 
     // store data
     //mint(global_data_account.key, unpaid_interest_bank.key, interest, &accounts[..3])?;
-    mint(global_data_account.key, interest_bank.key, interest, &accounts[..3])?;
+    mint(global_data_account.key, interest_bank.key, interest_daily_distribution, &accounts[..3])?;
     mint(
         global_data_account.key,
         ubi_bank.key,
-        ubi,
+        ubi_daily_distrubution,
         &[comptoken_mint_account.clone(), global_data_account.clone(), ubi_bank.clone()],
     )?;
 
-    global_data.yesterday_supply += daily_mining_total + interest;
+    global_data.yesterday_supply += ubi_daily_distrubution + interest_daily_distribution;
     // global_data.high_water_mark = new_hwm;
     //
     Ok(())
