@@ -25,7 +25,7 @@ use spl_token_2022::{
 
 use comptoken_proof::ComptokenProof;
 use constants::*;
-use global_data::GlobalData;
+use global_data::{DailyDistributionValues, GlobalData};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::{
     verify_comptoken_user_data_account, verify_global_data_account, verify_interest_bank_account,
@@ -284,61 +284,26 @@ pub fn daily_distribution_event(
     verify_interest_bank_account(interest_bank, program_id);
     verify_ubi_bank_account(ubi_bank, program_id);
 
-    // get old days info
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
-
-    // get new days info
     let comptoken_mint = Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
 
-    // calculate interest/high water mark
-    let daily_mining_total = comptoken_mint.supply - global_data.yesterday_supply;
-    let high_water_mark_increase = calculate_high_water_mark_increase(
-        global_data.yesterday_supply,
-        global_data.high_water_mark,
-        daily_mining_total,
-    );
-    global_data.high_water_mark += high_water_mark_increase;
+    let DailyDistributionValues {
+        interest_distributed: interest_daily_distribution,
+        ubi_distributed: ubi_daily_distribution,
+    } = global_data.daily_distribution_event(comptoken_mint);
 
-    let total_daily_distribution = high_water_mark_increase * COMPTOKEN_DISTRIBUTION_MULTIPLIER;
-    let ubi_daily_distrubution = total_daily_distribution / 2;
-    let interest_daily_distribution = total_daily_distribution / 2;
-
-    // announce interest/ water mark/ new Blockhash
+    // announce interest/ water mark
 
     // store data
     mint(global_data_account.key, interest_bank.key, interest_daily_distribution, &accounts[..3])?;
     mint(
         global_data_account.key,
         ubi_bank.key,
-        ubi_daily_distrubution,
+        ubi_daily_distribution,
         &[comptoken_mint_account.clone(), global_data_account.clone(), ubi_bank.clone()],
     )?;
 
-    global_data.yesterday_supply += ubi_daily_distrubution + interest_daily_distribution;
-    // global_data.high_water_mark = new_hwm;
-    //
     Ok(())
-}
-
-fn calculate_high_water_mark_increase(yesterday_supply: u64, high_water_mark: u64, daily_mining_total: u64) -> u64 {
-    // if daily_mining_total is less than the high water mark, `high_water_mark_uncapped_increase` will be 0
-    let high_water_mark_uncapped_increase = std::cmp::max(high_water_mark, daily_mining_total) - high_water_mark;
-    if yesterday_supply < MIN_SUPPLY_LIMIT_AMT {
-        return high_water_mark_uncapped_increase;
-    }
-    let max_allowable_high_water_mark_increase = calculate_max_allowable_hwm_increase(yesterday_supply);
-    std::cmp::min(high_water_mark_uncapped_increase, max_allowable_high_water_mark_increase)
-}
-
-fn calculate_distribution_limiter(supply: u64) -> f64 {
-    let x = supply - MIN_SUPPLY_LIMIT_AMT;
-    f64::powf(x as f64, -ADJUST_FACTOR) + END_GOAL_PERCENT_INCREASE
-}
-
-fn calculate_max_allowable_hwm_increase(supply: u64) -> u64 {
-    // as casts are lossy
-    (supply as f64 * calculate_distribution_limiter(supply)).round_ties_even() as u64
-        / COMPTOKEN_DISTRIBUTION_MULTIPLIER
 }
 
 fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accounts: &[AccountInfo]) -> ProgramResult {
