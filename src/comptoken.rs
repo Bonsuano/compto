@@ -277,13 +277,13 @@ pub fn daily_distribution_event(
     let account_info_iter = &mut accounts.iter();
     let comptoken_mint_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
-    let interest_bank = next_account_info(account_info_iter)?;
-    let ubi_bank = next_account_info(account_info_iter)?;
+    let unpaid_interest_bank = next_account_info(account_info_iter)?;
+    let unpaid_ubi_bank = next_account_info(account_info_iter)?;
     let _solana_token_account = next_account_info(account_info_iter)?;
 
     verify_global_data_account(global_data_account, program_id);
-    verify_interest_bank_account(interest_bank, program_id);
-    verify_ubi_bank_account(ubi_bank, program_id);
+    verify_interest_bank_account(unpaid_interest_bank, program_id);
+    verify_ubi_bank_account(unpaid_ubi_bank, program_id);
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     let comptoken_mint = Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
@@ -293,15 +293,13 @@ pub fn daily_distribution_event(
         ubi_distributed: ubi_daily_distribution,
     } = global_data.daily_distribution_event(comptoken_mint);
 
-    // announce interest/ water mark
-
     // mint to banks
-    mint(global_data_account.key, interest_bank.key, interest_daily_distribution, &accounts[..3])?;
+    mint(global_data_account.key, unpaid_interest_bank.key, interest_daily_distribution, &accounts[..3])?;
     mint(
         global_data_account.key,
-        ubi_bank.key,
+        unpaid_ubi_bank.key,
         ubi_daily_distribution,
-        &[comptoken_mint_account.clone(), global_data_account.clone(), ubi_bank.clone()],
+        &[comptoken_mint_account.clone(), global_data_account.clone(), unpaid_ubi_bank.clone()],
     )?;
 
     Ok(())

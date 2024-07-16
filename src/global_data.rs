@@ -33,16 +33,17 @@ impl GlobalData {
         self.high_water_mark += high_water_mark_increase;
 
         let total_daily_distribution = high_water_mark_increase * COMPTOKEN_DISTRIBUTION_MULTIPLIER;
-        let values = DailyDistributionValues {
+        let distribution_values = DailyDistributionValues {
             interest_distributed: total_daily_distribution / 2,
             ubi_distributed: total_daily_distribution / 2,
         };
-        self.yesterday_supply += values.interest_distributed + values.ubi_distributed;
+        self.yesterday_supply =
+            mint.supply + distribution_values.interest_distributed + distribution_values.ubi_distributed;
 
-        let interest = total_daily_distribution as f64 / self.yesterday_supply as f64;
+        let interest = distribution_values.interest_distributed as f64 / self.yesterday_supply as f64;
         self.historic_interests[self.oldest_interest] = interest;
 
-        values
+        distribution_values
     }
 
     fn calculate_high_water_mark_increase(&self, daily_mining_total: u64) -> u64 {
