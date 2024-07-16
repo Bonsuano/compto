@@ -272,6 +272,8 @@ pub fn daily_distribution_event(
     //      Comptoken UBI Bank
     //      Solana Token Program
 
+    // TODO query time and determine if the daily distribution event should happen
+
     let account_info_iter = &mut accounts.iter();
     let comptoken_mint_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
@@ -293,7 +295,7 @@ pub fn daily_distribution_event(
 
     // announce interest/ water mark
 
-    // store data
+    // mint to banks
     mint(global_data_account.key, interest_bank.key, interest_daily_distribution, &accounts[..3])?;
     mint(
         global_data_account.key,
