@@ -49,6 +49,7 @@ impl GlobalData {
         // if daily_mining_total is less than the high water mark, `high_water_mark_uncapped_increase` will be 0
         let high_water_mark_uncapped_increase =
             std::cmp::max(self.high_water_mark, daily_mining_total) - self.high_water_mark;
+        // if the supply is small enough, the growth is uncapped
         if self.yesterday_supply < MIN_SUPPLY_LIMIT_AMT {
             return high_water_mark_uncapped_increase;
         }
@@ -57,13 +58,14 @@ impl GlobalData {
     }
 
     fn calculate_distribution_limiter(supply: u64) -> f64 {
+        // the function (x - M)^a + E was found to give what we felt were reasonable values for limits on the maximum growth
         let x = supply - MIN_SUPPLY_LIMIT_AMT;
         f64::powf(x as f64, -ADJUST_FACTOR) + END_GOAL_PERCENT_INCREASE
     }
 
     #[allow(unstable_name_collisions)]
     fn calculate_max_allowable_hwm_increase(supply: u64) -> u64 {
-        // as casts are lossy
+        // `as` casts are lossy, but it shouldn't matter in the ranges we are dealing with
         (supply as f64 * Self::calculate_distribution_limiter(supply)).round_ties_even() as u64
             / COMPTOKEN_DISTRIBUTION_MULTIPLIER
     }
@@ -80,9 +82,9 @@ impl<'a> TryFrom<&AccountInfo<'a>> for &'a mut GlobalData {
     }
 }
 
-// rust implements round_ties_even in a version more recent than we can use
-// this is a reimplementation, however it uses compiler intrinsics, so I can't
-// just use their code
+// rust implements round_ties_even in version 1.77, which is more recent than
+// the version (1.75) solana uses. this is a reimplementation, however rust's
+// uses compiler intrinsics, so we can't just use their code
 pub trait RoundEven {
     // not sure why it says this code is unused
     #[allow(dead_code)]
