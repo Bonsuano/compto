@@ -305,6 +305,23 @@ pub fn daily_distribution_event(
     Ok(())
 }
 
+pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+    //  accounts order:
+    //      Comptoken Global Data (also mint authority) (writable)
+
+    let account_info_iter = &mut accounts.iter();
+    let global_data_account = next_account_info(account_info_iter)?;
+
+    verify_global_data_account(global_data_account, program_id);
+
+    let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
+
+    let mut data = Vec::from(global_data.valid_blockhash.to_bytes());
+    data.extend(global_data.announced_blockhash.to_bytes());
+    spl_token_2022::solana_program::program::set_return_data(&data);
+    Ok(())
+}
+
 fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accounts: &[AccountInfo]) -> ProgramResult {
     let instruction = mint_to(
         &spl_token_2022::id(),
