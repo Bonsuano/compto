@@ -1,22 +1,15 @@
 use spl_token_2022::{
-    solana_program::{
-        account_info::AccountInfo, clock::Clock, hash::Hash, program_error::ProgramError, slot_hashes::SlotHash,
-        sysvar::Sysvar,
-    },
+    solana_program::{account_info::AccountInfo, hash::Hash, program_error::ProgramError, slot_hashes::SlotHash},
     state::Mint,
 };
 
-use crate::constants::*;
+use crate::{constants::*, get_current_time, normalize_time};
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct GlobalData {
     pub valid_blockhashes: ValidBlockhashes,
-    pub yesterday_supply: u64,
-    pub high_water_mark: u64,
-    pub last_daily_distribution_time: i64,
-    pub oldest_interest: usize,
-    pub historic_interests: [f64; 365],
+    pub daily_distribution_data: DailyDistributionData,
 }
 
 pub struct DailyDistributionValues {
@@ -27,54 +20,12 @@ pub struct DailyDistributionValues {
 impl GlobalData {
     pub fn initialize(&mut self, slot_hash_account: &AccountInfo) {
         self.valid_blockhashes.initialize(slot_hash_account);
-        self.last_daily_distribution_time = normalize_time(get_current_time()) + ANNOUNCEMENT_INTERVAL;
+        self.daily_distribution_data.initialize();
     }
 
     pub fn daily_distribution_event(&mut self, mint: Mint, slot_hash_account: &AccountInfo) -> DailyDistributionValues {
         self.valid_blockhashes.update(slot_hash_account);
-
-        // calculate interest/high water mark
-        let daily_mining_total = mint.supply - self.yesterday_supply;
-        let high_water_mark_increase = self.calculate_high_water_mark_increase(daily_mining_total);
-        self.high_water_mark += high_water_mark_increase;
-
-        let total_daily_distribution = high_water_mark_increase * COMPTOKEN_DISTRIBUTION_MULTIPLIER;
-        let distribution_values = DailyDistributionValues {
-            interest_distributed: total_daily_distribution / 2,
-            ubi_distributed: total_daily_distribution / 2,
-        };
-        self.yesterday_supply =
-            mint.supply + distribution_values.interest_distributed + distribution_values.ubi_distributed;
-
-        let interest = distribution_values.interest_distributed as f64 / self.yesterday_supply as f64;
-        self.historic_interests[self.oldest_interest] = interest;
-
-        distribution_values
-    }
-
-    fn calculate_high_water_mark_increase(&self, daily_mining_total: u64) -> u64 {
-        // if daily_mining_total is less than the high water mark, `high_water_mark_uncapped_increase` will be 0
-        let high_water_mark_uncapped_increase =
-            std::cmp::max(self.high_water_mark, daily_mining_total) - self.high_water_mark;
-        // if the supply is small enough, the growth is uncapped
-        if self.yesterday_supply < MIN_SUPPLY_LIMIT_AMT {
-            return high_water_mark_uncapped_increase;
-        }
-        let max_allowable_high_water_mark_increase = Self::calculate_max_allowable_hwm_increase(self.yesterday_supply);
-        std::cmp::min(high_water_mark_uncapped_increase, max_allowable_high_water_mark_increase)
-    }
-
-    fn calculate_distribution_limiter(supply: u64) -> f64 {
-        // the function (x - M)^a + E was found to give what we felt were reasonable values for limits on the maximum growth
-        let x = supply - MIN_SUPPLY_LIMIT_AMT;
-        f64::powf(x as f64, -ADJUST_FACTOR) + END_GOAL_PERCENT_INCREASE
-    }
-
-    #[allow(unstable_name_collisions)]
-    fn calculate_max_allowable_hwm_increase(supply: u64) -> u64 {
-        // `as` casts are lossy, but it shouldn't matter in the ranges we are dealing with
-        (supply as f64 * Self::calculate_distribution_limiter(supply)).round_ties_even() as u64
-            / COMPTOKEN_DISTRIBUTION_MULTIPLIER
+        self.daily_distribution_data.daily_distribution(mint)
     }
 }
 
@@ -121,12 +72,65 @@ impl ValidBlockhashes {
     }
 }
 
-fn get_current_time() -> i64 {
-    Clock::get().unwrap().unix_timestamp
+#[repr(C)]
+#[derive(Debug)]
+pub struct DailyDistributionData {
+    pub yesterday_supply: u64,
+    pub high_water_mark: u64,
+    pub last_daily_distribution_time: i64,
+    pub oldest_interest: usize,
+    pub historic_interests: [f64; 365],
 }
 
-fn normalize_time(time: i64) -> i64 {
-    time - time % SEC_PER_DAY // midnight today, UTC+0
+impl DailyDistributionData {
+    fn initialize(&mut self) {
+        self.last_daily_distribution_time = normalize_time(get_current_time()) + ANNOUNCEMENT_INTERVAL;
+    }
+
+    fn daily_distribution(&mut self, mint: Mint) -> DailyDistributionValues {
+        // calculate interest/high water mark
+        let daily_mining_total = mint.supply - self.yesterday_supply;
+        let high_water_mark_increase = self.calculate_high_water_mark_increase(daily_mining_total);
+        self.high_water_mark += high_water_mark_increase;
+
+        let total_daily_distribution = high_water_mark_increase * COMPTOKEN_DISTRIBUTION_MULTIPLIER;
+        let distribution_values = DailyDistributionValues {
+            interest_distributed: total_daily_distribution / 2,
+            ubi_distributed: total_daily_distribution / 2,
+        };
+        self.yesterday_supply =
+            mint.supply + distribution_values.interest_distributed + distribution_values.ubi_distributed;
+
+        let interest = distribution_values.interest_distributed as f64 / self.yesterday_supply as f64;
+        self.historic_interests[self.oldest_interest] = interest;
+
+        distribution_values
+    }
+
+    fn calculate_high_water_mark_increase(&self, daily_mining_total: u64) -> u64 {
+        // if daily_mining_total is less than the high water mark, `high_water_mark_uncapped_increase` will be 0
+        let high_water_mark_uncapped_increase =
+            std::cmp::max(self.high_water_mark, daily_mining_total) - self.high_water_mark;
+        // if the supply is small enough, the growth is uncapped
+        if self.yesterday_supply < MIN_SUPPLY_LIMIT_AMT {
+            return high_water_mark_uncapped_increase;
+        }
+        let max_allowable_high_water_mark_increase = Self::calculate_max_allowable_hwm_increase(self.yesterday_supply);
+        std::cmp::min(high_water_mark_uncapped_increase, max_allowable_high_water_mark_increase)
+    }
+
+    fn calculate_distribution_limiter(supply: u64) -> f64 {
+        // the function (x - M)^a + E was found to give what we felt were reasonable values for limits on the maximum growth
+        let x = supply - MIN_SUPPLY_LIMIT_AMT;
+        f64::powf(x as f64, -ADJUST_FACTOR) + END_GOAL_PERCENT_INCREASE
+    }
+
+    #[allow(unstable_name_collisions)]
+    fn calculate_max_allowable_hwm_increase(supply: u64) -> u64 {
+        // `as` casts are lossy, but it shouldn't matter in the ranges we are dealing with
+        (supply as f64 * Self::calculate_distribution_limiter(supply)).round_ties_even() as u64
+            / COMPTOKEN_DISTRIBUTION_MULTIPLIER
+    }
 }
 
 fn get_most_recent_blockhash(slot_hash_account: &AccountInfo) -> Hash {

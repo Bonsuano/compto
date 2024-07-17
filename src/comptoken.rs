@@ -6,6 +6,7 @@ mod verify_accounts;
 
 extern crate bs58;
 
+use solana_program::clock::Clock;
 use spl_token_2022::{
     instruction::mint_to,
     solana_program::{
@@ -295,9 +296,9 @@ pub fn daily_distribution_event(
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     let comptoken_mint = Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
 
-    let current_time = spl_token_2022::solana_program::clock::Clock::get()?.unix_timestamp;
+    let current_time = get_current_time();
     assert!(
-        current_time < global_data.last_daily_distribution_time + SEC_PER_DAY,
+        current_time < global_data.daily_distribution_data.last_daily_distribution_time + SEC_PER_DAY,
         "daily distribution already called today"
     );
 
@@ -388,4 +389,12 @@ fn verify_comptoken_proof_userdata<'a>(
     msg!("block: {:?}", proof);
     assert!(comptoken_proof::verify_proof(&proof, valid_blockhash), "invalid proof");
     return proof;
+}
+
+fn get_current_time() -> i64 {
+    Clock::get().unwrap().unix_timestamp
+}
+
+fn normalize_time(time: i64) -> i64 {
+    time - time % SEC_PER_DAY // midnight today, UTC+0
 }
