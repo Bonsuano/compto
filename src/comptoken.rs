@@ -14,7 +14,7 @@ use spl_token_2022::{
         hash::Hash,
         hash::HASH_BYTES,
         msg,
-        program::invoke_signed,
+        program::{invoke_signed, set_return_data},
         program_pack::Pack,
         pubkey::Pubkey,
         system_instruction,
@@ -288,6 +288,8 @@ pub fn daily_distribution_event(
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     let comptoken_mint = Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
 
+    global_data.update_announced_blockhash_if_necessary();
+
     let DailyDistributionValues {
         interest_distributed: interest_daily_distribution,
         ubi_distributed: ubi_daily_distribution,
@@ -305,7 +307,7 @@ pub fn daily_distribution_event(
     Ok(())
 }
 
-pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
     //  accounts order:
     //      Comptoken Global Data (also mint authority) (writable)
 
@@ -316,9 +318,11 @@ pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], inst
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
 
+    global_data.update_announced_blockhash_if_necessary();
+
     let mut data = Vec::from(global_data.valid_blockhash.to_bytes());
     data.extend(global_data.announced_blockhash.to_bytes());
-    spl_token_2022::solana_program::program::set_return_data(&data);
+    set_return_data(&data);
     Ok(())
 }
 
