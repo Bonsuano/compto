@@ -334,6 +334,7 @@ pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], _ins
     global_data.update_announced_blockhash_if_necessary(slot_hashes_account);
 
     let mut data = Vec::from(global_data.valid_blockhash.to_bytes());
+    data.extend(b"\0"); // pad for alignment of base64 encoded string
     data.extend(global_data.announced_blockhash.to_bytes());
     set_return_data(&data);
     Ok(())
