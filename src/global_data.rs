@@ -39,6 +39,7 @@ impl GlobalData {
     }
 
     pub fn daily_distribution_event(&mut self, mint: Mint) -> DailyDistributionValues {
+        self.update_announced_blockhash_if_necessary();
         self.valid_blockhash = self.announced_blockhash;
 
         // calculate interest/high water mark

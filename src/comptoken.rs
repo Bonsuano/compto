@@ -6,6 +6,8 @@ mod verify_accounts;
 
 extern crate bs58;
 
+use constants::SEC_PER_DAY;
+use solana_program::sysvar::Sysvar;
 use spl_token_2022::{
     instruction::mint_to,
     solana_program::{
@@ -272,8 +274,6 @@ pub fn daily_distribution_event(
     //      Comptoken UBI Bank
     //      Solana Token Program
 
-    // TODO query time and determine if the daily distribution event should happen
-
     let account_info_iter = &mut accounts.iter();
     let comptoken_mint_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
@@ -288,7 +288,11 @@ pub fn daily_distribution_event(
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     let comptoken_mint = Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
 
-    global_data.update_announced_blockhash_if_necessary();
+    let current_time = spl_token_2022::solana_program::clock::Clock::get()?.unix_timestamp;
+    assert!(
+        current_time < global_data.last_daily_distribution_time + SEC_PER_DAY,
+        "daily distribution already called today"
+    );
 
     let DailyDistributionValues {
         interest_distributed: interest_daily_distribution,
