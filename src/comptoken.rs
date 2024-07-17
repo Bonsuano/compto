@@ -130,7 +130,7 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
     let proof = verify_comptoken_proof_userdata(
         user_comptoken_wallet_account.key,
         instruction_data,
-        &global_data.valid_blockhash,
+        &global_data.valid_blockhashes.valid_blockhash,
     );
     let _ = verify_comptoken_user_data_account(user_data_account, user_comptoken_wallet_account, program_id);
 
@@ -325,17 +325,18 @@ pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], _ins
 
     let account_info_iter = &mut accounts.iter();
     let global_data_account = next_account_info(account_info_iter)?;
-    let slot_hashes_account = next_account_info(account_info_iter)?;
+    let slot_hash_account = next_account_info(account_info_iter)?;
 
     verify_global_data_account(global_data_account, program_id);
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
+    let valid_blockhashes = &mut global_data.valid_blockhashes;
 
-    global_data.update_announced_blockhash_if_necessary(slot_hashes_account);
+    valid_blockhashes.update(slot_hash_account);
 
-    let mut data = Vec::from(global_data.valid_blockhash.to_bytes());
+    let mut data = Vec::from(valid_blockhashes.valid_blockhash.to_bytes());
     data.extend(b"\0"); // pad for alignment in base64 encoded string
-    data.extend(global_data.announced_blockhash.to_bytes());
+    data.extend(valid_blockhashes.announced_blockhash.to_bytes());
     set_return_data(&data);
     Ok(())
 }

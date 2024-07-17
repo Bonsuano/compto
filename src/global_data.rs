@@ -10,10 +10,40 @@ use crate::constants::*;
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct GlobalData {
+pub struct ValidBlockhashes {
     pub valid_blockhash: Hash,
     pub announced_blockhash: Hash,
     pub announced_blockhash_time: i64,
+}
+
+impl ValidBlockhashes {
+    fn initialize(&mut self, slot_hash_account: &AccountInfo) {
+        self.valid_blockhash = get_most_recent_blockhash(slot_hash_account);
+        self.announced_blockhash = self.valid_blockhash;
+
+        let normalized_time = normalize_time(get_current_time());
+        self.announced_blockhash_time = normalized_time;
+    }
+
+    pub fn update(&mut self, slot_hash_account: &AccountInfo) {
+        let current_time = get_current_time();
+        if current_time > self.announced_blockhash_time + SEC_PER_DAY {
+            let current_block = get_most_recent_blockhash(slot_hash_account);
+            self.announced_blockhash = current_block;
+            self.announced_blockhash_time = normalize_time(current_time);
+        }
+        if self.announced_blockhash != self.valid_blockhash
+            && current_time > self.announced_blockhash_time + ANNOUNCEMENT_INTERVAL
+        {
+            self.valid_blockhash = self.announced_blockhash;
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct GlobalData {
+    pub valid_blockhashes: ValidBlockhashes,
     pub yesterday_supply: u64,
     pub high_water_mark: u64,
     pub last_daily_distribution_time: i64,
@@ -28,18 +58,12 @@ pub struct DailyDistributionValues {
 
 impl GlobalData {
     pub fn initialize(&mut self, slot_hash_account: &AccountInfo) {
-        let current_time = get_current_time();
-        self.valid_blockhash = get_most_recent_blockhash(slot_hash_account);
-        self.announced_blockhash = self.valid_blockhash;
-
-        let normalized_time = current_time - current_time % SEC_PER_DAY; // midnight today, UTC+0
-        self.announced_blockhash_time = normalized_time;
-        self.last_daily_distribution_time = normalized_time + 60 * 5; // 5 minutes after announcement
+        self.valid_blockhashes.initialize(slot_hash_account);
+        self.last_daily_distribution_time = normalize_time(get_current_time()) + ANNOUNCEMENT_INTERVAL;
     }
 
     pub fn daily_distribution_event(&mut self, mint: Mint, slot_hash_account: &AccountInfo) -> DailyDistributionValues {
-        self.update_announced_blockhash_if_necessary(slot_hash_account);
-        self.valid_blockhash = self.announced_blockhash;
+        self.valid_blockhashes.update(slot_hash_account);
 
         // calculate interest/high water mark
         let daily_mining_total = mint.supply - self.yesterday_supply;
@@ -86,12 +110,7 @@ impl GlobalData {
     }
 
     pub fn update_announced_blockhash_if_necessary(&mut self, slot_hash_account: &AccountInfo) {
-        let current_time = get_current_time();
-        if current_time > self.announced_blockhash_time + SEC_PER_DAY {
-            let current_block = get_most_recent_blockhash(slot_hash_account);
-            self.announced_blockhash = current_block;
-            self.announced_blockhash_time += SEC_PER_DAY
-        }
+        self.valid_blockhashes.update(slot_hash_account);
     }
 }
 
@@ -108,6 +127,10 @@ impl<'a> TryFrom<&AccountInfo<'a>> for &'a mut GlobalData {
 
 fn get_current_time() -> i64 {
     Clock::get().unwrap().unix_timestamp
+}
+
+fn normalize_time(time: i64) -> i64 {
+    time - time % SEC_PER_DAY // midnight today, UTC+0
 }
 
 fn get_most_recent_blockhash(slot_hash_account: &AccountInfo) -> Hash {
