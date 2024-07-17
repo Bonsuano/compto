@@ -6,8 +6,6 @@ mod verify_accounts;
 
 extern crate bs58;
 
-use constants::SEC_PER_DAY;
-use solana_program::sysvar::Sysvar;
 use spl_token_2022::{
     instruction::mint_to,
     solana_program::{
@@ -20,12 +18,13 @@ use spl_token_2022::{
         program_pack::Pack,
         pubkey::Pubkey,
         system_instruction,
-        sysvar::slot_history::ProgramError,
+        sysvar::{slot_history::ProgramError, Sysvar},
     },
     state::Mint,
 };
 
 use comptoken_proof::ComptokenProof;
+use constants::SEC_PER_DAY;
 use global_data::{DailyDistributionValues, GlobalData};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::{
