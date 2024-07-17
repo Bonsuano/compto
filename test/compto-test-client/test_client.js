@@ -249,10 +249,10 @@ async function getValidBlockHashes() {
     let result = await connection.getTransaction(getValidBlockhashesResult, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 });
     //console.log("getValidBlockhashes result", result);
     let resultData = result.meta.returnData.data[0];
-    let resultData64 = [resultData.slice(0, 43), resultData.slice(43)];
+    let resultData64 = [resultData.slice(0, 43).concat("="), resultData.slice(44, 88)];
     let resultDataBytes = resultData64.map(bs64 => base64.toByteArray(bs64));
     let resultData58 = resultDataBytes.map(bytes => bs58.encode(bytes));
-    //console.log("getValidBlockhashes resultData", resultData64);
+    console.log("getValidBlockhashes resultData", resultData58);
 
     return await { current_block: resultData58[0], announced_block: resultData58[1], };
 }
