@@ -269,7 +269,6 @@ pub fn create_user_data_account(
     Ok(())
 }
 
-// under construction
 pub fn daily_distribution_event(
     program_id: &Pubkey, accounts: &[AccountInfo], _instruction_data: &[u8],
 ) -> ProgramResult {
