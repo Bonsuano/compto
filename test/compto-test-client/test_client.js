@@ -29,7 +29,7 @@ import {
     ubi_bank_account_pubkey,
 } from './common.js';
 
-//import base64 from "base64-js";
+import base64 from "base64-js";
 
 import { mintComptokens } from './comptoken_proof.js';
 
