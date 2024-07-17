@@ -119,6 +119,7 @@ fn get_most_recent_blockhash(slot_hash_account: &AccountInfo) -> Hash {
     let slot_hashes: &[SlotHash] =
         unsafe { std::slice::from_raw_parts(data.as_ptr().offset(8) as *const SlotHash, len) };
 
+    // get the hash from the most recent slot
     slot_hashes[0].1
 }
 

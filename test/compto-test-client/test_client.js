@@ -51,7 +51,7 @@ let connection = new Connection('http://localhost:8899', 'recent');
     await testMint();
     await createGlobalDataAccount();
     await createUserDataAccount();
-    let current_block = await (await getValidBlockHashes()).current_block;
+    let current_block = (await getValidBlockHashes()).current_block;
     await mintComptokens(connection, testuser_comptoken_wallet_pubkey, testuser_keypair, current_block);
     await dailyDistributionEvent();
 })();
@@ -245,16 +245,15 @@ async function getValidBlockHashes() {
     );
     let getValidBlockhashesResult = await sendAndConfirmTransaction(connection, getValidBlockhashesTransaction, [testuser_keypair, testuser_keypair]);
     console.log("getValidBlockhashes transaction confirmed", getValidBlockhashesResult);
-    await sleep(1000); // need to give the cluster time to confirm the transaction, this is probably overkill
+    await sleep(1000); // need to give the cluster time to confirm the transaction
     let result = await connection.getTransaction(getValidBlockhashesResult, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 });
-    //console.log("getValidBlockhashes result", result);
     let resultData = result.meta.returnData.data[0];
     let resultData64 = [resultData.slice(0, 43).concat("="), resultData.slice(44, 88)];
     let resultDataBytes = resultData64.map(bs64 => base64.toByteArray(bs64));
     let resultData58 = resultDataBytes.map(bytes => bs58.encode(bytes));
     console.log("getValidBlockhashes resultData", resultData58);
 
-    return await { current_block: resultData58[0], announced_block: resultData58[1], };
+    return { current_block: resultData58[0], announced_block: resultData58[1], };
 }
 
 function sleep(ms) {

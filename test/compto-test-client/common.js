@@ -7,7 +7,7 @@ import fs from 'fs';
 import os from 'os';
 
 import * as bs58_ from 'bs58';
-export let bs58 = bs58_.default;
+export const bs58 = bs58_.default;
 
 export const Instruction = {
     TEST: 0,
