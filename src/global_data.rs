@@ -10,38 +10,6 @@ use crate::constants::*;
 
 #[repr(C)]
 #[derive(Debug)]
-pub struct ValidBlockhashes {
-    pub valid_blockhash: Hash,
-    pub announced_blockhash: Hash,
-    pub announced_blockhash_time: i64,
-}
-
-impl ValidBlockhashes {
-    fn initialize(&mut self, slot_hash_account: &AccountInfo) {
-        self.valid_blockhash = get_most_recent_blockhash(slot_hash_account);
-        self.announced_blockhash = self.valid_blockhash;
-
-        let normalized_time = normalize_time(get_current_time());
-        self.announced_blockhash_time = normalized_time;
-    }
-
-    pub fn update(&mut self, slot_hash_account: &AccountInfo) {
-        let current_time = get_current_time();
-        if current_time > self.announced_blockhash_time + SEC_PER_DAY {
-            let current_block = get_most_recent_blockhash(slot_hash_account);
-            self.announced_blockhash = current_block;
-            self.announced_blockhash_time = normalize_time(current_time);
-        }
-        if self.announced_blockhash != self.valid_blockhash
-            && current_time > self.announced_blockhash_time + ANNOUNCEMENT_INTERVAL
-        {
-            self.valid_blockhash = self.announced_blockhash;
-        }
-    }
-}
-
-#[repr(C)]
-#[derive(Debug)]
 pub struct GlobalData {
     pub valid_blockhashes: ValidBlockhashes,
     pub yesterday_supply: u64,
@@ -122,6 +90,38 @@ impl<'a> TryFrom<&AccountInfo<'a>> for &'a mut GlobalData {
         let mut data = account.try_borrow_mut_data()?;
         let result = unsafe { &mut *(data.as_mut() as *mut _ as *mut GlobalData) };
         Ok(result)
+    }
+}
+
+#[repr(C)]
+#[derive(Debug)]
+pub struct ValidBlockhashes {
+    pub valid_blockhash: Hash,
+    pub announced_blockhash: Hash,
+    pub announced_blockhash_time: i64,
+}
+
+impl ValidBlockhashes {
+    fn initialize(&mut self, slot_hash_account: &AccountInfo) {
+        self.valid_blockhash = get_most_recent_blockhash(slot_hash_account);
+        self.announced_blockhash = self.valid_blockhash;
+
+        let normalized_time = normalize_time(get_current_time());
+        self.announced_blockhash_time = normalized_time;
+    }
+
+    pub fn update(&mut self, slot_hash_account: &AccountInfo) {
+        let current_time = get_current_time();
+        if current_time > self.announced_blockhash_time + SEC_PER_DAY {
+            let current_block = get_most_recent_blockhash(slot_hash_account);
+            self.announced_blockhash = current_block;
+            self.announced_blockhash_time = normalize_time(current_time);
+        }
+        if self.announced_blockhash != self.valid_blockhash
+            && current_time > self.announced_blockhash_time + ANNOUNCEMENT_INTERVAL
+        {
+            self.valid_blockhash = self.announced_blockhash;
+        }
     }
 }
 
