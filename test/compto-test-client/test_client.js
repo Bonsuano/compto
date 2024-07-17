@@ -3,6 +3,7 @@ import {
     Keypair,
     LAMPORTS_PER_SOL,
     PublicKey,
+    SYSVAR_SLOT_HASHES_PUBKEY,
     SystemProgram,
     Transaction,
     TransactionInstruction,
@@ -18,6 +19,7 @@ import {
 
 import {
     Instruction,
+    bs58,
     compto_program_id_pubkey,
     comptoken_mint_pubkey,
     global_data_account_pubkey,
@@ -26,6 +28,8 @@ import {
     testuser_comptoken_wallet_pubkey,
     ubi_bank_account_pubkey,
 } from './common.js';
+
+//import base64 from "base64-js";
 
 import { mintComptokens } from './comptoken_proof.js';
 
@@ -47,7 +51,8 @@ let connection = new Connection('http://localhost:8899', 'recent');
     await testMint();
     await createGlobalDataAccount();
     await createUserDataAccount();
-    await mintComptokens(connection, testuser_comptoken_wallet_pubkey, testuser_keypair);
+    let current_block = await (await getValidBlockHashes()).current_block;
+    await mintComptokens(connection, testuser_comptoken_wallet_pubkey, testuser_keypair, current_block);
     await dailyDistributionEvent();
 })();
 
@@ -138,6 +143,8 @@ async function createGlobalDataAccount() {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        // the slothashes sysvar
+        { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ];
     let createGlobalDataAccountTransaction = new Transaction();
     createGlobalDataAccountTransaction.add(
@@ -202,6 +209,8 @@ async function dailyDistributionEvent() {
         { pubkey: ubi_bank_account_pubkey, isSigner: false, isWritable: true },
         // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        // the slothashes sysvar
+        { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ];
     let dailyDistributionEventTransaction = new Transaction();
     dailyDistributionEventTransaction.add(
@@ -214,4 +223,40 @@ async function dailyDistributionEvent() {
     let dailyDistributionEventResult = await sendAndConfirmTransaction(connection, dailyDistributionEventTransaction, [testuser_keypair, testuser_keypair]);
     console.log("DailyDistributionEvent transaction confirmed", dailyDistributionEventResult);
 
+}
+
+async function getValidBlockHashes() {
+    let data = Buffer.alloc(1);
+    data.writeUInt8(Instruction.GET_VALID_BLOCKHASHES, 0);
+    console.log("data: ", data);
+    let keys = [
+        // the Global Comptoken Data Account (also mint authority)
+        { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
+        // the slothashes sysvar
+        { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
+    ];
+    let getValidBlockhashesTransaction = new Transaction();
+    getValidBlockhashesTransaction.add(
+        new TransactionInstruction({
+            keys: keys,
+            programId: compto_program_id_pubkey,
+            data: data,
+        }),
+    );
+    let getValidBlockhashesResult = await sendAndConfirmTransaction(connection, getValidBlockhashesTransaction, [testuser_keypair, testuser_keypair]);
+    console.log("getValidBlockhashes transaction confirmed", getValidBlockhashesResult);
+    await sleep(1000); // need to give the cluster time to confirm the transaction, this is probably overkill
+    let result = await connection.getTransaction(getValidBlockhashesResult, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 });
+    //console.log("getValidBlockhashes result", result);
+    let resultData = result.meta.returnData.data[0];
+    let resultData64 = [resultData.slice(0, 43), resultData.slice(43)];
+    let resultDataBytes = resultData64.map(bs64 => base64.toByteArray(bs64));
+    let resultData58 = resultDataBytes.map(bytes => bs58.encode(bytes));
+    //console.log("getValidBlockhashes resultData", resultData64);
+
+    return await { current_block: resultData58[0], announced_block: resultData58[1], };
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }

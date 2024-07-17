@@ -69,8 +69,8 @@ class ComptokenProof {
     }
 }
 
-export async function mintComptokens(connection, destination_pubkey, temp_keypair) {
-    let proof = new ComptokenProof(destination_pubkey, "11111111111111111111111111111111"); // TODO: get recent_block_hash from caches
+export async function mintComptokens(connection, destination_pubkey, temp_keypair, current_block) {
+    let proof = new ComptokenProof(destination_pubkey, current_block); // TODO: get recent_block_hash from caches
     proof.mine();
     let data = Buffer.concat([
         Buffer.from([Instruction.COMPTOKEN_MINT]),
