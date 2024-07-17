@@ -76,10 +76,6 @@ impl GlobalData {
         (supply as f64 * Self::calculate_distribution_limiter(supply)).round_ties_even() as u64
             / COMPTOKEN_DISTRIBUTION_MULTIPLIER
     }
-
-    pub fn update_announced_blockhash_if_necessary(&mut self, slot_hash_account: &AccountInfo) {
-        self.valid_blockhashes.update(slot_hash_account);
-    }
 }
 
 impl<'a> TryFrom<&AccountInfo<'a>> for &'a mut GlobalData {
