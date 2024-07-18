@@ -109,7 +109,7 @@ pub fn test_mint(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data
 
     verify_comptoken_mint(_comptoken_mint_account, true);
     verify_user_comptoken_wallet_account(user_comptoken_wallet_account, false, true)?;
-    verify_global_data_account(global_data_account, program_id, true);
+    verify_global_data_account(global_data_account, program_id, false);
 
     let amount = 2;
 
@@ -131,7 +131,8 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
     let user_data_account = next_account_info(account_info_iter)?;
     let _solana_token_account = next_account_info(account_info_iter)?;
 
-    verify_global_data_account(global_data_account, program_id, true);
+    verify_comptoken_mint(_comptoken_mint_account, true);
+    verify_global_data_account(global_data_account, program_id, false);
     let global_data: &mut GlobalData = global_data_account.try_into()?;
     verify_user_comptoken_wallet_account(user_comptoken_wallet_account, false, true)?;
     let proof = verify_comptoken_proof_userdata(
@@ -181,7 +182,7 @@ pub fn initialize_comptoken_program(
     verify_global_data_account(global_data_account, program_id, true);
     verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     verify_ubi_bank_account(ubi_bank, program_id, true);
-    verify_comptoken_mint(comptoken_mint, true);
+    verify_comptoken_mint(comptoken_mint, false);
 
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
     let lamports_global_data = u64::from_le_bytes(first_8_bytes);
