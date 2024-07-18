@@ -414,6 +414,23 @@ fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accou
     invoke_signed(&instruction, accounts, &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])
 }
 
+fn transfer<'a>(
+    source: &AccountInfo<'a>, destination: &AccountInfo<'a>, mint: &AccountInfo<'a>, global_data_key: &Pubkey,
+    amount: u64, source_seeds: &[&[u8]],
+) -> ProgramResult {
+    let instruction = spl_token_2022::instruction::transfer_checked(
+        &spl_token_2022::ID,
+        source.key,
+        mint.key,
+        destination.key,
+        global_data_key,
+        &[],
+        amount,
+        0,
+    )?;
+    invoke_signed(&instruction, &[source.clone(), mint.clone(), destination.clone()], &[source_seeds])
+}
+
 fn create_pda(
     payer_pubkey: &Pubkey, new_account_key: &Pubkey, lamports: u64, space: u64, owner_key: &Pubkey,
     accounts: &[AccountInfo], signers_seeds: &[&[&[u8]]],
