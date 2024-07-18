@@ -135,6 +135,10 @@ impl DailyDistributionData {
         (supply as f64 * Self::calculate_distribution_limiter(supply)).round_ties_even() as u64
             / COMPTOKEN_DISTRIBUTION_MULTIPLIER
     }
+
+    pub fn get_sum_last_n_interests(&self, n: usize) -> f64 {
+        self.into_iter().take(n).sum()
+    }
 }
 
 pub struct DailyDistributionDataIter {
