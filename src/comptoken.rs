@@ -393,7 +393,24 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
         + user_data.known_owed_interest;
 
     user_data.known_owed_interest = interest.fract();
+    transfer(
+        unpaid_interest_bank,
+        user_comptoken_wallet_account,
+        comptoken_mint_account,
+        global_data_account.key,
+        interest.floor() as u64,
+        COMPTO_INTEREST_BANK_ACCOUNT_SEEDS,
+    )?;
+
     // get ubi if verified
+    transfer(
+        unpaid_ubi_bank,
+        user_comptoken_wallet_account,
+        comptoken_mint_account,
+        global_data_account.key,
+        0, // TODO figure out forrect amount
+        COMPTO_UBI_BANK_ACCOUNT_SEEDS,
+    )?;
 
     Ok(())
 }
