@@ -104,9 +104,8 @@ impl DailyDistributionData {
             mint.supply + distribution_values.interest_distributed + distribution_values.ubi_distributed;
 
         let interest = distribution_values.interest_distributed as f64 / self.yesterday_supply as f64;
-        self.historic_interests[self.oldest_interest] = interest;
 
-        self.oldest_interest = self.oldest_interest + 1 % Self::HISTORY_SIZE;
+        self.insert(interest);
 
         distribution_values
     }
@@ -138,6 +137,11 @@ impl DailyDistributionData {
 
     pub fn get_sum_last_n_interests(&self, n: usize) -> f64 {
         self.into_iter().take(n).sum()
+    }
+
+    fn insert(&mut self, interest: f64) {
+        self.historic_interests[self.oldest_interest] = interest;
+        self.oldest_interest = self.oldest_interest + 1 % Self::HISTORY_SIZE;
     }
 }
 
