@@ -374,8 +374,17 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
 
+    let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
+    let user_data: &mut UserData = user_data_account.try_into().unwrap();
+
     // get days since last update
+    let current_day = normalize_time(get_current_time());
+    let days_since_last_update = (user_data.last_interest - current_day) % SEC_PER_DAY;
+
     // get interest
+    let interest = global_data
+        .daily_distribution_data
+        .get_sum_last_n_interests(days_since_last_update as usize);
     // get ubi if verified
 
     Ok(())
