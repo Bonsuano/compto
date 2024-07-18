@@ -46,14 +46,14 @@ pub fn verify_user_comptoken_wallet_account(
     Ok(())
 }
 
-pub fn verify_comptoken_user_data_account(
-    comptoken_user_data_account: &AccountInfo, comptoken_user_wallet_account: &AccountInfo, program_id: &Pubkey,
+pub fn verify_user_data_account(
+    user_data_account: &AccountInfo, user_comptoken_wallet_account: &AccountInfo, program_id: &Pubkey,
     needs_writable: bool,
 ) -> u8 {
     // if we ever need a user data account to sign something,
     // then we should return the bumpseed in this function
-    let (pda, bump) = Pubkey::find_program_address(&[comptoken_user_wallet_account.key.as_ref()], program_id);
-    assert_eq!(*comptoken_user_data_account.key, pda, "Invalid user data account");
-    verify_account_signer_or_writable(comptoken_user_data_account, false, needs_writable);
+    let (pda, bump) = Pubkey::find_program_address(&[user_comptoken_wallet_account.key.as_ref()], program_id);
+    assert_eq!(*user_data_account.key, pda, "Invalid user data account");
+    verify_account_signer_or_writable(user_data_account, false, needs_writable);
     bump
 }

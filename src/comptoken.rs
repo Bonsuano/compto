@@ -29,8 +29,8 @@ use constants::SEC_PER_DAY;
 use global_data::{DailyDistributionValues, GlobalData};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::{
-    verify_comptoken_mint, verify_comptoken_user_data_account, verify_global_data_account,
-    verify_interest_bank_account, verify_payer_account, verify_ubi_bank_account, verify_user_comptoken_wallet_account,
+    verify_comptoken_mint, verify_global_data_account, verify_interest_bank_account, verify_payer_account,
+    verify_ubi_bank_account, verify_user_comptoken_wallet_account, verify_user_data_account,
 };
 
 // declare and export the program's entrypoint
@@ -139,7 +139,7 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
         instruction_data,
         &global_data.valid_blockhashes.valid_blockhash,
     );
-    let _ = verify_comptoken_user_data_account(user_data_account, user_comptoken_wallet_account, program_id, true);
+    let _ = verify_user_data_account(user_data_account, user_comptoken_wallet_account, program_id, true);
 
     msg!("data/accounts verified");
     let amount = 2;
@@ -256,7 +256,7 @@ pub fn create_user_data_account(
     assert!((space - USER_DATA_MIN_SIZE) % HASH_BYTES == 0);
 
     verify_payer_account(payer_account);
-    let bump = verify_comptoken_user_data_account(user_data_account, user_comptoken_wallet_account, program_id, true);
+    let bump = verify_user_data_account(user_data_account, user_comptoken_wallet_account, program_id, true);
     verify_user_comptoken_wallet_account(user_comptoken_wallet_account, false, false)?;
 
     create_pda(
@@ -370,7 +370,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let unpaid_interest_bank = next_account_info(account_info_iter)?;
     let unpaid_ubi_bank = next_account_info(account_info_iter)?;
 
-    verify_comptoken_user_data_account(user_data_account, user_comptoken_wallet_account, program_id, true);
+    verify_user_data_account(user_data_account, user_comptoken_wallet_account, program_id, true);
     verify_user_comptoken_wallet_account(user_comptoken_wallet_account, false, true)?;
     verify_global_data_account(global_data_account, program_id, false);
     verify_interest_bank_account(unpaid_interest_bank, program_id, true);
