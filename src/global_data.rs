@@ -78,7 +78,7 @@ pub struct DailyDistributionData {
     pub yesterday_supply: u64,
     pub high_water_mark: u64,
     pub last_daily_distribution_time: i64,
-    pub newest_interest: usize,
+    pub oldest_interest: usize,
     pub historic_interests: [f64; Self::HISTORY_SIZE],
 }
 
@@ -104,9 +104,9 @@ impl DailyDistributionData {
             mint.supply + distribution_values.interest_distributed + distribution_values.ubi_distributed;
 
         let interest = distribution_values.interest_distributed as f64 / self.yesterday_supply as f64;
-        self.historic_interests[self.newest_interest] = interest;
+        self.historic_interests[self.oldest_interest] = interest;
 
-        self.newest_interest = self.newest_interest + 1 % Self::HISTORY_SIZE;
+        self.oldest_interest = self.oldest_interest + 1 % Self::HISTORY_SIZE;
 
         distribution_values
     }
@@ -134,6 +134,36 @@ impl DailyDistributionData {
         // `as` casts are lossy, but it shouldn't matter in the ranges we are dealing with
         (supply as f64 * Self::calculate_distribution_limiter(supply)).round_ties_even() as u64
             / COMPTOKEN_DISTRIBUTION_MULTIPLIER
+    }
+}
+
+pub struct DailyDistributionDataIter {
+    iter: Box<dyn Iterator<Item = f64>>,
+}
+
+impl Iterator for DailyDistributionDataIter {
+    type Item = f64;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next()
+    }
+}
+
+impl IntoIterator for &DailyDistributionData {
+    type IntoIter = DailyDistributionDataIter;
+    type Item = f64;
+
+    fn into_iter(self) -> Self::IntoIter {
+        DailyDistributionDataIter {
+            iter: Box::from(
+                self.historic_interests
+                    .into_iter()
+                    .rev()
+                    .cycle()
+                    .skip(DailyDistributionData::HISTORY_SIZE - self.oldest_interest)
+                    .take(DailyDistributionData::HISTORY_SIZE),
+            ),
+        }
     }
 }
 
