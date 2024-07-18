@@ -6,11 +6,11 @@ mod verify_accounts;
 
 extern crate bs58;
 
-use solana_program::clock::Clock;
 use spl_token_2022::{
     instruction::mint_to,
     solana_program::{
         account_info::{next_account_info, AccountInfo},
+        clock::Clock,
         entrypoint,
         hash::Hash,
         hash::HASH_BYTES,
@@ -21,7 +21,7 @@ use spl_token_2022::{
         system_instruction,
         sysvar::{slot_history::ProgramError, Sysvar},
     },
-    state::Mint,
+    state::{Account, Mint},
 };
 
 use comptoken_proof::ComptokenProof;
@@ -357,6 +357,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     //  accounts order:
     //      User's Data (writable)
     //      User's Comptoken Wallet (writable)
+    //      Comptoken Mint
     //      Comptoken Global Data (also mint authority)
     //      Comptoken Interest Bank (writable)
     //      Comptoken UBI Bank (writable)
@@ -364,6 +365,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let account_info_iter = &mut accounts.iter();
     let user_data_account = next_account_info(account_info_iter)?;
     let user_comptoken_wallet_account = next_account_info(account_info_iter)?;
+    let comptoken_mint_account = next_account_info(account_info_iter)?;
     let global_data_account = next_account_info(account_info_iter)?;
     let unpaid_interest_bank = next_account_info(account_info_iter)?;
     let unpaid_ubi_bank = next_account_info(account_info_iter)?;
@@ -374,6 +376,8 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
 
+    let user_comptoken_wallet =
+        Account::unpack(user_comptoken_wallet_account.try_borrow_data().unwrap().as_ref()).unwrap();
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     let user_data: &mut UserData = user_data_account.try_into().unwrap();
 
@@ -384,7 +388,11 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     // get interest
     let interest = global_data
         .daily_distribution_data
-        .get_sum_last_n_interests(days_since_last_update as usize);
+        .get_sum_last_n_interests(days_since_last_update as usize)
+        * user_comptoken_wallet.amount as f64
+        + user_data.known_owed_interest;
+
+    user_data.known_owed_interest = interest.fract();
     // get ubi if verified
 
     Ok(())
