@@ -374,7 +374,15 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
 
+    // get days since last update
+    // get interest
+    // get ubi if verified
+
     Ok(())
+}
+
+pub fn realloc_user_data() {
+    // TODO implement
 }
 
 fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accounts: &[AccountInfo]) -> ProgramResult {

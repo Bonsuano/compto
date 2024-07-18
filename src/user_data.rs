@@ -4,6 +4,9 @@ use spl_token_2022::solana_program::{hash::Hash, hash::HASH_BYTES, program_error
 #[derive(Debug)]
 pub struct UserDataBase<T: ?Sized> {
     // capacity is stored in the fat pointer
+    last_interest: i64,
+    is_verified_person: bool,
+    // padding: [u8; 3],
     length: usize,
     blockhash: Hash,
     proofs: T,
@@ -35,7 +38,10 @@ impl UserData {
         self.into_iter().any(|proof| proof == new_proof)
     }
 
-    pub fn initialize(&mut self) {}
+    pub fn initialize(&mut self) {
+        self.last_interest = crate::normalize_time(crate::get_current_time());
+        self.is_verified_person = false; // *probably* safe to assume 0 is false, but the best source is a spec for rustc
+    }
 }
 
 impl TryFrom<&mut [u8]> for &mut UserData {

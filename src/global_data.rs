@@ -78,11 +78,13 @@ pub struct DailyDistributionData {
     pub yesterday_supply: u64,
     pub high_water_mark: u64,
     pub last_daily_distribution_time: i64,
-    pub oldest_interest: usize,
-    pub historic_interests: [f64; 365],
+    pub newest_interest: usize,
+    pub historic_interests: [f64; Self::HISTORY_SIZE],
 }
 
 impl DailyDistributionData {
+    const HISTORY_SIZE: usize = 365;
+
     fn initialize(&mut self) {
         self.last_daily_distribution_time = normalize_time(get_current_time()) + ANNOUNCEMENT_INTERVAL;
     }
@@ -102,7 +104,9 @@ impl DailyDistributionData {
             mint.supply + distribution_values.interest_distributed + distribution_values.ubi_distributed;
 
         let interest = distribution_values.interest_distributed as f64 / self.yesterday_supply as f64;
-        self.historic_interests[self.oldest_interest] = interest;
+        self.historic_interests[self.newest_interest] = interest;
+
+        self.newest_interest = self.newest_interest + 1 % Self::HISTORY_SIZE;
 
         distribution_values
     }
