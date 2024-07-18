@@ -25,7 +25,7 @@ use spl_token_2022::{
 };
 
 use comptoken_proof::ComptokenProof;
-use constants::SEC_PER_DAY;
+use constants::*;
 use global_data::{DailyDistributionValues, GlobalData};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::{
@@ -212,7 +212,7 @@ pub fn initialize_comptoken_program(
         &[COMPTO_INTEREST_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created interest bank account");
-    init_comptoken_account(unpaid_interest_bank, program_id, &[], comptoken_mint)?;
+    init_comptoken_account(unpaid_interest_bank, global_data_account.key, &[], comptoken_mint)?;
     msg!("initialized interest bank account");
     create_pda(
         payer_account.key,
@@ -224,7 +224,7 @@ pub fn initialize_comptoken_program(
         &[COMPTO_UBI_BANK_ACCOUNT_SEEDS],
     )?;
     msg!("created ubi bank account");
-    init_comptoken_account(ubi_bank, program_id, &[], comptoken_mint)?;
+    init_comptoken_account(ubi_bank, global_data_account.key, &[], comptoken_mint)?;
     msg!("initialized ubi bank account");
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
@@ -362,6 +362,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     //      Comptoken Global Data (also mint authority)
     //      Comptoken Interest Bank (writable)
     //      Comptoken UBI Bank (writable)
+    //      Solana Token 2022 Program
 
     let account_info_iter = &mut accounts.iter();
     let user_data_account = next_account_info(account_info_iter)?;
@@ -370,9 +371,11 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let global_data_account = next_account_info(account_info_iter)?;
     let unpaid_interest_bank = next_account_info(account_info_iter)?;
     let unpaid_ubi_bank = next_account_info(account_info_iter)?;
+    let _solana_token_account = next_account_info(account_info_iter)?;
 
     verify_user_data_account(user_data_account, user_comptoken_wallet_account, program_id, true);
     verify_user_comptoken_wallet_account(user_comptoken_wallet_account, false, true)?;
+    verify_comptoken_mint(comptoken_mint_account, false);
     verify_global_data_account(global_data_account, program_id, false);
     verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
@@ -394,25 +397,24 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
         + user_data.known_owed_interest;
 
     user_data.known_owed_interest = interest.fract();
+    msg!("pre transfer");
     transfer(
         unpaid_interest_bank,
         user_comptoken_wallet_account,
         comptoken_mint_account,
-        global_data_account.key,
+        global_data_account,
         interest.floor() as u64,
-        COMPTO_INTEREST_BANK_ACCOUNT_SEEDS,
     )?;
-
+    msg!("post transfer 1");
     // get ubi if verified
     transfer(
         unpaid_ubi_bank,
         user_comptoken_wallet_account,
         comptoken_mint_account,
-        global_data_account.key,
+        global_data_account,
         0, // TODO figure out forrect amount
-        COMPTO_UBI_BANK_ACCOUNT_SEEDS,
     )?;
-
+    msg!("post transfer 2");
     Ok(())
 }
 
@@ -433,20 +435,24 @@ fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accou
 }
 
 fn transfer<'a>(
-    source: &AccountInfo<'a>, destination: &AccountInfo<'a>, mint: &AccountInfo<'a>, global_data_key: &Pubkey,
-    amount: u64, source_seeds: &[&[u8]],
+    source: &AccountInfo<'a>, destination: &AccountInfo<'a>, mint: &AccountInfo<'a>, global_data: &AccountInfo<'a>,
+    amount: u64,
 ) -> ProgramResult {
     let instruction = spl_token_2022::instruction::transfer_checked(
         &spl_token_2022::ID,
         source.key,
         mint.key,
         destination.key,
-        global_data_key,
+        global_data.key,
         &[],
         amount,
-        0,
+        MINT_DECIMALS,
     )?;
-    invoke_signed(&instruction, &[source.clone(), mint.clone(), destination.clone()], &[source_seeds])
+    invoke_signed(
+        &instruction,
+        &[source.clone(), mint.clone(), destination.clone(), global_data.clone()],
+        &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
+    )
 }
 
 fn create_pda(

@@ -1,7 +1,8 @@
 use spl_token_2022::solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 use crate::generated::{
-    COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS, COMPTO_INTEREST_BANK_ACCOUNT_SEEDS, COMPTO_UBI_BANK_ACCOUNT_SEEDS,
+    COMPTOKEN_MINT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS, COMPTO_INTEREST_BANK_ACCOUNT_SEEDS,
+    COMPTO_UBI_BANK_ACCOUNT_SEEDS,
 };
 
 fn verify_account_signer_or_writable(account: &AccountInfo, needs_signer: bool, needs_writable: bool) {
@@ -14,6 +15,7 @@ pub fn verify_payer_account(account: &AccountInfo) {
 }
 
 pub fn verify_comptoken_mint(account: &AccountInfo, needs_writable: bool) {
+    assert_eq!(*account.key, COMPTOKEN_MINT_ADDRESS);
     verify_account_signer_or_writable(account, false, needs_writable)
 }
 

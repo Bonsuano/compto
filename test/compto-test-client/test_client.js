@@ -54,6 +54,7 @@ let connection = new Connection('http://localhost:8899', 'recent');
     let current_block = (await getValidBlockHashes()).current_block;
     await mintComptokens(connection, testuser_comptoken_wallet_pubkey, testuser_keypair, current_block);
     await dailyDistributionEvent();
+    await getOwedComptokens();
 })();
 
 
@@ -254,6 +255,41 @@ async function getValidBlockHashes() {
     console.log("getValidBlockhashes resultData", resultData58);
 
     return { current_block: resultData58[0], announced_block: resultData58[1], };
+}
+
+async function getOwedComptokens() {
+    let data = Buffer.alloc(1);
+    data.writeUInt8(Instruction.GET_OWED_COMPTOKENS, 0);
+    console.log("data: ", data);
+
+    let user_data_account = PublicKey.findProgramAddressSync([testuser_comptoken_wallet_pubkey.toBytes()], compto_program_id_pubkey)[0];
+
+    let keys = [
+        //  User's Data Account
+        { pubkey: user_data_account, isSigner: false, isWritable: true },
+        //  User's Comptoken Wallet
+        { pubkey: testuser_comptoken_wallet_pubkey, isSigner: false, isWritable: true },
+        //  Comptoken Mint
+        { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: false },
+        //  Comptoken Global Data (also mint authority)
+        { pubkey: global_data_account_pubkey, isSigner: false, isWritable: false },
+        //  Comptoken Interest Bank 
+        { pubkey: interest_bank_account_pubkey, isSigner: false, isWritable: true },
+        //  Comptoken UBI Bank
+        { pubkey: ubi_bank_account_pubkey, isSigner: false, isWritable: true },
+        //  Token 2022 Program
+        { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+    ];
+    let getValidBlockhashesTransaction = new Transaction();
+    getValidBlockhashesTransaction.add(
+        new TransactionInstruction({
+            keys: keys,
+            programId: compto_program_id_pubkey,
+            data: data,
+        }),
+    );
+    let getValidBlockhashesResult = await sendAndConfirmTransaction(connection, getValidBlockhashesTransaction, [testuser_keypair, testuser_keypair]);
+    console.log("getOwedComptokens transaction confirmed", getValidBlockhashesResult);
 }
 
 function sleep(ms) {
