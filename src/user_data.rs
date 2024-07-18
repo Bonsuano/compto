@@ -6,8 +6,9 @@ use spl_token_2022::solana_program::{
 #[derive(Debug)]
 pub struct UserDataBase<T: ?Sized> {
     // capacity is stored in the fat pointer
-    last_interest: i64,
-    is_verified_person: bool,
+    pub last_interest: i64,
+    pub known_owed_interest: f64, // TODO better name // stores the part of interest owed that is less than a full comptoken (i.e. the fractional part)
+    pub is_verified_person: bool,
     // padding: [u8; 3],
     length: usize,
     blockhash: Hash,
