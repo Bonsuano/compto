@@ -136,8 +136,10 @@ impl DailyDistributionData {
             / COMPTOKEN_DISTRIBUTION_MULTIPLIER
     }
 
-    pub fn get_sum_last_n_interests(&self, n: usize) -> f64 {
-        self.into_iter().take(n).sum()
+    pub fn apply_n_interests(&self, n: usize, initial_money: u64) -> u64 {
+        self.into_iter()
+            .take(n)
+            .fold(initial_money as f64, |money, interest| (money * interest).round_ties_even()) as u64
     }
 
     fn insert(&mut self, interest: f64) {

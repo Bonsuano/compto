@@ -386,18 +386,14 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     // get interest
     let interest = global_data
         .daily_distribution_data
-        .get_sum_last_n_interests(days_since_last_update as usize)
-        * user_comptoken_wallet.amount as f64
-        + user_data.known_owed_interest;
-
-    user_data.known_owed_interest = interest.fract();
+        .apply_n_interests(days_since_last_update as usize, user_comptoken_wallet.amount);
 
     transfer(
         unpaid_interest_bank,
         user_comptoken_wallet_account,
         comptoken_mint_account,
         global_data_account,
-        interest.floor() as u64,
+        interest,
     )?;
 
     // get ubi if verified

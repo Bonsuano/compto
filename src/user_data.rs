@@ -7,7 +7,6 @@ use spl_token_2022::solana_program::{
 pub struct UserDataBase<T: ?Sized> {
     // capacity is stored in the fat pointer
     pub last_interest: i64,
-    pub known_owed_interest: f64, // TODO better name // stores the part of interest owed that is less than a full comptoken (i.e. the fractional part)
     pub is_verified_person: bool,
     // padding: [u8; 7],
     length: usize,
@@ -171,14 +170,14 @@ mod test {
     ///
     /// data must be large enough to hold a ProofStorage of length proofs.len()
     unsafe fn write_data(data: &mut [u8], length: usize, blockhash: &Hash, proofs: &[Hash]) {
-        let len_ptr = data.as_mut_ptr().offset(24) as *mut usize;
+        let len_ptr = data.as_mut_ptr().offset(16) as *mut usize;
         *len_ptr = length;
 
-        let blockhash_ptr = data.as_mut_ptr().offset(32) as *mut Hash;
+        let blockhash_ptr = data.as_mut_ptr().offset(24) as *mut Hash;
         *blockhash_ptr = *blockhash;
 
         for (i, proof) in proofs.iter().enumerate() {
-            let proof_ptr = data.as_mut_ptr().offset((64 + i * HASH_BYTES) as isize) as *mut Hash;
+            let proof_ptr = data.as_mut_ptr().offset((56 + i * HASH_BYTES) as isize) as *mut Hash;
             *proof_ptr = *proof;
         }
     }
