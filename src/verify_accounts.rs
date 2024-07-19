@@ -59,3 +59,7 @@ pub fn verify_user_data_account(
     verify_account_signer_or_writable(user_data_account, false, needs_writable);
     bump
 }
+
+pub fn verify_slothashes_account(slot_hashes_account: &AccountInfo) {
+    assert!(solana_program::sysvar::slot_hashes::check_id(slot_hashes_account.key));
+}

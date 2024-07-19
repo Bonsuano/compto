@@ -28,10 +28,7 @@ use comptoken_proof::ComptokenProof;
 use constants::*;
 use global_data::{DailyDistributionValues, GlobalData};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
-use verify_accounts::{
-    verify_comptoken_mint, verify_global_data_account, verify_interest_bank_account, verify_payer_account,
-    verify_ubi_bank_account, verify_user_comptoken_wallet_account, verify_user_data_account,
-};
+use verify_accounts::*;
 
 // declare and export the program's entrypoint
 entrypoint!(process_instruction);
@@ -296,11 +293,12 @@ pub fn daily_distribution_event(
     let unpaid_interest_bank = next_account_info(account_info_iter)?;
     let unpaid_ubi_bank = next_account_info(account_info_iter)?;
     let _solana_token_account = next_account_info(account_info_iter)?;
-    let slot_hash_account = next_account_info(account_info_iter)?;
+    let slot_hashes_account = next_account_info(account_info_iter)?;
 
     verify_global_data_account(global_data_account, program_id, true);
     verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
+    verify_slothashes_account(slot_hashes_account);
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     let comptoken_mint = Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
@@ -314,7 +312,7 @@ pub fn daily_distribution_event(
     let DailyDistributionValues {
         interest_distributed: interest_daily_distribution,
         ubi_distributed: ubi_daily_distribution,
-    } = global_data.daily_distribution_event(comptoken_mint, slot_hash_account);
+    } = global_data.daily_distribution_event(comptoken_mint, slot_hashes_account);
 
     // mint to banks
     mint(global_data_account.key, unpaid_interest_bank.key, interest_daily_distribution, &accounts[..3])?;
@@ -335,18 +333,18 @@ pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], _ins
 
     let account_info_iter = &mut accounts.iter();
     let global_data_account = next_account_info(account_info_iter)?;
-    let slot_hash_account = next_account_info(account_info_iter)?;
+    let slot_hashes_account = next_account_info(account_info_iter)?;
 
     verify_global_data_account(global_data_account, program_id, true);
+    verify_slothashes_account(slot_hashes_account);
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     let valid_blockhashes = &mut global_data.valid_blockhashes;
 
-    valid_blockhashes.update(slot_hash_account);
+    valid_blockhashes.update(slot_hashes_account);
 
-    let mut data = Vec::from(valid_blockhashes.valid_blockhash.to_bytes());
-    data.extend(b"\0"); // pad for alignment in base64 encoded string
-    data.extend(valid_blockhashes.announced_blockhash.to_bytes());
+    let mut data = Vec::from(global_data.valid_blockhashes.valid_blockhash.to_bytes());
+    data.extend(global_data.valid_blockhashes.announced_blockhash.to_bytes());
     set_return_data(&data);
     Ok(())
 }

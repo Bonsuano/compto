@@ -144,7 +144,7 @@ async function createGlobalDataAccount() {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-        // the slothashes sysvar
+        // program will pull a recent hash from slothashes sysvar if a new valid blockhash is needed.  
         { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ];
     let createGlobalDataAccountTransaction = new Transaction();
@@ -200,17 +200,17 @@ async function dailyDistributionEvent() {
     data.writeUInt8(Instruction.DAILY_DISTRIBUTION_EVENT, 0);
     console.log("data: ", data);
     let keys = [
-        // the comptoken Mint
+        // so the token program knows what kind of token
         { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: true },
-        // the Global Comptoken Data Account (also mint authority)
+        // stores information for/from the daily distribution
         { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
-        // the Comptoken Interest Bank Account
+        // comptoken token account used as bank for unpaid interest
         { pubkey: interest_bank_account_pubkey, isSigner: false, isWritable: true },
-        // the Comptoken UBI Bank Account
+        // comptoken token account used as bank for unpaid Universal Basic Income
         { pubkey: ubi_bank_account_pubkey, isSigner: false, isWritable: true },
         // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-        // the slothashes sysvar
+        // program will pull a recent hash from slothashes sysvar if a new valid blockhash is needed.  
         { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ];
     let dailyDistributionEventTransaction = new Transaction();
@@ -231,9 +231,9 @@ async function getValidBlockHashes() {
     data.writeUInt8(Instruction.GET_VALID_BLOCKHASHES, 0);
     console.log("data: ", data);
     let keys = [
-        // the Global Comptoken Data Account (also mint authority)
+        // stores valid blockhashes, but may be out of date
         { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
-        // the slothashes sysvar
+        // program will pull a recent hash from slothashes sysvar if a new valid blockhash is needed.  
         { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ];
     let getValidBlockhashesTransaction = new Transaction();
@@ -246,15 +246,14 @@ async function getValidBlockHashes() {
     );
     let getValidBlockhashesResult = await sendAndConfirmTransaction(connection, getValidBlockhashesTransaction, [testuser_keypair, testuser_keypair]);
     console.log("getValidBlockhashes transaction confirmed", getValidBlockhashesResult);
-    await sleep(1000); // need to give the cluster time to confirm the transaction
-    let result = await connection.getTransaction(getValidBlockhashesResult, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 });
+    let result = await waitForTransactionConfirmation(getValidBlockhashesResult);
     let resultData = result.meta.returnData.data[0];
-    let resultData64 = [resultData.slice(0, 43).concat("="), resultData.slice(44, 88)];
-    let resultDataBytes = resultData64.map(bs64 => base64.toByteArray(bs64));
-    let resultData58 = resultDataBytes.map(bytes => bs58.encode(bytes));
-    console.log("getValidBlockhashes resultData", resultData58);
-
-    return { current_block: resultData58[0], announced_block: resultData58[1], };
+    let resultBytes = base64.toByteArray(resultData);
+    let currentBlockB58 = bs58.encode(resultBytes.slice(0, 32));
+    let announcedBlockB58 = bs58.encode(resultBytes.slice(32, 64));
+    let validBlockHashes = { current_block: currentBlockB58, announced_block: announcedBlockB58, };
+    console.log("Valid Block Hashes: ", validBlockHashes);
+    return validBlockHashes;
 }
 
 async function getOwedComptokens() {
@@ -292,6 +291,14 @@ async function getOwedComptokens() {
     console.log("getOwedComptokens transaction confirmed", getValidBlockhashesResult);
 }
 
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+async function waitForTransactionConfirmation(signature) {
+    let attempts = 0;
+    let max_attempts = 10;
+    while (attempts++ < max_attempts) {
+        let result = await connection.getTransaction(signature, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 })
+        if (result !== null) {
+            return result;
+        }
+    }
+    throw new Error('Transaction not confirmed after ' + max_attempts + ' attempts');
 }
