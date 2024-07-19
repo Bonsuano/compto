@@ -260,13 +260,11 @@ function sleep(ms) {
 }
 
 async function waitForTransactionConfirmation(signature) {
-    return new Promise(async (resolve, reject) => {
-        let attempts = 0;
-        while (attempts++ < 10) {
-            let result = await connection.getTransaction(signature, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 })
-            if (result !== null) {
-                return result;
-            }
+    let attempts = 0;
+    while (attempts++ < 10) {
+        let result = await connection.getTransaction(signature, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 })
+        if (result !== null) {
+            return result;
         }
-    });
+    }
 }
