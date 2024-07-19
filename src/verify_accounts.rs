@@ -5,6 +5,14 @@ use crate::generated::{
     COMPTO_UBI_BANK_ACCOUNT_SEEDS,
 };
 
+struct VerifiedAccountInfo<'a>(AccountInfo<'a>);
+
+impl<'a> VerifiedAccountInfo<'a> {
+    fn new<'b>(account: &'b AccountInfo) -> &'b Self {
+        unsafe { &*(account as *const _ as *const Self) }
+    }
+}
+
 fn verify_account_signer_or_writable(account: &AccountInfo, needs_signer: bool, needs_writable: bool) {
     assert!(!needs_signer || account.is_signer);
     assert!(!needs_writable || account.is_writable);
