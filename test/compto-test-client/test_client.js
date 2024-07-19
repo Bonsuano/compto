@@ -261,10 +261,12 @@ function sleep(ms) {
 
 async function waitForTransactionConfirmation(signature) {
     let attempts = 0;
-    while (attempts++ < 10) {
+    let max_attempts = 10;
+    while (attempts++ < max_attempts) {
         let result = await connection.getTransaction(signature, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 })
         if (result !== null) {
             return result;
         }
     }
+    throw new Error('Transaction not confirmed after ' + max_attempts + ' attempts');
 }
