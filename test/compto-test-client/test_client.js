@@ -247,16 +247,12 @@ async function getValidBlockHashes() {
     console.log("getValidBlockhashes transaction confirmed", getValidBlockhashesResult);
     let result = await waitForTransactionConfirmation(getValidBlockhashesResult);
     let resultData = result.meta.returnData.data[0];
-    let resultData64 = [resultData.slice(0, 43).concat("="), resultData.slice(44, 88)];
-    let resultDataBytes = resultData64.map(bs64 => base64.toByteArray(bs64));
-    let resultData58 = resultDataBytes.map(bytes => bs58.encode(bytes));
-    console.log("getValidBlockhashes resultData", resultData58);
-
-    return { current_block: resultData58[0], announced_block: resultData58[1], };
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    let resultBytes = base64.toByteArray(resultData);
+    let currentBlockB58 = bs58.encode(resultBytes.slice(0, 32));
+    let announcedBlockB58 = bs58.encode(resultBytes.slice(32, 64));
+    let validBlockHashes = { current_block: currentBlockB58, announced_block: announcedBlockB58, };
+    console.log("Valid Block Hashes: ", validBlockHashes);
+    return validBlockHashes;
 }
 
 async function waitForTransactionConfirmation(signature) {

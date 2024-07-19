@@ -111,8 +111,6 @@ fn get_current_time() -> i64 {
 }
 
 fn get_most_recent_blockhash(slot_hash_account: &AccountInfo) -> Hash {
-    assert!(solana_program::sysvar::slot_hashes::check_id(slot_hash_account.key));
-
     // slothashes is too large to deserialize with the normal methods
     let data = slot_hash_account.try_borrow_data().unwrap();
     let len: usize = usize::from_ne_bytes(data[0..8].try_into().expect("correct size"));
