@@ -12,7 +12,6 @@ use spl_token_2022::{
         account_info::{next_account_info, AccountInfo},
         clock::Clock,
         entrypoint,
-        hash::Hash,
         hash::HASH_BYTES,
         msg,
         program::{invoke_signed, set_return_data},
@@ -26,7 +25,7 @@ use spl_token_2022::{
 
 use comptoken_proof::ComptokenProof;
 use constants::*;
-use global_data::{DailyDistributionValues, GlobalData};
+use global_data::{DailyDistributionValues, GlobalData, ValidBlockhashes};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::*;
 
@@ -130,12 +129,12 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
 
     verify_comptoken_mint(_comptoken_mint_account, true);
     verify_global_data_account(global_data_account, program_id, false);
-    let global_data: &mut GlobalData = global_data_account.try_into()?;
+    let global_data: &mut GlobalData = global_data_account.into();
     verify_user_comptoken_wallet_account(user_comptoken_wallet_account, false, true)?;
     let proof = verify_comptoken_proof_userdata(
         user_comptoken_wallet_account.key,
         instruction_data,
-        &global_data.valid_blockhashes.valid_blockhash,
+        &global_data.valid_blockhashes,
     );
     let _ = verify_user_data_account(user_data_account, user_comptoken_wallet_account, program_id, true);
 
@@ -480,12 +479,12 @@ fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
 }
 
 fn verify_comptoken_proof_userdata<'a>(
-    comptoken_wallet: &'a Pubkey, data: &[u8], valid_blockhash: &Hash,
+    comptoken_wallet: &'a Pubkey, data: &[u8], valid_blockhashes: &ValidBlockhashes,
 ) -> ComptokenProof<'a> {
     assert_eq!(data.len(), comptoken_proof::VERIFY_DATA_SIZE, "Invalid proof size");
     let proof = ComptokenProof::from_bytes(comptoken_wallet, data.try_into().expect("correct size"));
     msg!("block: {:?}", proof);
-    assert!(comptoken_proof::verify_proof(&proof, valid_blockhash), "invalid proof");
+    assert!(comptoken_proof::verify_proof(&proof, valid_blockhashes), "invalid proof");
     return proof;
 }
 

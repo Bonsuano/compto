@@ -9,7 +9,7 @@ pub struct UserDataBase<T: ?Sized> {
     pub last_interest: i64,
     pub known_owed_interest: f64, // TODO better name // stores the part of interest owed that is less than a full comptoken (i.e. the fractional part)
     pub is_verified_person: bool,
-    // padding: [u8; 3],
+    // padding: [u8; 7],
     length: usize,
     blockhash: Hash,
     proofs: T,
@@ -67,6 +67,7 @@ impl TryFrom<&mut [u8]> for &mut UserData {
         // This is how the rust docs say to do it... :/
         // https://doc.rust-lang.org/std/mem/fn.transmute.html
         let result = unsafe { &mut *(data_hashes as *mut _ as *mut UserData) };
+        println!("{}, {}, {}", data.len(), result.length, result.proofs.len());
         assert!(result.length <= result.proofs.len());
         Ok(result)
     }
@@ -170,14 +171,14 @@ mod test {
     ///
     /// data must be large enough to hold a ProofStorage of length proofs.len()
     unsafe fn write_data(data: &mut [u8], length: usize, blockhash: &Hash, proofs: &[Hash]) {
-        let len_ptr = data.as_mut_ptr() as *mut usize;
+        let len_ptr = data.as_mut_ptr().offset(24) as *mut usize;
         *len_ptr = length;
 
-        let blockhash_ptr = data.as_mut_ptr().offset(8) as *mut Hash;
+        let blockhash_ptr = data.as_mut_ptr().offset(32) as *mut Hash;
         *blockhash_ptr = *blockhash;
 
         for (i, proof) in proofs.iter().enumerate() {
-            let proof_ptr = data.as_mut_ptr().offset((40 + i * HASH_BYTES) as isize) as *mut Hash;
+            let proof_ptr = data.as_mut_ptr().offset((64 + i * HASH_BYTES) as isize) as *mut Hash;
             *proof_ptr = *proof;
         }
     }
