@@ -143,7 +143,7 @@ async function createGlobalDataAccount() {
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-        // the slothashes sysvar
+        // program will pull a recent hash from slothashes sysvar if a new valid blockhash is needed.  
         { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ];
     let createGlobalDataAccountTransaction = new Transaction();
@@ -199,17 +199,17 @@ async function dailyDistributionEvent() {
     data.writeUInt8(Instruction.DAILY_DISTRIBUTION_EVENT, 0);
     console.log("data: ", data);
     let keys = [
-        // the comptoken Mint
+        // so the token program knows what kind of token
         { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: true },
-        // the Global Comptoken Data Account (also mint authority)
+        // stores information for/from the daily distribution
         { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
-        // the Comptoken Interest Bank Account
+        // comptoken token account used as bank for unpaaid interest
         { pubkey: interest_bank_account_pubkey, isSigner: false, isWritable: true },
-        // the Comptoken UBI Bank Account
+        // comptoken token account used as bank for unpaaid Universal Basic Income
         { pubkey: ubi_bank_account_pubkey, isSigner: false, isWritable: true },
         // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
-        // the slothashes sysvar
+        // program will pull a recent hash from slothashes sysvar if a new valid blockhash is needed.  
         { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ];
     let dailyDistributionEventTransaction = new Transaction();
@@ -230,9 +230,9 @@ async function getValidBlockHashes() {
     data.writeUInt8(Instruction.GET_VALID_BLOCKHASHES, 0);
     console.log("data: ", data);
     let keys = [
-        // the Global Comptoken Data Account (also mint authority)
+        // stores valid blockhashes, but may be out of date
         { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
-        // the slothashes sysvar
+        // program will pull a recent hash from slothashes sysvar if a new valid blockhash is needed.  
         { pubkey: SYSVAR_SLOT_HASHES_PUBKEY, isSigner: false, isWritable: false },
     ];
     let getValidBlockhashesTransaction = new Transaction();
