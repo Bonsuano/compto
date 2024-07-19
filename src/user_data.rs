@@ -1,6 +1,6 @@
-use spl_token_2022::solana_program::{
-    account_info::AccountInfo, hash::Hash, hash::HASH_BYTES, program_error::ProgramError,
-};
+use spl_token_2022::solana_program::{hash::Hash, hash::HASH_BYTES, program_error::ProgramError};
+
+use crate::VerifiedAccountInfo;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -72,11 +72,9 @@ impl TryFrom<&mut [u8]> for &mut UserData {
     }
 }
 
-impl<'a> TryFrom<&AccountInfo<'a>> for &'a mut UserData {
-    type Error = ProgramError;
-
-    fn try_from(account: &AccountInfo) -> Result<Self, Self::Error> {
-        account.try_borrow_mut_data()?.as_mut().try_into()
+impl<'a> From<&VerifiedAccountInfo<'a>> for &'a mut UserData {
+    fn from(account: &VerifiedAccountInfo) -> Self {
+        account.0.try_borrow_mut_data().unwrap().as_mut().try_into().unwrap()
     }
 }
 
