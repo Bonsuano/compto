@@ -203,9 +203,9 @@ async function dailyDistributionEvent() {
         { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: true },
         // stores information for/from the daily distribution
         { pubkey: global_data_account_pubkey, isSigner: false, isWritable: true },
-        // comptoken token account used as bank for unpaaid interest
+        // comptoken token account used as bank for unpaid interest
         { pubkey: interest_bank_account_pubkey, isSigner: false, isWritable: true },
-        // comptoken token account used as bank for unpaaid Universal Basic Income
+        // comptoken token account used as bank for unpaid Universal Basic Income
         { pubkey: ubi_bank_account_pubkey, isSigner: false, isWritable: true },
         // the token program that will mint the tokens when instructed by the mint authority
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
