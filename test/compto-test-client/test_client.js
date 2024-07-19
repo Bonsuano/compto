@@ -247,6 +247,7 @@ async function getValidBlockHashes() {
     console.log("getValidBlockhashes transaction confirmed", getValidBlockhashesResult);
     let result = await waitForTransactionConfirmation(getValidBlockhashesResult);
     let resultData = result.meta.returnData.data[0];
+    console.log("Result Data: ", resultData);
     let resultBytes = base64.toByteArray(resultData);
     let currentBlockB58 = bs58.encode(resultBytes.slice(0, 32));
     let announcedBlockB58 = bs58.encode(resultBytes.slice(32, 64));

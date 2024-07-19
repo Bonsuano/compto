@@ -1,5 +1,5 @@
 use spl_token_2022::{
-    solana_program::{account_info::AccountInfo, hash::Hash, program_error::ProgramError, slot_hashes::SlotHash},
+    solana_program::{account_info::AccountInfo, hash::Hash, slot_hashes::SlotHash},
     state::Mint,
 };
 
@@ -29,46 +29,47 @@ impl GlobalData {
     }
 }
 
-impl<'a> TryFrom<&AccountInfo<'a>> for &'a mut GlobalData {
-    type Error = ProgramError;
-
-    fn try_from(account: &AccountInfo) -> Result<Self, Self::Error> {
-        // TODO safety checks
-        let mut data = account.try_borrow_mut_data()?;
+impl<'a> From<&AccountInfo<'a>> for &'a mut GlobalData {
+    fn from(account: &AccountInfo) -> Self {
+        let mut data = account.try_borrow_mut_data().unwrap();
         let result = unsafe { &mut *(data.as_mut() as *mut _ as *mut GlobalData) };
-        Ok(result)
+        result
     }
 }
 
 #[repr(C)]
 #[derive(Debug)]
 pub struct ValidBlockhashes {
-    pub valid_blockhash: Hash,
     pub announced_blockhash: Hash,
     pub announced_blockhash_time: i64,
+    pub valid_blockhash: Hash,
+    pub valid_blockhash_time: i64,
 }
 
 impl ValidBlockhashes {
     fn initialize(&mut self, slot_hash_account: &AccountInfo) {
-        self.valid_blockhash = get_most_recent_blockhash(slot_hash_account);
-        self.announced_blockhash = self.valid_blockhash;
-
-        let normalized_time = normalize_time(get_current_time());
-        self.announced_blockhash_time = normalized_time;
+        self.update(slot_hash_account);
     }
 
     pub fn update(&mut self, slot_hash_account: &AccountInfo) {
-        let current_time = get_current_time();
-        if current_time > self.announced_blockhash_time + SEC_PER_DAY {
-            let current_block = get_most_recent_blockhash(slot_hash_account);
-            self.announced_blockhash = current_block;
-            self.announced_blockhash_time = normalize_time(current_time);
+        if self.is_announced_blockhash_stale() {
+            self.announced_blockhash = get_most_recent_blockhash(slot_hash_account);
+            // This is necessary for the case where a day's update has been "skipped"
+            self.announced_blockhash_time =
+                normalize_time(get_current_time() + ANNOUNCEMENT_INTERVAL) - ANNOUNCEMENT_INTERVAL;
         }
-        if self.announced_blockhash != self.valid_blockhash
-            && current_time > self.announced_blockhash_time + ANNOUNCEMENT_INTERVAL
-        {
+        if self.is_valid_blockhash_stale() {
             self.valid_blockhash = self.announced_blockhash;
+            self.valid_blockhash_time = normalize_time(get_current_time());
         }
+    }
+
+    pub fn is_announced_blockhash_stale(&self) -> bool {
+        get_current_time() > self.announced_blockhash_time + SEC_PER_DAY
+    }
+
+    pub fn is_valid_blockhash_stale(&self) -> bool {
+        get_current_time() > self.valid_blockhash_time + SEC_PER_DAY
     }
 }
 
@@ -84,7 +85,7 @@ pub struct DailyDistributionData {
 
 impl DailyDistributionData {
     fn initialize(&mut self) {
-        self.last_daily_distribution_time = normalize_time(get_current_time()) + ANNOUNCEMENT_INTERVAL;
+        self.last_daily_distribution_time = normalize_time(get_current_time());
     }
 
     fn daily_distribution(&mut self, mint: Mint) -> DailyDistributionValues {

@@ -12,7 +12,6 @@ use spl_token_2022::{
     solana_program::{
         account_info::{next_account_info, AccountInfo},
         entrypoint,
-        hash::Hash,
         hash::HASH_BYTES,
         msg,
         program::{invoke_signed, set_return_data},
@@ -26,7 +25,7 @@ use spl_token_2022::{
 
 use comptoken_proof::ComptokenProof;
 use constants::SEC_PER_DAY;
-use global_data::{DailyDistributionValues, GlobalData};
+use global_data::{DailyDistributionValues, GlobalData, ValidBlockhashes};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::{
     verify_comptoken_user_data_account, verify_global_data_account, verify_interest_bank_account,
@@ -126,12 +125,12 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
     let _solana_token_account = next_account_info(account_info_iter)?;
 
     verify_global_data_account(global_data_account, program_id);
-    let global_data: &mut GlobalData = global_data_account.try_into()?;
+    let global_data: &mut GlobalData = global_data_account.into();
     verify_user_comptoken_wallet_account(user_comptoken_wallet_account)?;
     let proof = verify_comptoken_proof_userdata(
         user_comptoken_wallet_account.key,
         instruction_data,
-        &global_data.valid_blockhashes.valid_blockhash,
+        &global_data.valid_blockhashes,
     );
     let _ = verify_comptoken_user_data_account(user_data_account, user_comptoken_wallet_account, program_id);
 
@@ -383,12 +382,12 @@ fn store_hash(proof: ComptokenProof, data_account: &AccountInfo) {
 }
 
 fn verify_comptoken_proof_userdata<'a>(
-    comptoken_wallet: &'a Pubkey, data: &[u8], valid_blockhash: &Hash,
+    comptoken_wallet: &'a Pubkey, data: &[u8], valid_blockhashes: &ValidBlockhashes,
 ) -> ComptokenProof<'a> {
     assert_eq!(data.len(), comptoken_proof::VERIFY_DATA_SIZE, "Invalid proof size");
     let proof = ComptokenProof::from_bytes(comptoken_wallet, data.try_into().expect("correct size"));
     msg!("block: {:?}", proof);
-    assert!(comptoken_proof::verify_proof(&proof, valid_blockhash), "invalid proof");
+    assert!(comptoken_proof::verify_proof(&proof, valid_blockhashes), "invalid proof");
     return proof;
 }
 
