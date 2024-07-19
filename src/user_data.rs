@@ -4,6 +4,7 @@ use spl_token_2022::solana_program::{
 
 #[repr(C)]
 #[derive(Debug)]
+// CHANGES TO THE SIZE OF THIS STRUCT NEED TO BE REFLECTED IN test_client.js
 pub struct UserDataBase<T: ?Sized> {
     // capacity is stored in the fat pointer
     pub last_interest: i64,
@@ -14,7 +15,6 @@ pub struct UserDataBase<T: ?Sized> {
     proofs: T,
 }
 
-// MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN test_client.js
 pub const USER_DATA_MIN_SIZE: usize = std::mem::size_of::<UserDataBase<Hash>>();
 
 pub type UserData = UserDataBase<[Hash]>;
