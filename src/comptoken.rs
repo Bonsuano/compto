@@ -330,15 +330,15 @@ pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], _ins
     let slot_hash_account = next_account_info(account_info_iter)?;
 
     verify_global_data_account(global_data_account, program_id);
-    verify_slothashes_account(slot_hashes_account);
+    verify_slothashes_account(slot_hash_account);
 
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     let valid_blockhashes = &mut global_data.valid_blockhashes;
 
     valid_blockhashes.update(slot_hash_account);
 
-    let mut data = Vec::from(global_data.valid_blockhash.to_bytes());
-    data.extend(global_data.announced_blockhash.to_bytes());
+    let mut data = Vec::from(global_data.valid_blockhashes.valid_blockhash.to_bytes());
+    data.extend(global_data.valid_blockhashes.announced_blockhash.to_bytes());
     set_return_data(&data);
     Ok(())
 }
