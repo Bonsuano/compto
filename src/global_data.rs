@@ -135,6 +135,7 @@ impl DailyDistributionData {
 
 fn get_most_recent_blockhash(slot_hash_account: &AccountInfo) -> Hash {
     // slothashes is too large to deserialize with the normal methods
+    // based on https://github.com/solana-labs/solana/issues/33015
     let data = slot_hash_account.try_borrow_data().unwrap();
     let len: usize = usize::from_ne_bytes(data[0..8].try_into().expect("correct size"));
     let slot_hashes: &[SlotHash] =
