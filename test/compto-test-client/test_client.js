@@ -245,8 +245,7 @@ async function getValidBlockHashes() {
     );
     let getValidBlockhashesResult = await sendAndConfirmTransaction(connection, getValidBlockhashesTransaction, [testuser_keypair, testuser_keypair]);
     console.log("getValidBlockhashes transaction confirmed", getValidBlockhashesResult);
-    await sleep(1000); // need to give the cluster time to confirm the transaction
-    let result = await connection.getTransaction(getValidBlockhashesResult, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 });
+    let result = await waitForTransactionConfirmation(getValidBlockhashesResult);
     let resultData = result.meta.returnData.data[0];
     let resultData64 = [resultData.slice(0, 43).concat("="), resultData.slice(44, 88)];
     let resultDataBytes = resultData64.map(bs64 => base64.toByteArray(bs64));
@@ -258,4 +257,16 @@ async function getValidBlockHashes() {
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForTransactionConfirmation(signature) {
+    return new Promise(async (resolve, reject) => {
+        let attempts = 0;
+        while (attempts++ < 10) {
+            let result = await connection.getTransaction(signature, { commitment: 'confirmed', maxSupportedTransactionVersion: 0 })
+            if (result !== null) {
+                return result;
+            }
+        }
+    });
 }
