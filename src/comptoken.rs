@@ -177,7 +177,6 @@ pub fn initialize_comptoken_program(
     let _token_2022_program = next_account_info(account_info_iter)?;
     let slot_hashes_account = next_account_info(account_info_iter)?;
 
-    // necessary because we use the user provided pubkey to retrieve the data
     verify_payer_account(payer_account);
     verify_global_data_account(global_data_account, program_id, true);
     verify_interest_bank_account(unpaid_interest_bank, program_id, true);
@@ -329,7 +328,6 @@ pub fn daily_distribution_event(
     Ok(())
 }
 
-// under construction
 pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
     //  accounts order:
     //      Comptoken Global Data (also mint authority) (writable)
@@ -353,7 +351,6 @@ pub fn get_valid_blockhashes(program_id: &Pubkey, accounts: &[AccountInfo], _ins
     Ok(())
 }
 
-// under construction
 pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instruction_data: &[u8]) -> ProgramResult {
     //  accounts order:
     //      User's Data (writable)
@@ -387,7 +384,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
 
     // get days since last update
     let current_day = normalize_time(get_current_time());
-    let days_since_last_update = (user_data.last_interest - current_day) % SEC_PER_DAY;
+    let days_since_last_update = (user_data.last_interest - current_day) / SEC_PER_DAY;
 
     // get interest
     let interest = global_data
@@ -397,7 +394,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
         + user_data.known_owed_interest;
 
     user_data.known_owed_interest = interest.fract();
-    msg!("pre transfer");
+
     transfer(
         unpaid_interest_bank,
         user_comptoken_wallet_account,
@@ -405,16 +402,18 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
         global_data_account,
         interest.floor() as u64,
     )?;
-    msg!("post transfer 1");
+
     // get ubi if verified
-    transfer(
-        unpaid_ubi_bank,
-        user_comptoken_wallet_account,
-        comptoken_mint_account,
-        global_data_account,
-        0, // TODO figure out forrect amount
-    )?;
-    msg!("post transfer 2");
+    if user_data.is_verified_person {
+        transfer(
+            unpaid_ubi_bank,
+            user_comptoken_wallet_account,
+            comptoken_mint_account,
+            global_data_account,
+            0, // TODO figure out correct amount
+        )?;
+    }
+
     Ok(())
 }
 
