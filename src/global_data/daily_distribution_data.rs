@@ -107,3 +107,21 @@ impl IntoIterator for &DailyDistributionData {
         }
     }
 }
+
+// rust implements round_ties_even in version 1.77, which is more recent than
+// the version (1.75) solana uses. this is a reimplementation, however rust's
+// uses compiler intrinsics, so we can't just use their code
+pub trait RoundEven {
+    fn round_ties_even(self) -> Self;
+}
+
+impl RoundEven for f64 {
+    fn round_ties_even(self) -> Self {
+        let res = self.round();
+        if (self - res).abs() == 0.5 && res % 2. != 0. {
+            self.trunc()
+        } else {
+            res
+        }
+    }
+}

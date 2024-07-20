@@ -1,6 +1,4 @@
-use spl_token_2022::solana_program::{
-    account_info::AccountInfo, hash::Hash, hash::HASH_BYTES, program_error::ProgramError,
-};
+use spl_token_2022::solana_program::{hash::Hash, hash::HASH_BYTES, program_error::ProgramError};
 
 use crate::VerifiedAccountInfo;
 

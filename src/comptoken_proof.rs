@@ -5,7 +5,7 @@ use spl_token_2022::solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::global_data::ValidBlockhashes;
+use crate::global_data::valid_blockhashes::ValidBlockhashes;
 
 // ensure this remains consistent with comptoken_proof.js
 const MIN_NUM_ZEROED_BITS: u32 = 3; // TODO: replace with permanent value
