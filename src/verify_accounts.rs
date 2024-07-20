@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use spl_token_2022::solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
 use crate::generated::{
@@ -11,6 +13,14 @@ pub struct VerifiedAccountInfo<'a>(pub AccountInfo<'a>);
 impl<'a> VerifiedAccountInfo<'a> {
     pub fn new<'b>(account: &'b AccountInfo) -> &'b Self {
         unsafe { &*(account as *const _ as *const Self) }
+    }
+}
+
+impl<'a> Deref for VerifiedAccountInfo<'a> {
+    type Target = AccountInfo<'a>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 
@@ -75,7 +85,7 @@ pub fn verify_user_data_account<'a, 'b>(
     user_data_account: &'b AccountInfo<'a>, user_comptoken_wallet_account: &VerifiedAccountInfo, program_id: &Pubkey,
     needs_writable: bool,
 ) -> (&'b VerifiedAccountInfo<'a>, u8) {
-    let (pda, bump) = Pubkey::find_program_address(&[user_comptoken_wallet_account.0.key.as_ref()], program_id);
+    let (pda, bump) = Pubkey::find_program_address(&[user_comptoken_wallet_account.key.as_ref()], program_id);
     assert_eq!(*user_data_account.key, pda, "Invalid user data account");
     (verify_account_signer_or_writable(user_data_account, false, needs_writable), bump)
 }

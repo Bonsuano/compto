@@ -274,7 +274,7 @@ pub fn create_user_data_account(
         rent_lamports,
         space as u64,
         program_id,
-        &[&[&user_comptoken_wallet_account.0.key.as_ref(), &[bump]]],
+        &[&[&user_comptoken_wallet_account.key.as_ref(), &[bump]]],
     )?;
 
     // initialize data account
@@ -310,7 +310,7 @@ pub fn daily_distribution_event(
     let slot_hashes_account = verify_slothashes_account(slot_hashes_account);
 
     let global_data: &mut GlobalData = global_data_account.into();
-    let comptoken_mint = Mint::unpack(comptoken_mint_account.0.try_borrow_data().unwrap().as_ref()).unwrap();
+    let comptoken_mint = Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
 
     let current_time = get_current_time();
     assert!(
@@ -392,13 +392,13 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let unpaid_ubi_bank = verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
 
     let user_comptoken_wallet =
-        Account::unpack(user_comptoken_wallet_account.0.try_borrow_data().unwrap().as_ref()).unwrap();
+        Account::unpack(user_comptoken_wallet_account.try_borrow_data().unwrap().as_ref()).unwrap();
     let global_data: &mut GlobalData = global_data_account.into();
     let user_data: &mut UserData = user_data_account.into();
 
     // get days since last update
     let current_day = normalize_time(get_current_time());
-    let days_since_last_update = (user_data.last_interest - current_day) / SEC_PER_DAY;
+    let days_since_last_update = (user_data.last_interest_payout_date - current_day) / SEC_PER_DAY;
 
     msg!("total before interest: {}", user_comptoken_wallet.amount);
     // get interest
@@ -407,7 +407,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
         .apply_n_interests(days_since_last_update as usize, user_comptoken_wallet.amount)
         - user_comptoken_wallet.amount;
 
-    msg!("total after interest: {}", new_total);
+    msg!("Interest: {}", interest);
 
     transfer(
         unpaid_interest_bank,
@@ -442,9 +442,9 @@ fn mint(
     let instruction = mint_to(
         &spl_token_2022::id(),
         &COMPTOKEN_MINT_ADDRESS,
-        &destination_wallet.0.key,
-        &mint_authority.0.key,
-        &[&mint_authority.0.key],
+        &destination_wallet.key,
+        &mint_authority.key,
+        &[&mint_authority.key],
         amount,
     )?;
     invoke_signed(
@@ -460,10 +460,10 @@ fn transfer<'a>(
 ) -> ProgramResult {
     let instruction = spl_token_2022::instruction::transfer_checked(
         &spl_token_2022::ID,
-        source.0.key,
-        mint.0.key,
-        destination.0.key,
-        global_data.0.key,
+        source.key,
+        mint.key,
+        destination.key,
+        global_data.key,
         &[],
         amount,
         MINT_DECIMALS,
@@ -479,7 +479,7 @@ fn create_pda<'a>(
     payer: &VerifiedAccountInfo<'a>, new_account: &VerifiedAccountInfo<'a>, lamports: u64, space: u64, owner: &Pubkey,
     signers_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    let create_acct_instr = system_instruction::create_account(payer.0.key, new_account.0.key, lamports, space, owner);
+    let create_acct_instr = system_instruction::create_account(payer.key, new_account.key, lamports, space, owner);
     // The PDA that is being created must sign for its own creation.
     invoke_signed(&create_acct_instr, &[payer.0.clone(), new_account.0.clone()], signers_seeds)
 }
@@ -490,16 +490,15 @@ fn init_comptoken_account<'a>(
 ) -> ProgramResult {
     let init_comptoken_account_instr = spl_token_2022::instruction::initialize_account3(
         &spl_token_2022::ID,
-        &account.0.key,
+        &account.key,
         &COMPTOKEN_MINT_ADDRESS,
-        &owner.0.key,
+        &owner.key,
     )?;
     invoke_signed(&init_comptoken_account_instr, &[account.0.clone(), mint.0.clone()], signer_seeds)
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &VerifiedAccountInfo) {
-    let user_data: &mut UserData =
-        data_account.0.data.borrow_mut().as_mut().try_into().expect("error already panicked");
+    let user_data: &mut UserData = data_account.data.borrow_mut().as_mut().try_into().expect("error already panicked");
     user_data.insert(&proof.hash, &proof.recent_block_hash)
 }
 
@@ -507,7 +506,7 @@ fn verify_comptoken_proof_userdata<'a>(
     comptoken_wallet: &'a VerifiedAccountInfo, data: &[u8], valid_blockhashes: &ValidBlockhashes,
 ) -> ComptokenProof<'a> {
     assert_eq!(data.len(), comptoken_proof::VERIFY_DATA_SIZE, "Invalid proof size");
-    let proof = ComptokenProof::from_bytes(comptoken_wallet.0.key, data.try_into().expect("correct size"));
+    let proof = ComptokenProof::from_bytes(comptoken_wallet.key, data.try_into().expect("correct size"));
     msg!("block: {:?}", proof);
     assert!(comptoken_proof::verify_proof(&proof, valid_blockhashes), "invalid proof");
     return proof;
