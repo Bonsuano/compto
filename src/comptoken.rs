@@ -48,6 +48,17 @@ const UBI_BANK_SPACE: u64 = 256; // TODO get actual size
 
 // program entrypoint's implementation
 pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+    use spl_discriminator::discriminator::SplDiscriminate;
+    msg!("{:?}", spl_transfer_hook_interface::instruction::ExecuteInstruction::SPL_DISCRIMINATOR_SLICE); // [105, 37, 101, 197, 75, 251, 102, 26]
+    msg!(
+        "{:?}",
+        spl_transfer_hook_interface::instruction::InitializeExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE // [43, 34, 13, 49, 167, 88, 235, 235]
+    );
+    msg!(
+        "{:?}",
+        spl_transfer_hook_interface::instruction::UpdateExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE // [157, 105, 42, 146, 102, 85, 241, 174]
+    );
+
     msg!("instruction_data: {:?}", instruction_data);
     match instruction_data[0] {
         0 => {
@@ -77,6 +88,16 @@ pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instru
         6 => {
             msg!("Get Owed Comptokens");
             get_owed_comptokens(program_id, accounts, &instruction_data[1..])
+        43 => {
+            // initialize extra AccountMeta (transfer hook)
+            Ok(())
+        }
+        105 => {
+            // execute transfer hook
+            Ok(())
+        }
+        157 => {
+            // update extra AccountMeta (transfer hook)
         }
         _ => {
             msg!("Invalid Instruction");
@@ -491,3 +512,9 @@ fn get_current_time() -> i64 {
 fn normalize_time(time: i64) -> i64 {
     time - time % SEC_PER_DAY // midnight today, UTC+0
 }
+
+//pub fn transfer_hook(ctx: Context<TransferHook>, amount: u64) -> ProgramResult {
+//    msg!("Hello Transfer Hook!");
+
+//    Ok(())
+//}
