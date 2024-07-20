@@ -160,7 +160,7 @@ async function createGlobalDataAccount() {
 }
 
 async function createUserDataAccount() {
-    // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN proof_storage.rs
+    // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN user_data.rs
     const PROOF_STORAGE_MIN_SIZE = 88;
     const rentExemptAmount = await connection.getMinimumBalanceForRentExemption(PROOF_STORAGE_MIN_SIZE);
     console.log("Rent exempt amount: ", rentExemptAmount);

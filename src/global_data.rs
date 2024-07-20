@@ -1,5 +1,5 @@
 use spl_token_2022::{
-    solana_program::{hash::Hash, slot_hashes::SlotHash},
+    solana_program::{hash::Hash, msg, slot_hashes::SlotHash},
     state::Mint,
 };
 
@@ -107,7 +107,7 @@ impl DailyDistributionData {
             mint.supply + distribution_values.interest_distributed + distribution_values.ubi_distributed;
 
         let interest = distribution_values.interest_distributed as f64 / self.yesterday_supply as f64;
-
+        msg!("Interest: {}", interest);
         self.insert(interest);
 
         distribution_values
@@ -141,12 +141,12 @@ impl DailyDistributionData {
     pub fn apply_n_interests(&self, n: usize, initial_money: u64) -> u64 {
         self.into_iter()
             .take(n)
-            .fold(initial_money as f64, |money, interest| (money * interest).round_ties_even()) as u64
+            .fold(initial_money as f64, |money, interest| (money * (1. + interest)).round_ties_even()) as u64
     }
 
     fn insert(&mut self, interest: f64) {
         self.historic_interests[self.oldest_interest] = interest;
-        self.oldest_interest = self.oldest_interest + 1 % Self::HISTORY_SIZE;
+        self.oldest_interest = (self.oldest_interest + 1) % Self::HISTORY_SIZE;
     }
 }
 
@@ -196,8 +196,6 @@ fn get_most_recent_blockhash(slot_hash_account: &VerifiedAccountInfo) -> Hash {
 // the version (1.75) solana uses. this is a reimplementation, however rust's
 // uses compiler intrinsics, so we can't just use their code
 pub trait RoundEven {
-    // not sure why it says this code is unused
-    #[allow(dead_code)]
     fn round_ties_even(self) -> Self;
 }
 

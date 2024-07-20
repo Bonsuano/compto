@@ -133,7 +133,7 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
     let user_data_account = next_account_info(account_info_iter)?;
     let _solana_token_account = next_account_info(account_info_iter)?;
 
-    let _comptoken_mint_account = verify_comptoken_mint(_comptoken_mint_account, true);
+    let comptoken_mint_account = verify_comptoken_mint(_comptoken_mint_account, true);
     let global_data_account = verify_global_data_account(global_data_account, program_id, false);
     let global_data: &mut GlobalData = global_data_account.into();
     let user_comptoken_wallet_account =
@@ -155,7 +155,7 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
         global_data_account,
         &user_comptoken_wallet_account,
         amount,
-        &[&_comptoken_mint_account, &user_comptoken_wallet_account, &global_data_account],
+        &[&comptoken_mint_account, &user_comptoken_wallet_account, &global_data_account],
     )?;
 
     Ok(())
@@ -400,10 +400,14 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let current_day = normalize_time(get_current_time());
     let days_since_last_update = (user_data.last_interest - current_day) / SEC_PER_DAY;
 
+    msg!("total before interest: {}", user_comptoken_wallet.amount);
     // get interest
     let interest = global_data
         .daily_distribution_data
-        .apply_n_interests(days_since_last_update as usize, user_comptoken_wallet.amount);
+        .apply_n_interests(days_since_last_update as usize, user_comptoken_wallet.amount)
+        - user_comptoken_wallet.amount;
+
+    msg!("total after interest: {}", new_total);
 
     transfer(
         unpaid_interest_bank,
@@ -414,7 +418,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     )?;
 
     // get ubi if verified
-    if user_data.is_verified_person {
+    if user_data.is_verified_human {
         transfer(
             unpaid_ubi_bank,
             user_comptoken_wallet_account,

@@ -23,6 +23,7 @@ impl<'a> Into<AccountInfo<'a>> for VerifiedAccountInfo<'a> {
 fn verify_account_signer_or_writable<'a, 'b>(
     account: &'b AccountInfo<'a>, needs_signer: bool, needs_writable: bool,
 ) -> &'b VerifiedAccountInfo<'a> {
+    // only panic if signing/writing is needed and the account does not meet the requirements
     assert!(!needs_signer || account.is_signer);
     assert!(!needs_writable || account.is_writable);
     VerifiedAccountInfo::new(account)
@@ -74,8 +75,6 @@ pub fn verify_user_data_account<'a, 'b>(
     user_data_account: &'b AccountInfo<'a>, user_comptoken_wallet_account: &VerifiedAccountInfo, program_id: &Pubkey,
     needs_writable: bool,
 ) -> (&'b VerifiedAccountInfo<'a>, u8) {
-    // if we ever need a user data account to sign something,
-    // then we should return the bumpseed in this function
     let (pda, bump) = Pubkey::find_program_address(&[user_comptoken_wallet_account.0.key.as_ref()], program_id);
     assert_eq!(*user_data_account.key, pda, "Invalid user data account");
     (verify_account_signer_or_writable(user_data_account, false, needs_writable), bump)
