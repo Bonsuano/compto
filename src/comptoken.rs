@@ -48,17 +48,6 @@ const UBI_BANK_SPACE: u64 = 256; // TODO get actual size
 
 // program entrypoint's implementation
 pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
-    use spl_discriminator::discriminator::SplDiscriminate;
-    msg!("{:?}", spl_transfer_hook_interface::instruction::ExecuteInstruction::SPL_DISCRIMINATOR_SLICE); // [105, 37, 101, 197, 75, 251, 102, 26]
-    msg!(
-        "{:?}",
-        spl_transfer_hook_interface::instruction::InitializeExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE // [43, 34, 13, 49, 167, 88, 235, 235]
-    );
-    msg!(
-        "{:?}",
-        spl_transfer_hook_interface::instruction::UpdateExtraAccountMetaListInstruction::SPL_DISCRIMINATOR_SLICE // [157, 105, 42, 146, 102, 85, 241, 174]
-    );
-
     msg!("instruction_data: {:?}", instruction_data);
     match instruction_data[0] {
         0 => {
