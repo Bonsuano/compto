@@ -6,6 +6,7 @@ use crate::generated::{
 };
 
 fn verify_account_signer_or_writable(account: &AccountInfo, needs_signer: bool, needs_writable: bool) {
+    // only panic if signing/writing is needed and the account does not meet the requirements
     assert!(!needs_signer || account.is_signer);
     assert!(!needs_writable || account.is_writable);
 }

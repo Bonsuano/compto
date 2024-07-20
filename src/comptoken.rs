@@ -144,7 +144,7 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
     store_hash(proof, user_data_account);
     msg!("stored the proof");
     mint(global_data_account.key, &user_comptoken_wallet_account.key, amount, &accounts[..3])?;
-
+    msg!("minted {} comptokens", amount);
     Ok(())
 }
 
@@ -374,30 +374,30 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
 
-    let user_comptoken_wallet =
-        Account::unpack(user_comptoken_wallet_account.try_borrow_data().unwrap().as_ref()).unwrap();
+    let user_comptoken_wallet = Account::unpack(&user_comptoken_wallet_account.data.borrow())?;
     let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
     let user_data: &mut UserData = user_data_account.try_into().unwrap();
-
     // get days since last update
     let current_day = normalize_time(get_current_time());
-    let days_since_last_update = (user_data.last_interest - current_day) / SEC_PER_DAY;
+    let days_since_last_update = (user_data.last_interest_payout_date - current_day) / SEC_PER_DAY;
 
+    msg!("total before interest: {}", user_comptoken_wallet.amount);
     // get interest
-    let interest = global_data
+    let new_total = global_data
         .daily_distribution_data
         .apply_n_interests(days_since_last_update as usize, user_comptoken_wallet.amount);
 
+    msg!("total after interest: {}", new_total);
     transfer(
         unpaid_interest_bank,
         user_comptoken_wallet_account,
         comptoken_mint_account,
         global_data_account,
-        interest,
+        new_total - user_comptoken_wallet.amount,
     )?;
 
     // get ubi if verified
-    if user_data.is_verified_person {
+    if user_data.is_verified_human {
         transfer(
             unpaid_ubi_bank,
             user_comptoken_wallet_account,

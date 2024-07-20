@@ -7,11 +7,11 @@ use spl_token_2022::solana_program::{
 // CHANGES TO THE SIZE OF THIS STRUCT NEED TO BE REFLECTED IN test_client.js
 pub struct UserDataBase<T: ?Sized> {
     // capacity is stored in the fat pointer
-    pub last_interest: i64,
-    pub is_verified_person: bool,
+    pub last_interest_payout_date: i64,
+    pub is_verified_human: bool,
     // padding: [u8; 7],
     length: usize,
-    blockhash: Hash,
+    recent_blockhash: Hash,
     proofs: T,
 }
 
@@ -22,8 +22,8 @@ pub type UserData = UserDataBase<[Hash]>;
 impl UserData {
     pub fn insert(&mut self, new_proof: &Hash, new_blockhash: &Hash) {
         // new_proof and new_blockhash have already been verified
-        if self.blockhash != *new_blockhash {
-            self.blockhash = *new_blockhash;
+        if self.recent_blockhash != *new_blockhash {
+            self.recent_blockhash = *new_blockhash;
             self.length = 0;
         }
         assert!(!self.contains(new_proof), "proof should be new");
@@ -41,8 +41,8 @@ impl UserData {
     }
 
     pub fn initialize(&mut self) {
-        self.last_interest = crate::normalize_time(crate::get_current_time());
-        self.is_verified_person = false; // *probably* safe to assume 0 is false, but the best source is a spec for rustc
+        self.last_interest_payout_date = crate::normalize_time(crate::get_current_time());
+        self.is_verified_human = false;
     }
 }
 
@@ -66,7 +66,6 @@ impl TryFrom<&mut [u8]> for &mut UserData {
         // This is how the rust docs say to do it... :/
         // https://doc.rust-lang.org/std/mem/fn.transmute.html
         let result = unsafe { &mut *(data_hashes as *mut _ as *mut UserData) };
-        println!("{}, {}, {}", data.len(), result.length, result.proofs.len());
         assert!(result.length <= result.proofs.len());
         Ok(result)
     }
@@ -203,7 +202,10 @@ mod test {
         let output = output.expect("panicked already if not Some");
 
         assert_eq!(user_data.length, output.length, "hash_storage is the correct length");
-        assert_eq!(user_data.blockhash, output.stored_blockhash, "hash_storage has the correct blockhash stored");
+        assert_eq!(
+            user_data.recent_blockhash, output.stored_blockhash,
+            "hash_storage has the correct blockhash stored"
+        );
         user_data
             .into_iter()
             .zip(output.proofs)
