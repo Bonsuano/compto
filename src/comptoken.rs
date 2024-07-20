@@ -114,7 +114,7 @@ pub fn test_mint(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data
         global_data_account,
         user_comptoken_wallet_account,
         amount,
-        &[&comptoken_mint_account, &user_comptoken_wallet_account, &global_data_account],
+        &[comptoken_mint_account, user_comptoken_wallet_account, global_data_account],
     )
 }
 
@@ -153,9 +153,9 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
     msg!("stored the proof");
     mint(
         global_data_account,
-        &user_comptoken_wallet_account,
+        user_comptoken_wallet_account,
         amount,
-        &[&comptoken_mint_account, &user_comptoken_wallet_account, &global_data_account],
+        &[comptoken_mint_account, user_comptoken_wallet_account, global_data_account],
     )?;
 
     Ok(())
@@ -233,7 +233,7 @@ pub fn initialize_comptoken_program(
     init_comptoken_account(unpaid_ubi_bank, global_data_account, &[], comptoken_mint)?;
     msg!("initialized ubi bank account");
 
-    let global_data: &mut GlobalData = global_data_account.try_into().unwrap();
+    let global_data: &mut GlobalData = global_data_account.into();
     global_data.initialize(slot_hashes_account);
 
     Ok(())
@@ -274,7 +274,7 @@ pub fn create_user_data_account(
         rent_lamports,
         space as u64,
         program_id,
-        &[&[&user_comptoken_wallet_account.0.key.as_ref(), &[bump]]],
+        &[&[user_comptoken_wallet_account.0.key.as_ref(), &[bump]]],
     )?;
 
     // initialize data account
@@ -328,13 +328,13 @@ pub fn daily_distribution_event(
         global_data_account,
         unpaid_interest_bank,
         interest_daily_distribution,
-        &[&comptoken_mint_account, &global_data_account, &unpaid_interest_bank],
+        &[comptoken_mint_account, global_data_account, unpaid_interest_bank],
     )?;
     mint(
         global_data_account,
         unpaid_ubi_bank,
         ubi_daily_distribution,
-        &[&comptoken_mint_account, &global_data_account, &unpaid_ubi_bank],
+        &[comptoken_mint_account, global_data_account, unpaid_ubi_bank],
     )?;
 
     Ok(())
@@ -442,14 +442,14 @@ fn mint(
     let instruction = mint_to(
         &spl_token_2022::id(),
         &COMPTOKEN_MINT_ADDRESS,
-        &destination_wallet.0.key,
-        &mint_authority.0.key,
-        &[&mint_authority.0.key],
+        destination_wallet.0.key,
+        mint_authority.0.key,
+        &[mint_authority.0.key],
         amount,
     )?;
     invoke_signed(
         &instruction,
-        &(accounts.into_iter().map(|acct| acct.0.clone()).collect::<Vec<_>>()),
+        &(accounts.iter().map(|acct| acct.0.clone()).collect::<Vec<_>>()),
         &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
     )
 }
@@ -490,9 +490,9 @@ fn init_comptoken_account<'a>(
 ) -> ProgramResult {
     let init_comptoken_account_instr = spl_token_2022::instruction::initialize_account3(
         &spl_token_2022::ID,
-        &account.0.key,
+        account.0.key,
         &COMPTOKEN_MINT_ADDRESS,
-        &owner.0.key,
+        owner.0.key,
     )?;
     invoke_signed(&init_comptoken_account_instr, &[account.0.clone(), mint.0.clone()], signer_seeds)
 }
@@ -510,7 +510,7 @@ fn verify_comptoken_proof_userdata<'a>(
     let proof = ComptokenProof::from_bytes(comptoken_wallet.0.key, data.try_into().expect("correct size"));
     msg!("block: {:?}", proof);
     assert!(comptoken_proof::verify_proof(&proof, valid_blockhashes), "invalid proof");
-    return proof;
+    proof
 }
 
 fn get_current_time() -> i64 {

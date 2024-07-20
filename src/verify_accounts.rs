@@ -14,9 +14,9 @@ impl<'a> VerifiedAccountInfo<'a> {
     }
 }
 
-impl<'a> Into<AccountInfo<'a>> for VerifiedAccountInfo<'a> {
-    fn into(self) -> AccountInfo<'a> {
-        self.0
+impl<'a> From<VerifiedAccountInfo<'a>> for AccountInfo<'a> {
+    fn from(val: VerifiedAccountInfo<'a>) -> Self {
+        val.0
     }
 }
 
