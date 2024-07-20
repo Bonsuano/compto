@@ -6,6 +6,7 @@ mod verify_accounts;
 
 extern crate bs58;
 
+use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 use spl_token_2022::{
     instruction::mint_to,
     solana_program::{
@@ -22,6 +23,7 @@ use spl_token_2022::{
     },
     state::{Account, Mint},
 };
+use spl_transfer_hook_interface::instruction::{ExecuteInstruction, TransferHookInstruction};
 
 use comptoken_proof::ComptokenProof;
 use constants::*;
@@ -77,20 +79,21 @@ pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instru
         6 => {
             msg!("Get Owed Comptokens");
             get_owed_comptokens(program_id, accounts, &instruction_data[1..])
+        }
         43 => {
-            // initialize extra AccountMeta (transfer hook)
-            Ok(())
+            // initialize extra AccountMeta (transfer hook)  MUST BE 43
+            panic!("Invalid Instruction: {}", 43);
         }
         105 => {
-            // execute transfer hook
-            Ok(())
+            // execute transfer hook  MUST BE 105
+            transfer_hook(program_id, accounts, instruction_data)
         }
         157 => {
-            // update extra AccountMeta (transfer hook)
+            // update extra AccountMeta (transfer hook)  MUST BE 157
+            panic!("Invalid Instruction: {}", 157);
         }
-        _ => {
-            msg!("Invalid Instruction");
-            Err(ProgramError::InvalidInstructionData)
+        n => {
+            panic!("Invalid Instruction: {}", n);
         }
     }
 }
@@ -424,6 +427,37 @@ pub fn realloc_user_data() {
     // TODO implement
 }
 
+pub fn transfer_hook(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+    msg!("Hello Transfer Hook!");
+    let transfer_instruction = TransferHookInstruction::unpack(instruction_data)?;
+    if let TransferHookInstruction::Execute { .. } = transfer_instruction {
+    } else {
+        panic!("Invalid Instruction: {}", 105);
+    }
+    let account_info_iter = &mut accounts.iter();
+    let source_account = next_account_info(account_info_iter)?;
+    let _mint_account = next_account_info(account_info_iter)?;
+    let _destination_account = next_account_info(account_info_iter)?;
+    let _source_account_authority = next_account_info(account_info_iter)?; // what is this?
+    let _validation_account = next_account_info(account_info_iter)?;
+
+    // if the trnasfer comes from one of our banks, do nothing
+    if *source_account.key == Pubkey::create_program_address(COMPTO_INTEREST_BANK_ACCOUNT_SEEDS, program_id).unwrap()
+        || *source_account.key == Pubkey::create_program_address(COMPTO_UBI_BANK_ACCOUNT_SEEDS, program_id).unwrap()
+    {
+        return Ok(());
+    }
+
+    ExtraAccountMetaList::check_account_infos::<ExecuteInstruction>(
+        accounts,
+        &transfer_instruction.pack(),
+        program_id,
+        &instruction_data,
+    )?;
+
+    Ok(())
+}
+
 fn mint(mint_authority: &Pubkey, destination_wallet: &Pubkey, amount: u64, accounts: &[AccountInfo]) -> ProgramResult {
     let instruction = mint_to(
         &spl_token_2022::id(),
@@ -501,9 +535,3 @@ fn get_current_time() -> i64 {
 fn normalize_time(time: i64) -> i64 {
     time - time % SEC_PER_DAY // midnight today, UTC+0
 }
-
-//pub fn transfer_hook(ctx: Context<TransferHook>, amount: u64) -> ProgramResult {
-//    msg!("Hello Transfer Hook!");
-
-//    Ok(())
-//}
