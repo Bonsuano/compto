@@ -398,7 +398,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
 
     // get days since last update
     let current_day = normalize_time(get_current_time());
-    let days_since_last_update = (user_data.last_interest - current_day) / SEC_PER_DAY;
+    let days_since_last_update = (user_data.last_interest_payout_date - current_day) / SEC_PER_DAY;
 
     msg!("total before interest: {}", user_comptoken_wallet.amount);
     // get interest
@@ -407,7 +407,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
         .apply_n_interests(days_since_last_update as usize, user_comptoken_wallet.amount)
         - user_comptoken_wallet.amount;
 
-    msg!("total after interest: {}", new_total);
+    msg!("total after interest: {}", interest);
 
     transfer(
         unpaid_interest_bank,
