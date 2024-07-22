@@ -1,17 +1,17 @@
-use spl_token_2022::solana_program::{
-    account_info::AccountInfo, hash::Hash, hash::HASH_BYTES, program_error::ProgramError,
-};
+use spl_token_2022::solana_program::{hash::Hash, hash::HASH_BYTES, program_error::ProgramError};
+
+use crate::VerifiedAccountInfo;
 
 #[repr(C)]
 #[derive(Debug)]
 // CHANGES TO THE SIZE OF THIS STRUCT NEED TO BE REFLECTED IN test_client.js
 pub struct UserDataBase<T: ?Sized> {
     // capacity is stored in the fat pointer
-    pub last_interest: i64,
-    pub is_verified_person: bool,
+    pub last_interest_payout_date: i64,
+    pub is_verified_human: bool,
     // padding: [u8; 7],
     length: usize,
-    blockhash: Hash,
+    recent_blockhash: Hash,
     proofs: T,
 }
 
@@ -22,8 +22,8 @@ pub type UserData = UserDataBase<[Hash]>;
 impl UserData {
     pub fn insert(&mut self, new_proof: &Hash, new_blockhash: &Hash) {
         // new_proof and new_blockhash have already been verified
-        if self.blockhash != *new_blockhash {
-            self.blockhash = *new_blockhash;
+        if self.recent_blockhash != *new_blockhash {
+            self.recent_blockhash = *new_blockhash;
             self.length = 0;
         }
         assert!(!self.contains(new_proof), "proof should be new");
@@ -41,8 +41,8 @@ impl UserData {
     }
 
     pub fn initialize(&mut self) {
-        self.last_interest = crate::normalize_time(crate::get_current_time());
-        self.is_verified_person = false; // *probably* safe to assume 0 is false, but the best source is a spec for rustc
+        self.last_interest_payout_date = crate::normalize_time(crate::get_current_time());
+        self.is_verified_human = false;
     }
 }
 
@@ -72,11 +72,9 @@ impl TryFrom<&mut [u8]> for &mut UserData {
     }
 }
 
-impl<'a> TryFrom<&AccountInfo<'a>> for &'a mut UserData {
-    type Error = ProgramError;
-
-    fn try_from(account: &AccountInfo) -> Result<Self, Self::Error> {
-        account.try_borrow_mut_data()?.as_mut().try_into()
+impl<'a> From<&VerifiedAccountInfo<'a>> for &'a mut UserData {
+    fn from(account: &VerifiedAccountInfo) -> Self {
+        account.0.data.borrow_mut().as_mut().try_into().unwrap()
     }
 }
 
@@ -109,7 +107,7 @@ impl<'a> IntoIterator for &'a UserData {
     type IntoIter = HashIter<'a>;
 
     fn into_iter(self) -> Self::IntoIter {
-        HashIter { iter: self.proofs.into_iter().take(self.length) }
+        HashIter { iter: self.proofs.iter().take(self.length) }
     }
 }
 
@@ -177,7 +175,7 @@ mod test {
         *blockhash_ptr = *blockhash;
 
         for (i, proof) in proofs.iter().enumerate() {
-            let proof_ptr = data.as_mut_ptr().offset((56 + i * HASH_BYTES) as isize) as *mut Hash;
+            let proof_ptr = data.as_mut_ptr().add(56 + i * HASH_BYTES) as *mut Hash;
             *proof_ptr = *proof;
         }
     }
@@ -199,11 +197,14 @@ mod test {
             user_data.insert(&pow.proof, &pow.blockhash);
         }
 
-        let user_data: &UserData = &user_data;
+        let user_data: &UserData = user_data;
         let output = output.expect("panicked already if not Some");
 
         assert_eq!(user_data.length, output.length, "hash_storage is the correct length");
-        assert_eq!(user_data.blockhash, output.stored_blockhash, "hash_storage has the correct blockhash stored");
+        assert_eq!(
+            user_data.recent_blockhash, output.stored_blockhash,
+            "hash_storage has the correct blockhash stored"
+        );
         user_data
             .into_iter()
             .zip(output.proofs)
@@ -277,7 +278,7 @@ mod test {
             input: TestValuesInput {
                 // size is 1 proof bigger than it needs to be so that we can test the duplicate
                 // failure case specifically and not worry about getting an out-of-size error.
-                data: &mut [0_u8; USER_DATA_MIN_SIZE + 1 * HASH_BYTES],
+                data: &mut [0_u8; (USER_DATA_MIN_SIZE + 1) * HASH_BYTES],
                 length: 1,
                 stored_blockhash: POSSIBLE_BLOCKHASHES[0],
                 proofs: &[POSSIBLE_PROOFS[0]],
