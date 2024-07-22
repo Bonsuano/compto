@@ -2,10 +2,7 @@ use std::ops::Deref;
 
 use spl_token_2022::solana_program::{account_info::AccountInfo, pubkey::Pubkey};
 
-use crate::generated::{
-    COMPTOKEN_MINT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS, COMPTO_INTEREST_BANK_ACCOUNT_SEEDS,
-    COMPTO_UBI_BANK_ACCOUNT_SEEDS,
-};
+use crate::generated::*;
 
 #[derive(Debug, Clone)]
 pub struct VerifiedAccountInfo<'a>(pub AccountInfo<'a>);
@@ -30,7 +27,7 @@ impl<'a> From<VerifiedAccountInfo<'a>> for AccountInfo<'a> {
     }
 }
 
-fn verify_account_signer_or_writable<'a>(
+pub fn verify_account_signer_or_writable<'a>(
     account: &AccountInfo<'a>, needs_signer: bool, needs_writable: bool,
 ) -> VerifiedAccountInfo<'a> {
     // only panic if signing/writing is needed and the account does not meet the requirements
@@ -68,6 +65,14 @@ pub fn verify_ubi_bank_account<'a>(
     account: &AccountInfo<'a>, program_id: &Pubkey, needs_writable: bool,
 ) -> VerifiedAccountInfo<'a> {
     let result = Pubkey::create_program_address(COMPTO_UBI_BANK_ACCOUNT_SEEDS, program_id).unwrap();
+    assert_eq!(*account.key, result);
+    verify_account_signer_or_writable(account, false, needs_writable)
+}
+
+pub fn verify_validation_account<'a>(
+    account: &AccountInfo<'a>, program_id: &Pubkey, needs_writable: bool,
+) -> VerifiedAccountInfo<'a> {
+    let result = Pubkey::create_program_address(COMPTO_VALIDATION_ACCOUNT_SEEDS, program_id).unwrap();
     assert_eq!(*account.key, result);
     verify_account_signer_or_writable(account, false, needs_writable)
 }

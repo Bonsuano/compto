@@ -19,6 +19,7 @@ use spl_token_2022::{
         program::{invoke_signed, set_return_data},
         program_pack::Pack,
         pubkey::Pubkey,
+        rent::Rent,
         system_instruction,
         sysvar::{slot_history::ProgramError, Sysvar},
     },
@@ -43,7 +44,7 @@ const GLOBAL_DATA_ACCOUNT_SPACE: u64 = 4096;
 mod generated;
 use generated::{
     COMPTOKEN_MINT_ADDRESS, COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS, COMPTO_INTEREST_BANK_ACCOUNT_SEEDS,
-    COMPTO_UBI_BANK_ACCOUNT_SEEDS,
+    COMPTO_UBI_BANK_ACCOUNT_SEEDS, COMPTO_VALIDATION_ACCOUNT_SEEDS,
 };
 
 const INTEREST_BANK_SPACE: u64 = 256; // TODO get actual size
@@ -83,7 +84,7 @@ pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instru
         }
         43 => {
             // initialize extra AccountMeta (transfer hook)  MUST BE 43
-            panic!("Invalid Instruction: {}", 43);
+            initialize_transfer_hook_account_metas(program_id, accounts, instruction_data)
         }
         105 => {
             // execute transfer hook  MUST BE 105
@@ -470,12 +471,40 @@ pub fn transfer_hook(program_id: &Pubkey, accounts: &[AccountInfo], instruction_
         return Ok(());
     }
 
-    ExtraAccountMetaList::check_account_infos::<ExecuteInstruction>(
-        accounts,
-        &transfer_instruction.pack(),
-        program_id,
-        instruction_data,
-    )?;
+    Ok(())
+}
+
+fn initialize_transfer_hook_account_metas(
+    program_id: &Pubkey, accounts: &[AccountInfo], _instruction_data: &[u8],
+) -> ProgramResult {
+    //  accounts order:
+    //      Validation account (writable)
+    //      Comptoken Mint
+    //      Comptoken Global Data (also mint authority) (signer?)
+    //      Solana Program
+
+    let account_info_iter = &mut accounts.iter();
+    let validation_account = next_account_info(account_info_iter)?;
+    let comptoken_mint_account = next_account_info(account_info_iter)?;
+    let global_data_account = next_account_info(account_info_iter)?;
+    let _solana_program = next_account_info(account_info_iter)?;
+    let payer_account = next_account_info(account_info_iter)?;
+
+    let validation_account = verify_validation_account(validation_account, program_id, true);
+    let _comptoken_mint_account = verify_comptoken_mint(comptoken_mint_account, false);
+    let _global_data_account = verify_global_data_account(global_data_account, program_id, false);
+    let payer_account = verify_payer_account(payer_account);
+
+    let account_metas = vec![];
+
+    let account_size = ExtraAccountMetaList::size_of(account_metas.len())? as u64;
+
+    let lamports = Rent::get()?.minimum_balance(account_size as usize);
+
+    let signer_seeds: &[&[&[u8]]] = &[COMPTO_VALIDATION_ACCOUNT_SEEDS, COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS];
+
+    create_pda(&payer_account, &validation_account, lamports, account_size, program_id, signer_seeds)?;
+    ExtraAccountMetaList::init::<ExecuteInstruction>(&mut validation_account.try_borrow_mut_data()?, &account_metas)?;
 
     Ok(())
 }

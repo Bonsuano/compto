@@ -20,6 +20,7 @@ COMPTO_GENERATED_RS_FILE = GENERATED_PATH / "comptoken_generated.rs"
 COMPTO_GLOBAL_DATA_ACCOUNT_JSON = CACHE_PATH / "compto_global_data_account.json"
 COMPTO_INTEREST_BANK_ACCOUNT_JSON = CACHE_PATH / "compto_interest_bank_account.json"
 COMPTO_UBI_BANK_ACCOUNT_JSON = CACHE_PATH / "compto_ubi_bank_account.json"
+COMPTO_VALIDATION_ACCOUNT_JSON = CACHE_PATH / "compto_validation_account"
 TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 MINT_DECIMALS = 0  # MAGIC NUMBER ensure this remains consistent with constants.rs
@@ -40,7 +41,9 @@ def getProgramId():
     return run(f"solana address -k target/deploy/comptoken-keypair.json")
 
 def createToken():
-    run(f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-token -v --decimals {MINT_DECIMALS} --output json > {COMPTOKEN_MINT_JSON}")
+    run(
+        f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-token -v --decimals {MINT_DECIMALS} --output json > {COMPTOKEN_MINT_JSON}"
+    )
 
 def createKeyPair(outfile: Path):
     run(f"solana-keygen new --no-bip39-passphrase --force --silent --outfile {outfile}")
@@ -83,6 +86,9 @@ def setInterestBankPda():
 def setUbiBankPda():
     setPda("UBI Bank", COMPTO_UBI_BANK_ACCOUNT_JSON)
 
+def setValidationPda():
+    setPda("extra-account-metas" + getMintAddress(), COMPTO_VALIDATION_ACCOUNT_JSON)
+
 def setPda(seed: str, outfile: Path):
     run(f"solana find-program-derived-address {getProgramId()} string:'{seed}' --output json > {outfile}")
 
@@ -94,6 +100,12 @@ def getInterestBankPda():
 
 def getUbiBankPda():
     return json.loads(COMPTO_UBI_BANK_ACCOUNT_JSON.read_text())
+
+def getValidationPda():
+    return json.loads(COMPTO_VALIDATION_ACCOUNT_JSON.read_text())
+
+def getMintAddress() -> str:
+    return json.loads(COMPTOKEN_MINT_JSON.read_text())["commandOutput"]["address"]
 
 # ==== SHELL COMMANDS ====
 def build():
@@ -125,9 +137,11 @@ def generateComptokenAddressFile():
     setGlobalDataPda()
     setInterestBankPda()
     setUbiBankPda()
+    setValidationPda()
     globalDataSeed = getGlobalDataPDA()["bumpSeed"]
     interestBankSeed = getInterestBankPda()["bumpSeed"]
     UBIBankSeed = getUbiBankPda()["bumpSeed"]
+    validationSeed = getValidationPda()["bumpSeed"]
     comptoken_id = getTokenAddress()
 
     print(f"Generating {COMPTO_GENERATED_RS_FILE}...")
@@ -150,7 +164,8 @@ pub const COMPTOKEN_MINT_ADDRESS: Pubkey = pubkey!("{comptoken_id}");
 
 pub const COMPTO_GLOBAL_DATA_ACCOUNT_BUMP: u8 = {globalDataSeed};
 pub const COMPTO_INTEREST_BANK_ACCOUNT_BUMP: u8 = {interestBankSeed};
-pub const COMPTO_UBI_BANK_ACCOUNT_BUMP: u8 = {UBIBankSeed};\
+pub const COMPTO_UBI_BANK_ACCOUNT_BUMP: u8 = {UBIBankSeed};
+pub const COMPTO_VALIDATION_ACCOUNT_BUMP: u8 = {validationSeed};\
 """
 
     with open(COMPTO_GENERATED_RS_FILE, "w") as file:
