@@ -26,6 +26,7 @@ use spl_token_2022::{
     state::{Account, Mint},
 };
 use spl_transfer_hook_interface::instruction::{ExecuteInstruction, TransferHookInstruction};
+use spl_type_length_value::state::TlvStateBorrowed;
 
 use comptoken_proof::ComptokenProof;
 use constants::*;
@@ -459,10 +460,13 @@ pub fn transfer_hook(program_id: &Pubkey, accounts: &[AccountInfo], instruction_
     }
     let account_info_iter = &mut accounts.iter();
     let source_account = next_account_info(account_info_iter)?;
-    let _mint_account = next_account_info(account_info_iter)?;
+    let comptoken_mint_account = next_account_info(account_info_iter)?;
     let _destination_account = next_account_info(account_info_iter)?;
     let _source_account_authority = next_account_info(account_info_iter)?; // what is this?
-    let _validation_account = next_account_info(account_info_iter)?;
+    let validation_account = next_account_info(account_info_iter)?;
+
+    let _comptoken_mint_account = verify_comptoken_mint(comptoken_mint_account, true);
+    let validation_account = verify_validation_account(validation_account, program_id, false);
 
     // if the trnasfer comes from one of our banks, do nothing
     if *source_account.key == Pubkey::create_program_address(COMPTO_INTEREST_BANK_ACCOUNT_SEEDS, program_id).unwrap()
@@ -470,6 +474,12 @@ pub fn transfer_hook(program_id: &Pubkey, accounts: &[AccountInfo], instruction_
     {
         return Ok(());
     }
+
+    let data = validation_account.data.borrow();
+
+    let state = TlvStateBorrowed::unpack(&data[..]).unwrap();
+    let extra_meta_list = ExtraAccountMetaList::unpack_with_tlv_state::<ExecuteInstruction>(&state)?;
+    let extra_account_metas = extra_meta_list.data();
 
     Ok(())
 }

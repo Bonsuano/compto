@@ -12,6 +12,7 @@ solana-program = "*"
 spl-tlv-account-resolution = "0.7.0"
 spl-token-2022 = { version="4.0.0", features=["no-entrypoint"] }
 spl-transfer-hook-interface = "0.7.0"
+spl-type-length-value = "0.5.0"
 
 [dev-dependencies]
 hex-literal = "0.4.1"
