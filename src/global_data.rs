@@ -35,7 +35,7 @@ impl GlobalData {
 
 impl<'a> From<&VerifiedAccountInfo<'a>> for &'a mut GlobalData {
     fn from(account: &VerifiedAccountInfo) -> Self {
-        let mut data = account.0.try_borrow_mut_data().unwrap();
+        let mut data = account.try_borrow_mut_data().unwrap();
         let result = unsafe { &mut *(data.as_mut() as *mut _ as *mut GlobalData) };
         result
     }

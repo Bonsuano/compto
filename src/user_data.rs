@@ -74,7 +74,7 @@ impl TryFrom<&mut [u8]> for &mut UserData {
 
 impl<'a> From<&VerifiedAccountInfo<'a>> for &'a mut UserData {
     fn from(account: &VerifiedAccountInfo) -> Self {
-        account.0.data.borrow_mut().as_mut().try_into().unwrap()
+        account.data.borrow_mut().as_mut().try_into().unwrap()
     }
 }
 

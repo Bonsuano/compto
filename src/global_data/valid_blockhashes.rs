@@ -41,7 +41,7 @@ impl ValidBlockhashes {
 fn get_most_recent_blockhash(slot_hash_account: &VerifiedAccountInfo) -> Hash {
     // slothashes is too large to deserialize with the normal methods
     // based on https://github.com/solana-labs/solana/issues/33015
-    let data = slot_hash_account.0.try_borrow_data().unwrap();
+    let data = slot_hash_account.try_borrow_data().unwrap();
     let len: usize = usize::from_ne_bytes(data[0..8].try_into().expect("correct size"));
     let slot_hashes: &[SlotHash] =
         unsafe { std::slice::from_raw_parts(data.as_ptr().offset(8) as *const SlotHash, len) };
