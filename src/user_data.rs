@@ -74,7 +74,7 @@ impl TryFrom<&mut [u8]> for &mut UserData {
 
 impl<'a> From<&VerifiedAccountInfo<'a>> for &'a mut UserData {
     fn from(account: &VerifiedAccountInfo) -> Self {
-        account.0.data.borrow_mut().as_mut().try_into().unwrap()
+        account.data.borrow_mut().as_mut().try_into().unwrap()
     }
 }
 
@@ -278,7 +278,7 @@ mod test {
             input: TestValuesInput {
                 // size is 1 proof bigger than it needs to be so that we can test the duplicate
                 // failure case specifically and not worry about getting an out-of-size error.
-                data: &mut [0_u8; (USER_DATA_MIN_SIZE + 1) * HASH_BYTES],
+                data: &mut [0_u8; USER_DATA_MIN_SIZE + HASH_BYTES],
                 length: 1,
                 stored_blockhash: POSSIBLE_BLOCKHASHES[0],
                 proofs: &[POSSIBLE_PROOFS[0]],

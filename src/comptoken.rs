@@ -30,7 +30,7 @@ use spl_type_length_value::state::TlvStateBorrowed;
 
 use comptoken_proof::ComptokenProof;
 use constants::*;
-use global_data::{DailyDistributionValues, GlobalData, ValidBlockhashes};
+use global_data::{valid_blockhashes::ValidBlockhashes, DailyDistributionValues, GlobalData};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::*;
 
@@ -574,7 +574,7 @@ fn init_comptoken_account<'a>(
 }
 
 fn store_hash(proof: ComptokenProof, data_account: &VerifiedAccountInfo) {
-    let user_data: &mut UserData = data_account.data.borrow_mut().as_mut().try_into().expect("error already panicked");
+    let user_data: &mut UserData = data_account.into();
     user_data.insert(&proof.hash, &proof.recent_block_hash)
 }
 
