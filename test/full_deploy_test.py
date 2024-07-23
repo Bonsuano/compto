@@ -1,3 +1,4 @@
+import functools
 import json
 import os
 import signal
@@ -28,6 +29,9 @@ MINT_DECIMALS = 0  # MAGIC NUMBER ensure this remains consistent with constants.
 class SubprocessFailedException(Exception):
     pass
 
+class Pubkey(str):
+    pass
+
 # ==== SOLANA COMMANDS ====
 
 def checkIfProgamIdExists():
@@ -42,13 +46,14 @@ def getProgramId():
 
 def createToken():
     run(
-        f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-token -v --decimals {MINT_DECIMALS} --output json > {COMPTOKEN_MINT_JSON}"
+        f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-token -v --decimals {MINT_DECIMALS} --transfer-hook {getProgramId()} --output json > {COMPTOKEN_MINT_JSON}"
     )
 
 def createKeyPair(outfile: Path):
     run(f"solana-keygen new --no-bip39-passphrase --force --silent --outfile {outfile}")
 
 def createComptoAccount():
+    print("Creating Token Account...")
     createKeyPair(TEST_USER_ACCOUNT_JSON)
     run(f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-account {getTokenAddress()} {TEST_USER_ACCOUNT_JSON}")
 
@@ -78,19 +83,20 @@ def getCurrentMintAuthority() -> str:
                       ).get("MintAuthority")
 
 def setGlobalDataPda():
-    setPda("Global Data", COMPTO_GLOBAL_DATA_ACCOUNT_JSON)
+    setPda(["Global Data"], COMPTO_GLOBAL_DATA_ACCOUNT_JSON)
 
 def setInterestBankPda():
-    setPda("Interest Bank", COMPTO_INTEREST_BANK_ACCOUNT_JSON)
+    setPda(["Interest Bank"], COMPTO_INTEREST_BANK_ACCOUNT_JSON)
 
 def setUbiBankPda():
-    setPda("UBI Bank", COMPTO_UBI_BANK_ACCOUNT_JSON)
+    setPda(["UBI Bank"], COMPTO_UBI_BANK_ACCOUNT_JSON)
 
 def setValidationPda():
-    setPda("extra-account-metas" + getMintAddress(), COMPTO_VALIDATION_ACCOUNT_JSON)
+    setPda(["extra-account-metas", Pubkey(getMintAddress())], COMPTO_VALIDATION_ACCOUNT_JSON)
 
-def setPda(seed: str, outfile: Path):
-    run(f"solana find-program-derived-address {getProgramId()} string:'{seed}' --output json > {outfile}")
+def setPda(raw_seeds: list[str | Pubkey], outfile: Path):
+    seeds = functools.reduce(lambda s1, s2: s1 + ' ' + s2, map(lambda seed: f"pubkey:'{seed}'" if isinstance(seed, Pubkey) else f"string:'{seed}'", raw_seeds))
+    run(f"solana find-program-derived-address {getProgramId()} {seeds} --output json > {outfile}")
 
 def getGlobalDataPDA():
     return json.loads(COMPTO_GLOBAL_DATA_ACCOUNT_JSON.read_text())
@@ -109,6 +115,7 @@ def getMintAddress() -> str:
 
 # ==== SHELL COMMANDS ====
 def build():
+    print("Building...")
     run('cargo build-sbf --features "testmode"', PROJECT_PATH)
 
 def getComptoMd5():
@@ -125,6 +132,7 @@ def checkIfProgamIdChanged() -> bool:
     return real_program_id != cached_program_id
 
 def deployIfNeeded():
+    print("Deploying...")
     # Only deploy if the md5sum of the program has changed
     md5sum = getComptoMd5()
     if (not COMPTO_MD5_JSON.exists() or json.loads(COMPTO_MD5_JSON.read_text())["md5sum"] != md5sum):
@@ -134,6 +142,7 @@ def deployIfNeeded():
         print("Program has not changed, skipping deploy.")
 
 def generateComptokenAddressFile():
+    print("Checking Compto Program for hardcoded Comptoken Address and static seed...")
     setGlobalDataPda()
     setInterestBankPda()
     setUbiBankPda()
@@ -241,6 +250,7 @@ def checkIfValidatorReady(validator: BackgroundProcess) -> bool:
         return False
 
 def waitTillValidatorReady(validator: BackgroundProcess):
+    print("Checking Validator Ready...")
     TIMEOUT = 10
     t1 = time()
     while not checkIfValidatorReady(validator):
@@ -249,6 +259,7 @@ def waitTillValidatorReady(validator: BackgroundProcess):
             exit(1)
         print("Validator Not Ready")
         sleep(1)
+    print("Validator Ready")
 
 if __name__ == "__main__":
     # create cache if it doesn't exist
@@ -269,18 +280,12 @@ if __name__ == "__main__":
         stdout=subprocess.DEVNULL,
         preexec_fn=os.setsid,
     ) as validator:
-        print("Checking Validator Ready...")
         waitTillValidatorReady(validator)
-        print("Validator Ready")
-        createTokenIfNeeded()
-        print("Checking Compto Program for hardcoded Comptoken Address and static seed...")
         generateComptokenAddressFile()
-        print("Creating Token Account...")
-        createComptoAccount()
-        print("Building...")
         build()
-        print("Deploying...")
         deployIfNeeded()
+        createTokenIfNeeded()
+        createComptoAccount()
         print("Running Test Client...")
         output = runTestClient()
         print(output)
