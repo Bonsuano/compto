@@ -37,6 +37,7 @@ function getOptionOr(opt_val, fn) {
     return { option: 1, val: opt_val }
 }
 
+// =============================== Classes ===============================
 class MintAccount {
     address;            // PublicKey
     lamports;           // u64
@@ -256,20 +257,22 @@ class TokenAccount {
     }
 }
 
+// =============================== Default Account Factories ===============================
+
 export function get_default_comptoken_mint() {
-    return new MintAccount({
-        address: comptoken_mint_pubkey,
-        lamports: BIG_NUMBER,
-        supply: 0n,
-        decimals: COMPTOKEN_DECIMALS,
-        mintAuthority: global_data_account_pubkey,
-    });
+    return new MintAccount(
+        comptoken_mint_pubkey,
+        BIG_NUMBER,
+        0n,
+        COMPTOKEN_DECIMALS,
+        global_data_account_pubkey,
+    );
 }
 
 export function get_default_global_data() {
     return new GlobalDataAccount(
         new ValidBlockhashes({ blockhash: PublicKey.default.toBytes(), time: 0n }, { blockhash: PublicKey.default.toBytes(), time: 0n }),
-        new DailyDistributionData(0n, 0n, 0n, 1n, [0.5])
+        new DailyDistributionData(0n, 0n, 0n, 0n, [])
     );
 }
 
