@@ -27,6 +27,52 @@ MINT_DECIMALS = 0  # MAGIC NUMBER ensure this remains consistent with constants.
 class SubprocessFailedException(Exception):
     pass
 
+class BackgroundProcess:
+    _cmd: str | list[str]
+    _kwargs: dict[str, Any]
+    _process: subprocess.Popen[Any] | None = None
+
+    def __init__(self, cmd: str | list[str], **kwargs: Any):
+        self._cmd = cmd
+        self._kwargs = kwargs
+
+    def __enter__(self) -> Self:
+        self._process = subprocess.Popen(self._cmd, **self._kwargs)
+        return self
+
+    def __exit__(
+        self,
+        exc_type: Type[BaseException] | None,
+        exc_value: BaseException | None,
+        exc_tb: TracebackType,
+    ) -> bool:
+        print("Killing Background Process...")
+        if self._process is not None and self.checkIfProcessRunning():
+            os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
+        return False
+
+    def checkIfProcessRunning(self):
+        return self._process is not None and self._process.poll() is None
+
+def checkIfValidatorReady(validator: BackgroundProcess) -> bool:
+    if not validator.checkIfProcessRunning():
+        return False
+    try:
+        run("solana ping -c 1")
+        return True
+    except Exception:
+        return False
+
+def waitTillValidatorReady(validator: BackgroundProcess):
+    TIMEOUT = 10
+    t1 = time()
+    while not checkIfValidatorReady(validator):
+        if t1 + TIMEOUT < time():
+            print("Validator Timeout, Exiting...")
+            exit(1)
+        print("Validator Not Ready")
+        sleep(1)
+
 # ==== SOLANA COMMANDS ====
 
 def checkIfProgamIdExists():
@@ -188,52 +234,6 @@ def run(command: str | list[str], cwd: Path | None = None):
 
 def runTestClient():
     return run("node --trace-warnings compto-test-client/test_client.js", TEST_PATH)
-
-class BackgroundProcess:
-    _cmd: str | list[str]
-    _kwargs: dict[str, Any]
-    _process: subprocess.Popen[Any] | None = None
-
-    def __init__(self, cmd: str | list[str], **kwargs: Any):
-        self._cmd = cmd
-        self._kwargs = kwargs
-
-    def __enter__(self) -> Self:
-        self._process = subprocess.Popen(self._cmd, **self._kwargs)
-        return self
-
-    def __exit__(
-        self,
-        exc_type: Type[BaseException] | None,
-        exc_value: BaseException | None,
-        exc_tb: TracebackType,
-    ) -> bool:
-        print("Killing Background Process...")
-        if self._process is not None and self.checkIfProcessRunning():
-            os.killpg(os.getpgid(self._process.pid), signal.SIGTERM)
-        return False
-
-    def checkIfProcessRunning(self):
-        return self._process is not None and self._process.poll() is None
-
-def checkIfValidatorReady(validator: BackgroundProcess) -> bool:
-    if not validator.checkIfProcessRunning():
-        return False
-    try:
-        run("solana ping -c 1")
-        return True
-    except Exception:
-        return False
-
-def waitTillValidatorReady(validator: BackgroundProcess):
-    TIMEOUT = 10
-    t1 = time()
-    while not checkIfValidatorReady(validator):
-        if t1 + TIMEOUT < time():
-            print("Validator Timeout, Exiting...")
-            exit(1)
-        print("Validator Not Ready")
-        sleep(1)
 
 if __name__ == "__main__":
     # create cache if it doesn't exist
