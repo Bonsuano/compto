@@ -20,8 +20,9 @@ COMPTO_GENERATED_RS_FILE = GENERATED_PATH / "comptoken_generated.rs"
 COMPTO_GLOBAL_DATA_ACCOUNT_JSON = CACHE_PATH / "compto_global_data_account.json"
 COMPTO_INTEREST_BANK_ACCOUNT_JSON = CACHE_PATH / "compto_interest_bank_account.json"
 COMPTO_UBI_BANK_ACCOUNT_JSON = CACHE_PATH / "compto_ubi_bank_account.json"
-TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
+TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
+SPL_TOKEN_CMD = f"spl-token --program-id {TOKEN_2022_PROGRAM_ID}"
 MINT_DECIMALS = 0  # MAGIC NUMBER ensure this remains consistent with constants.rs
 
 class SubprocessFailedException(Exception):
@@ -86,14 +87,14 @@ def getProgramId():
     return run(f"solana address -k target/deploy/comptoken-keypair.json")
 
 def createToken():
-    run(f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-token -v --decimals {MINT_DECIMALS} --output json > {COMPTOKEN_MINT_JSON}")
+    run(f"{SPL_TOKEN_CMD} create-token -v --decimals {MINT_DECIMALS} --output json > {COMPTOKEN_MINT_JSON}")
 
 def createKeyPair(outfile: Path):
     run(f"solana-keygen new --no-bip39-passphrase --force --silent --outfile {outfile}")
 
 def createComptoAccount():
     createKeyPair(TEST_USER_ACCOUNT_JSON)
-    run(f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} create-account {getTokenAddress()} {TEST_USER_ACCOUNT_JSON}")
+    run(f"{SPL_TOKEN_CMD} create-account {getTokenAddress()} {TEST_USER_ACCOUNT_JSON}")
 
 def getPubkey(path: Path) -> str:
     return run(f"solana-keygen pubkey {path}")
@@ -107,8 +108,7 @@ def deploy():
 def checkIfCurrentMintAuthorityExists() -> bool:
     # TODO: find a more efficient way to do this
     try:
-        json.loads(run(f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} display {getTokenAddress()} --output json")
-                   ).get("MintAuthority")
+        json.loads(run(f"{SPL_TOKEN_CMD} display {getTokenAddress()} --output json")).get("MintAuthority")
         return True
     except (FileNotFoundError, SubprocessFailedException, json.decoder.JSONDecodeError):
         return False
@@ -117,8 +117,7 @@ def checkIfCurrentMintAuthorityExists() -> bool:
         raise ex
 
 def getCurrentMintAuthority() -> str:
-    return json.loads(run(f"spl-token --program-id {TOKEN_2022_PROGRAM_ID} display {getTokenAddress()} --output json")
-                      ).get("MintAuthority")
+    return json.loads(run(f"{SPL_TOKEN_CMD} display {getTokenAddress()} --output json")).get("MintAuthority")
 
 def setGlobalDataPda():
     setPda("Global Data", COMPTO_GLOBAL_DATA_ACCOUNT_JSON)
