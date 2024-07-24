@@ -2,7 +2,7 @@ import { AccountLayout, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { PublicKey, Transaction, TransactionInstruction, } from "@solana/web3.js";
 import { start } from "solana-bankrun";
 
-import { get_default_comptoken_mint, get_default_comptoken_wallet, get_default_global_data, programId, } from "./accounts.js";
+import { get_default_comptoken_mint, get_default_comptoken_wallet, get_default_global_data, programId } from "./accounts.js";
 import { Assert } from "./assert.js";
 import { comptoken_mint_pubkey, global_data_account_pubkey, Instruction } from "./common.js";
 
