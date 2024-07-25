@@ -4,11 +4,7 @@ import solana_bankrun from "solana-bankrun";
 const { AccountInfoBytes } = solana_bankrun;
 
 import {
-    compto_program_id_pubkey,
-    comptoken_mint_pubkey,
-    global_data_account_pubkey,
-    interest_bank_account_pubkey,
-    ubi_bank_account_pubkey,
+    compto_program_id_pubkey, comptoken_mint_pubkey, global_data_account_pubkey, interest_bank_account_pubkey, ubi_bank_account_pubkey,
 } from "./common.js";
 
 export const BIG_NUMBER = 1_000_000_000;

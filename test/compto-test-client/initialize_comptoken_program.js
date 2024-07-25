@@ -1,7 +1,5 @@
 import { AccountState, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import {
-    SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionInstruction
-} from "@solana/web3.js";
+import { SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { Clock, start } from "solana-bankrun";
 
 import {

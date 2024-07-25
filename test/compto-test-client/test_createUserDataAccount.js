@@ -1,6 +1,4 @@
-import {
-    PublicKey, SystemProgram, Transaction, TransactionInstruction
-} from "@solana/web3.js";
+import { PublicKey, SystemProgram, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { Clock, start } from "solana-bankrun";
 
 import { get_default_comptoken_mint, get_default_global_data, programId, UserDataAccount } from "./accounts.js";
