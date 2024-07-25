@@ -14,6 +14,11 @@ export class AssertionError extends Error {
 }
 
 export class Assert {
+    /**
+     * 
+     * @param {T} left 
+     * @param {T} right 
+     */
     static assertEqual(left, right) {
         if (left !== right) {
             throw new AssertionError("left should equal right", [
@@ -23,6 +28,11 @@ export class Assert {
         }
     }
 
+    /**
+     * 
+     * @param {T} left 
+     * @param {T} right 
+     */
     static assertNotEqual(left, right) {
         if (left === right) {
             throw new AssertionError("left should not equal right", [
@@ -32,12 +42,20 @@ export class Assert {
         }
     }
 
+    /**
+     * 
+     * @param {boolean} cond 
+     */
     static assert(cond) {
         if (!cond) {
             throw new AssertionError("cond should be true", []);
         }
     }
 
+    /**
+     * 
+     * @param {any} obj 
+     */
     static assertNotNull(obj) {
         if (obj === null) {
             throw new AssertionError("obj should not be null", ["obj was null"]);
