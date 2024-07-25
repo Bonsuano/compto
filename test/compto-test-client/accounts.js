@@ -11,7 +11,6 @@ import {
     ubi_bank_account_pubkey,
 } from "./common.js";
 
-
 export const BIG_NUMBER = 1_000_000_000;
 export const programId = compto_program_id_pubkey;
 export const COMPTOKEN_DECIMALS = 0; // MAGIC NUMBER: remain consistent with comptoken.rs and full_deploy_test.py
@@ -43,18 +42,31 @@ export function numAsDouble2LEBytes(num) {
 }
 
 /**
- * 
- * @param {Uint8Array} bytes 
- * @returns {number[]}
+ *
+ * @param {Uint8Array} bytes
+ * @param {number} elem_size
+ * @returns {Uint8Array[]}
  */
-export function LEBytes2DoubleArray(bytes) {
-    let len = bytes.length / 8;
+function LEBytes2SplitArray(bytes, elem_size) {
+    let len = bytes.length / elem_size;
     let arr = new Array(len);
     let dataView = new DataView(bytes.buffer);
     for (let i = 0; i < len; ++i) {
-        arr[i] = dataView.getFloat64(i, true);
+        arr[i] = bytes.subarray(i, i + elem_size);
     }
     return arr;
+}
+/**
+ *
+ * @param {Uint8Array} bytes
+ * @returns {number[]}
+ */
+export function LEBytes2DoubleArray(bytes) {
+    return LEBytes2SplitArray(bytes, 8).map((elem) => new DataView(elem.buffer).getFloat64(0, true));
+}
+
+export function LEBytes2BlockhashArray(bytes) {
+    return LEBytes2SplitArray(bytes, 32);
 }
 
 /**
@@ -143,9 +155,9 @@ export class MintAccount {
     }
 
     /**
-     * 
-     * @param {PublicKey} address 
-     * @param {AccountInfoBytes} accountInfo 
+     *
+     * @param {PublicKey} address
+     * @param {AccountInfoBytes} accountInfo
      * @returns {MintAccount}
      */
     static fromAccountInfoBytes(address, accountInfo) {
@@ -192,8 +204,8 @@ export class ValidBlockhashes {
     }
 
     /**
-     * 
-     * @param {Uint8Array} bytes 
+     *
+     * @param {Uint8Array} bytes
      * @returns {ValidBlockhashes}
      */
     static fromBytes(bytes) {
@@ -407,6 +419,81 @@ export class TokenAccount {
     }
 }
 
+export class UserDataAccount {
+    address; // PublicKey
+    lamports; // u64
+
+    lastInterestPayoutDate; // i64
+    isVerifiedHuman; // bool
+    length; // usize
+    recentBlockhash; // Hash
+    proofs; // [Hash]
+
+    /**
+     *
+     * @param {PublicKey} address
+     * @param {bigint} lamports
+     * @param {bigint} lastInterestPayoutDate
+     * @param {boolean} isVerifiedHuman
+     * @param {bigint} length
+     * @param {Uint8Array} recentBlockhash
+     * @param {Uint8Array[]} proofs
+     */
+    constructor(address, lamports, lastInterestPayoutDate, isVerifiedHuman, length, recentBlockhash, proofs) {
+        this.address = address;
+        this.lamports = lamports;
+        this.lastInterestPayoutDate = lastInterestPayoutDate;
+        this.isVerifiedHuman = isVerifiedHuman;
+        this.length = length;
+        this.recentBlockhash = recentBlockhash;
+        this.proofs = proofs;
+    }
+
+    /**
+     *
+     * @returns {AddedAccount}
+     */
+    toAccount() {
+        let buffer = new Uint8Array([
+            ...bigintAsU64ToBytes(this.lastInterestPayoutDate),
+            this.isVerifiedHuman ? 1 : 0,
+            ...[0, 0, 0, 0, 0, 0, 0], // padding
+            ...bigintAsU64ToBytes(this.length),
+            ...this.recentBlockhash,
+            ...this.proofs.flat(),
+        ]);
+
+        return {
+            address: this.address,
+            info: {
+                lamports: this.lamports,
+                data: buffer,
+                owner: compto_program_id_pubkey,
+                executable: false,
+            },
+        };
+    }
+
+    /**
+     *
+     * @param {PublicKey} address
+     * @param {AccountInfoBytes} accountInfo
+     * @returns {TokenAccount}
+     */
+    static fromAccountInfoBytes(address, accountInfo) {
+        const dataView = new DataView(accountInfo.data.buffer);
+        return new UserDataAccount(
+            address,
+            accountInfo.lamports,
+            dataView.getBigInt64(0, true),
+            dataView.getUint8(8) === 0 ? false : true,
+            dataView.getBigUint64(16),
+            accountInfo.data.subarray(24, 56),
+            LEBytes2BlockhashArray(accountInfo.data.subarray(56)),
+        );
+    }
+}
+
 // =============================== Default Account Factories ===============================
 
 /**
@@ -452,4 +539,8 @@ export function get_default_unpaid_interest_bank() {
  */
 export function get_default_unpaid_ubi_bank() {
     return get_default_comptoken_wallet(ubi_bank_account_pubkey, global_data_account_pubkey);
+}
+
+export function get_default_user_data_account(address) {
+    return new UserDataAccount(address, BIG_NUMBER, 0n, false, 8n, new Uint8Array(32), Array.from({ length: 8 }, (v, i) => new Uint8Array(32)));
 }
