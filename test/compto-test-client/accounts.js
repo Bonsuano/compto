@@ -1,5 +1,7 @@
 import { ACCOUNT_SIZE, AccountLayout, AccountState, MINT_SIZE, MintLayout, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
+import solana_bankrun from "solana-bankrun";
+const { AccountInfoBytes } = solana_bankrun;
 
 import {
     compto_program_id_pubkey,
@@ -9,7 +11,8 @@ import {
     ubi_bank_account_pubkey,
 } from "./common.js";
 
-const BIG_NUMBER = 1_000_000_000;
+
+export const BIG_NUMBER = 1_000_000_000;
 export const programId = compto_program_id_pubkey;
 export const COMPTOKEN_DECIMALS = 0; // MAGIC NUMBER: remain consistent with comptoken.rs and full_deploy_test.py
 
@@ -19,7 +22,7 @@ export const COMPTOKEN_DECIMALS = 0; // MAGIC NUMBER: remain consistent with com
  * @param {bigint} int
  * @returns {number[]}
  */
-function bigintAsU64ToBytes(int) {
+export function bigintAsU64ToBytes(int) {
     let arr = new Array(8);
     for (let i = 0; int > 0n; ++i) {
         arr[i] = Number(int & 255n);
@@ -33,10 +36,25 @@ function bigintAsU64ToBytes(int) {
  * @param {number} num
  * @returns {number[]}
  */
-function numAsDouble2LEBytes(num) {
+export function numAsDouble2LEBytes(num) {
     let buffer = Buffer.alloc(8);
     buffer.writeDoubleLE(num);
     return Array.from({ length: 8 }, (v, i) => buffer.readUint8(i));
+}
+
+/**
+ * 
+ * @param {Uint8Array} bytes 
+ * @returns {number[]}
+ */
+export function LEBytes2DoubleArray(bytes) {
+    let len = bytes.length / 8;
+    let arr = new Array(len);
+    let dataView = new DataView(bytes.buffer);
+    for (let i = 0; i < len; ++i) {
+        arr[i] = dataView.getFloat64(i, true);
+    }
+    return arr;
 }
 
 /**
@@ -44,7 +62,7 @@ function numAsDouble2LEBytes(num) {
  * @param {T | null | undefined} val
  * @returns {T | null}
  */
-function toOption(val) {
+export function toOption(val) {
     if (val === undefined || typeof val === "undefined") {
         return null;
     }
@@ -57,7 +75,7 @@ function toOption(val) {
  * @param {() => T} fn
  * @returns {T} opt_val if it is not null or result of calling fn
  */
-function getOptionOr(opt_val, fn) {
+export function getOptionOr(opt_val, fn) {
     if (opt_val === null) {
         return { option: 0, val: fn() };
     }
@@ -65,7 +83,7 @@ function getOptionOr(opt_val, fn) {
 }
 
 // =============================== Classes ===============================
-class MintAccount {
+export class MintAccount {
     address; //  PublicKey
     lamports; //  u64
     supply; //  u64
@@ -123,8 +141,26 @@ class MintAccount {
             },
         };
     }
+
+    /**
+     * 
+     * @param {PublicKey} address 
+     * @param {AccountInfoBytes} accountInfo 
+     * @returns {MintAccount}
+     */
+    static fromAccountInfoBytes(address, accountInfo) {
+        let rawMint = MintLayout.decode(accountInfo.data);
+        return new MintAccount(
+            address,
+            accountInfo.lamports,
+            rawMint.supply,
+            rawMint.decimals,
+            rawMint.mintAuthorityOption === 1 ? rawMint.mintAuthority : null,
+            rawMint.freezeAuthorityOption === 1 ? rawMint.freezeAuthority : null,
+        );
+    }
 }
-class ValidBlockhashes {
+export class ValidBlockhashes {
     announcedBlockhash; //  blockhash
     announcedBlockhashTime; //  i64
     validBlockhash; //  blockhash
@@ -154,9 +190,22 @@ class ValidBlockhashes {
             ...bigintAsU64ToBytes(this.validBlockhashTime),
         ]);
     }
+
+    /**
+     * 
+     * @param {Uint8Array} bytes 
+     * @returns {ValidBlockhashes}
+     */
+    static fromBytes(bytes) {
+        const dataView = new DataView(bytes.buffer);
+        return new ValidBlockhashes(
+            { blockhash: bytes.subarray(0, 32), time: dataView.getBigInt64(32, true) },
+            { blockhash: bytes.subarray(40, 72), time: dataView.getBigInt64(72, true) },
+        );
+    }
 }
 
-class DailyDistributionData {
+export class DailyDistributionData {
     yesterdaySupply; //  u64
     highWaterMark; //  u64
     lastDailyDistributionTime; //  i64
@@ -197,9 +246,25 @@ class DailyDistributionData {
             ...this.historicInterests.flatMap((num) => numAsDouble2LEBytes(num)),
         ]);
     }
+
+    /**
+     *
+     * @param {Uint8Array} bytes
+     * @returns {DailyDistributionData}
+     */
+    static fromBytes(bytes) {
+        let dataView = new DataView(bytes.buffer);
+        return new DailyDistributionData(
+            dataView.getBigUint64(0, true),
+            dataView.getBigUint64(8, true),
+            dataView.getBigInt64(16, true),
+            dataView.getBigUint64(24, true),
+            LEBytes2DoubleArray(bytes.subarray(32)),
+        );
+    }
 }
 
-class GlobalDataAccount {
+export class GlobalDataAccount {
     validBlockhashes;
     dailyDistributionData;
 
@@ -228,9 +293,22 @@ class GlobalDataAccount {
             },
         };
     }
+
+    /**
+     *
+     * @param {PublicKey} address unused; for API consistency with other accounts
+     * @param {AccountInfoBytes} accountInfo
+     * @returns {GlobalDataAccount}
+     */
+    static fromAccountInfoBytes(address, accountInfo) {
+        return new GlobalDataAccount(
+            ValidBlockhashes.fromBytes(accountInfo.data.subarray(0, 80)),
+            DailyDistributionData.fromBytes(accountInfo.data.subarray(80)),
+        );
+    }
 }
 
-class TokenAccount {
+export class TokenAccount {
     address; //  PublicKey
     lamports; //  u64
     mint; //  PublicKey
@@ -304,6 +382,28 @@ class TokenAccount {
                 executable: false,
             },
         };
+    }
+
+    /**
+     *
+     * @param {PublicKey} address
+     * @param {AccountInfoBytes} accountInfo
+     * @returns {TokenAccount}
+     */
+    static fromAccountInfoBytes(address, accountInfo) {
+        let rawAccount = AccountLayout.decode(accountInfo.data);
+        return new TokenAccount(
+            address,
+            accountInfo.lamports,
+            rawAccount.mint,
+            rawAccount.owner,
+            rawAccount.amount,
+            rawAccount.state,
+            rawAccount.delegatedAmount,
+            rawAccount.delegateOption === 1 ? rawAccount.delegate : null,
+            rawAccount.isNativeOption === 1 ? rawAccount.isNative : null,
+            rawAccount.closeAuthorityOption === 1 ? rawAccount.closeAuthority : null,
+        );
     }
 }
 
