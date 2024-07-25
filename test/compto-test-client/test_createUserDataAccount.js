@@ -3,7 +3,8 @@ import {
 } from "@solana/web3.js";
 import { Clock, start } from "solana-bankrun";
 
-import { get_default_comptoken_mint, get_default_global_data, programId } from "./accounts.js";
+import { get_default_comptoken_mint, get_default_global_data, programId, UserDataAccount } from "./accounts.js";
+import { Assert } from "./assert.js";
 import { compto_program_id_pubkey, Instruction, testuser_comptoken_wallet_pubkey } from "./common.js";
 
 async function test_createUserDataAccount() {
@@ -48,6 +49,9 @@ async function test_createUserDataAccount() {
     tx.sign(payer);
     context.setClock(new Clock(0n, 0n, 0n, 0n, 1_721_940_656n));
     const meta = await client.processTransaction(tx);
+    const finalUserData = UserDataAccount.fromAccountInfoBytes(user_data_account, await client.getAccount(user_data_account));
+    Assert.assertEqual(finalUserData.lastInterestPayoutDate, 1_721_865_600n, "user data lastInterestPayoutDate");
+    Assert.assert(!finalUserData.isVerifiedHuman, "user data isVerifiedHuman");
 }
 
 (async () => { await test_createUserDataAccount(); })();
