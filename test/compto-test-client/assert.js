@@ -2,14 +2,17 @@
 export class AssertionError extends Error {
     cause;
     notes;
+    msg;
 
-    constructor(cause, notes) {
+    constructor(cause, notes, msg) {
         let name = "Assertion Error";
         let note = notes.map((p) => "\n    note: " + p).join("");
-        let message = name + ": " + cause + note;
+        let msg_ = "\n    msg:\t'" + (msg === undefined ? "" : msg) + "'"
+        let message = name + ": " + cause + note + msg_ + "\n";
         super(message);
         this.cause = cause;
         this.notes = notes;
+        this.msg = msg;
     }
 }
 
@@ -19,12 +22,12 @@ export class Assert {
      * @param {T} left 
      * @param {T} right 
      */
-    static assertEqual(left, right) {
+    static assertEqual(left, right, msg) {
         if (left !== right) {
             throw new AssertionError("left should equal right", [
-                "left is '" + left.toString() + "'",
-                "right is '" + right.toString() + "'",
-            ]);
+                "left is\t'" + left.toString() + "'",
+                "right is\t'" + right.toString() + "'",
+            ], msg);
         }
     }
 
@@ -33,12 +36,12 @@ export class Assert {
      * @param {T} left 
      * @param {T} right 
      */
-    static assertNotEqual(left, right) {
+    static assertNotEqual(left, right, msg) {
         if (left === right) {
             throw new AssertionError("left should not equal right", [
                 "left is '" + left.toString() + "'",
                 "right is '" + right.toString() + "'",
-            ]);
+            ], msg);
         }
     }
 
@@ -46,9 +49,9 @@ export class Assert {
      * 
      * @param {boolean} cond 
      */
-    static assert(cond) {
+    static assert(cond, msg) {
         if (!cond) {
-            throw new AssertionError("cond should be true", []);
+            throw new AssertionError("cond should be true", [], msg);
         }
     }
 
@@ -56,13 +59,13 @@ export class Assert {
      * 
      * @param {any} obj 
      */
-    static assertNotNull(obj) {
+    static assertNotNull(obj, msg) {
         if (obj === null) {
-            throw new AssertionError("obj should not be null", ["obj was null"]);
+            throw new AssertionError("obj should not be null", ["obj was null"], msg);
         } else if (obj === undefined) {
-            throw new AssertionError("obj should not be null", ["obj was undefined"]);
+            throw new AssertionError("obj should not be null", ["obj was undefined"], msg);
         } else if (typeof obj === "undefined") {
-            throw new AssertionError("obj should not be null", ["typeof obj was \"undefined\""]);
+            throw new AssertionError("obj should not be null", ["typeof obj was \"undefined\""], msg);
         }
     }
 }
