@@ -1,10 +1,10 @@
 # Environment
 
-Ubuntu 22.04
+Ubuntu 22.04  
 
 # Build
 
-`cargo build-sbf`
+`cargo build-sbf`  
 
 # Local Environment
 
@@ -44,8 +44,8 @@ use the integration test deployment script to compile the program
 
 run with `node test/compto-test-client/<test>`  
 
-component tests
- - test_mint
+component tests  
+ - test_mint  
 
 ## integration tests
 
