@@ -1,6 +1,7 @@
 import { ACCOUNT_SIZE, AccountLayout, AccountState, MINT_SIZE, MintLayout, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 
+import { AccountInfoBytes } from "solana-bankrun";
 import {
     compto_program_id_pubkey,
     comptoken_mint_pubkey,
@@ -37,6 +38,21 @@ function numAsDouble2LEBytes(num) {
     let buffer = Buffer.alloc(8);
     buffer.writeDoubleLE(num);
     return Array.from({ length: 8 }, (v, i) => buffer.readUint8(i));
+}
+
+/**
+ * 
+ * @param {Uint8Array} bytes 
+ * @returns {number[]}
+ */
+function LEBytes2Double(bytes) {
+    let len = bytes.length / 8;
+    let arr = new Array(len);
+    let dataView = new DataView(bytes.buffer);
+    for (let i = 0; i < len; ++i) {
+        arr[i] = dataView.getFloat64(i, true);
+    }
+    return arr;
 }
 
 /**
@@ -123,6 +139,24 @@ class MintAccount {
             },
         };
     }
+
+    /**
+     * 
+     * @param {PublicKey} address 
+     * @param {AccountInfoBytes} accountInfo 
+     * @returns {MintAccount}
+     */
+    static fromAccountInfoBytes(address, accountInfo) {
+        let rawMint = MintLayout.decode(accountInfo.data);
+        return new MintAccount(
+            address,
+            accountInfo.lamports,
+            rawMint.supply,
+            rawMint.decimals,
+            rawMint.mintAuthorityOption === 1 ? rawMint.mintAuthority : null,
+            rawMint.freezeAuthorityOption === 1 ? rawMint.freezeAuthority : null,
+        );
+    }
 }
 class ValidBlockhashes {
     announcedBlockhash; //  blockhash
@@ -153,6 +187,18 @@ class ValidBlockhashes {
             ...this.validBlockhash,
             ...bigintAsU64ToBytes(this.validBlockhashTime),
         ]);
+    }
+
+    /**
+     * 
+     * @param {Uint8Array} bytes 
+     * @returns {ValidBlockhashes}
+     */
+    static fromBytes(bytes) {
+        return new ValidBlockhashes(
+            { blockhash: bytes.subarray(0, 32), time: new DataView(bytes.subarray(32, 40).buffer).getBigInt64(0, true) },
+            { blockhash: bytes.subarray(40, 72), time: new DataView(bytes.subarray(72, 80).buffer).getBigInt64(0, true) },
+        );
     }
 }
 
@@ -197,6 +243,22 @@ class DailyDistributionData {
             ...this.historicInterests.flatMap((num) => numAsDouble2LEBytes(num)),
         ]);
     }
+
+    /**
+     *
+     * @param {Uint8Array} bytes
+     * @returns {DailyDistributionData}
+     */
+    static fromBytes(bytes) {
+        let dataView = new DataView(bytes.buffer);
+        return new DailyDistributionData(
+            dataView.getBigUint64(0, true),
+            dataView.getBigUint64(8, true),
+            dataView.getBigInt64(16, true),
+            dataView.getBigUint64(24, true),
+            LEBytes2Double(bytes.subarray(32)),
+        );
+    }
 }
 
 class GlobalDataAccount {
@@ -227,6 +289,19 @@ class GlobalDataAccount {
                 executable: false,
             },
         };
+    }
+
+    /**
+     *
+     * @param {PublicKey} address unused; for API consistency with other accounts
+     * @param {AccountInfoBytes} accountInfo
+     * @returns {GlobalDataAccount}
+     */
+    static fromAccountInfoBytes(address, accountInfo) {
+        return new GlobalDataAccount(
+            ValidBlockhashes.fromBytes(accountInfo.data.subarray(0, 80)),
+            DailyDistributionData.fromBytes(accountInfo.data.subarray(80)),
+        );
     }
 }
 
@@ -304,6 +379,28 @@ class TokenAccount {
                 executable: false,
             },
         };
+    }
+
+    /**
+     *
+     * @param {PublicKey} address
+     * @param {AccountInfoBytes} accountInfo
+     * @returns {TokenAccount}
+     */
+    static fromAccountInfoBytes(address, accountInfo) {
+        let rawAccount = AccountLayout.decode(accountInfo.data);
+        return new TokenAccount(
+            address,
+            accountInfo.lamports,
+            rawAccount.mint,
+            rawAccount.owner,
+            rawAccount.amount,
+            rawAccount.state,
+            rawAccount.delegatedAmount,
+            rawAccount.delegateOption === 1 ? rawAccount.delegate : null,
+            rawAccount.isNativeOption === 1 ? rawAccount.isNative : null,
+            rawAccount.closeAuthorityOption === 1 ? rawAccount.closeAuthority : null,
+        );
     }
 }
 
