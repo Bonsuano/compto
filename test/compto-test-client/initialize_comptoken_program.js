@@ -1,16 +1,15 @@
-import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
+import { AccountState, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import {
     SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionInstruction
 } from "@solana/web3.js";
-import { start } from "solana-bankrun";
+import { Clock, start } from "solana-bankrun";
 
 import {
-    get_default_comptoken_mint,
-    programId
+    get_default_comptoken_mint, GlobalDataAccount, programId, TokenAccount,
 } from "./accounts.js";
 import { Assert } from "./assert.js";
 import {
-    comptoken_mint_pubkey, global_data_account_pubkey, Instruction, interest_bank_account_pubkey, ubi_bank_account_pubkey,
+    comptoken_mint_pubkey, global_data_account_pubkey, Instruction, interest_bank_account_pubkey, ubi_bank_account_pubkey
 } from "./common.js";
 
 async function initialize_comptoken_program() {
@@ -43,7 +42,8 @@ async function initialize_comptoken_program() {
     ];
 
     // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN comptoken.rs
-    const globalDataRentExemptAmount = await rent.minimumBalance(4096n);
+    const GLOBAL_DATA_SIZE = 3032n;
+    const globalDataRentExemptAmount = await rent.minimumBalance(GLOBAL_DATA_SIZE);
     const interestBankRentExemptAmount = await rent.minimumBalance(256n);
     const ubiBankRentExemptAmount = await rent.minimumBalance(256n);
     console.log("Rent exempt amount: ", globalDataRentExemptAmount);
@@ -59,9 +59,24 @@ async function initialize_comptoken_program() {
     tx.recentBlockhash = blockhash;
     tx.add(...ixs);
     tx.sign(payer);
+    context.setClock(new Clock(0n, 0n, 0n, 0n, 1_721_940_656n));
     const meta = await client.processTransaction(tx);
-    Assert.assert(true); // so my IDE doesn't remove Assert for being unused
-    // TODO: add asserts
+
+    const finalGlobalData = GlobalDataAccount.fromAccountInfoBytes(global_data_account_pubkey, await client.getAccount(global_data_account_pubkey));
+    Assert.assertEqual(finalGlobalData.validBlockhashes.announcedBlockhashTime, 1_721_865_300n, "announced blockhash time");
+    Assert.assertEqual(finalGlobalData.validBlockhashes.validBlockhashTime, 1_721_865_600n, "valid blockhash time");
+
+    const finalInterestBank = TokenAccount.fromAccountInfoBytes(interest_bank_account_pubkey, await client.getAccount(interest_bank_account_pubkey));
+    Assert.assertEqual(finalInterestBank.amount, 0n, "interest amount");
+    Assert.assert(finalInterestBank.mint.equals(comptoken_mint_pubkey), "interest mint");
+    Assert.assert(finalInterestBank.owner.equals(global_data_account_pubkey), "interest owner");
+    Assert.assertEqual(finalInterestBank.state, AccountState.Initialized, "interest state");
+
+    const finalUBIBank = TokenAccount.fromAccountInfoBytes(ubi_bank_account_pubkey, await client.getAccount(ubi_bank_account_pubkey));
+    Assert.assertEqual(finalUBIBank.amount, 0n, "ubi amount");
+    Assert.assert(finalUBIBank.mint.equals(comptoken_mint_pubkey), "ubi mint");
+    Assert.assert(finalUBIBank.owner.equals(global_data_account_pubkey), "ubi owner");
+    Assert.assertEqual(finalUBIBank.state, AccountState.Initialized, "ubi state");
 }
 
 (async () => { await initialize_comptoken_program(); })();
