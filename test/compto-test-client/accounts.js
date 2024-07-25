@@ -1,7 +1,8 @@
 import { ACCOUNT_SIZE, AccountLayout, AccountState, MINT_SIZE, MintLayout, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
+import solana_bankrun from "solana-bankrun";
+const { AccountInfoBytes } = solana_bankrun;
 
-import { AccountInfoBytes } from "solana-bankrun";
 import {
     compto_program_id_pubkey,
     comptoken_mint_pubkey,
@@ -10,7 +11,8 @@ import {
     ubi_bank_account_pubkey,
 } from "./common.js";
 
-const BIG_NUMBER = 1_000_000_000;
+
+export const BIG_NUMBER = 1_000_000_000;
 export const programId = compto_program_id_pubkey;
 export const COMPTOKEN_DECIMALS = 0; // MAGIC NUMBER: remain consistent with comptoken.rs and full_deploy_test.py
 
@@ -20,7 +22,7 @@ export const COMPTOKEN_DECIMALS = 0; // MAGIC NUMBER: remain consistent with com
  * @param {bigint} int
  * @returns {number[]}
  */
-function bigintAsU64ToBytes(int) {
+export function bigintAsU64ToBytes(int) {
     let arr = new Array(8);
     for (let i = 0; int > 0n; ++i) {
         arr[i] = Number(int & 255n);
@@ -34,7 +36,7 @@ function bigintAsU64ToBytes(int) {
  * @param {number} num
  * @returns {number[]}
  */
-function numAsDouble2LEBytes(num) {
+export function numAsDouble2LEBytes(num) {
     let buffer = Buffer.alloc(8);
     buffer.writeDoubleLE(num);
     return Array.from({ length: 8 }, (v, i) => buffer.readUint8(i));
@@ -45,7 +47,7 @@ function numAsDouble2LEBytes(num) {
  * @param {Uint8Array} bytes 
  * @returns {number[]}
  */
-function LEBytes2Double(bytes) {
+export function LEBytes2DoubleArray(bytes) {
     let len = bytes.length / 8;
     let arr = new Array(len);
     let dataView = new DataView(bytes.buffer);
@@ -60,7 +62,7 @@ function LEBytes2Double(bytes) {
  * @param {T | null | undefined} val
  * @returns {T | null}
  */
-function toOption(val) {
+export function toOption(val) {
     if (val === undefined || typeof val === "undefined") {
         return null;
     }
@@ -73,7 +75,7 @@ function toOption(val) {
  * @param {() => T} fn
  * @returns {T} opt_val if it is not null or result of calling fn
  */
-function getOptionOr(opt_val, fn) {
+export function getOptionOr(opt_val, fn) {
     if (opt_val === null) {
         return { option: 0, val: fn() };
     }
@@ -81,7 +83,7 @@ function getOptionOr(opt_val, fn) {
 }
 
 // =============================== Classes ===============================
-class MintAccount {
+export class MintAccount {
     address; //  PublicKey
     lamports; //  u64
     supply; //  u64
@@ -158,7 +160,7 @@ class MintAccount {
         );
     }
 }
-class ValidBlockhashes {
+export class ValidBlockhashes {
     announcedBlockhash; //  blockhash
     announcedBlockhashTime; //  i64
     validBlockhash; //  blockhash
@@ -195,14 +197,15 @@ class ValidBlockhashes {
      * @returns {ValidBlockhashes}
      */
     static fromBytes(bytes) {
+        const dataView = new DataView(bytes.buffer);
         return new ValidBlockhashes(
-            { blockhash: bytes.subarray(0, 32), time: new DataView(bytes.subarray(32, 40).buffer).getBigInt64(0, true) },
-            { blockhash: bytes.subarray(40, 72), time: new DataView(bytes.subarray(72, 80).buffer).getBigInt64(0, true) },
+            { blockhash: bytes.subarray(0, 32), time: dataView.getBigInt64(32, true) },
+            { blockhash: bytes.subarray(40, 72), time: dataView.getBigInt64(72, true) },
         );
     }
 }
 
-class DailyDistributionData {
+export class DailyDistributionData {
     yesterdaySupply; //  u64
     highWaterMark; //  u64
     lastDailyDistributionTime; //  i64
@@ -256,12 +259,12 @@ class DailyDistributionData {
             dataView.getBigUint64(8, true),
             dataView.getBigInt64(16, true),
             dataView.getBigUint64(24, true),
-            LEBytes2Double(bytes.subarray(32)),
+            LEBytes2DoubleArray(bytes.subarray(32)),
         );
     }
 }
 
-class GlobalDataAccount {
+export class GlobalDataAccount {
     validBlockhashes;
     dailyDistributionData;
 
@@ -305,7 +308,7 @@ class GlobalDataAccount {
     }
 }
 
-class TokenAccount {
+export class TokenAccount {
     address; //  PublicKey
     lamports; //  u64
     mint; //  PublicKey
