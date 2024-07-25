@@ -8,6 +8,11 @@ export const programId = compto_program_id_pubkey;
 export const COMPTOKEN_DECIMALS = 0; // MAGIC NUMBER: remain consistent with comptoken.rs and full_deploy_test.py
 
 // =============================== Helper functions ===============================
+/**
+ * 
+ * @param {bigint} int 
+ * @returns {number[]}
+ */
 function bigintAsU64ToBytes(int) {
     let arr = new Array(8);
     for (let i = 0; int > 0n; ++i) {
@@ -17,12 +22,22 @@ function bigintAsU64ToBytes(int) {
     return arr;
 }
 
+/**
+ * 
+ * @param {number} num 
+ * @returns {number[]}
+ */
 function numAsDouble2LEBytes(num) {
     let buffer = Buffer.alloc(8);
     buffer.writeDoubleLE(num);
     return Array.from({ length: 8 }, (v, i) => buffer.readUint8(i));
 }
 
+/**
+ * 
+ * @param {T | null | undefined} val 
+ * @returns {T | null}
+ */
 function toOption(val) {
     if (val === undefined || typeof val === "undefined") {
         return null;
@@ -30,6 +45,12 @@ function toOption(val) {
     return val;
 }
 
+/**
+ * 
+ * @param {T | null} opt_val 
+ * @param {() => T} fn 
+ * @returns {T} opt_val if it is not null or result of calling fn
+ */
 function getOptionOr(opt_val, fn) {
     if (opt_val === null) {
         return { option: 0, val: fn() };
@@ -64,6 +85,10 @@ class MintAccount {
         this.freezeAuthority = toOption(freezeAuthority);
     }
 
+    /**
+     * 
+     * @returns {AddedAccount}
+     */
     toAccount() {
         const { option: freezeAuthorityOption, val: freezeAuthority } = getOptionOr(this.freezeAuthority, () => PublicKey.default);
         const { option: mintAuthorityOption, val: mintAuthority } = getOptionOr(this.mintAuthority, () => PublicKey.default);
@@ -108,6 +133,10 @@ class ValidBlockhashes {
         this.validBlockhashTime = valid.time;
     }
 
+    /**
+     * 
+     * @returns {Uint8Array}
+     */
     toBytes() {
         return new Uint8Array([
             ...this.announcedBlockhash,
@@ -146,6 +175,10 @@ class DailyDistributionData {
         ];
     }
 
+    /**
+     * 
+     * @returns {Uint8Array}
+     */
     toBytes() {
         return new Uint8Array([
             ...bigintAsU64ToBytes(this.yesterdaySupply),
@@ -171,6 +204,10 @@ class GlobalDataAccount {
         this.dailyDistributionData = dailyDistributionData;
     }
 
+    /**
+     * 
+     * @returns {AddedAccount}
+     */
     toAccount() {
         return {
             address: global_data_account_pubkey,
@@ -225,6 +262,10 @@ class TokenAccount {
         this.closeAuthority = toOption(closeAuthority);
     }
 
+    /**
+     * 
+     * @returns {AddedAccount}
+     */
     toAccount() {
         const { option: delegateOption, val: delegate } = getOptionOr(this.delegate, () => PublicKey.default);
         const { option: isNativeOption, val: isNative } = getOptionOr(this.isNative, () => 0n);
@@ -259,6 +300,10 @@ class TokenAccount {
 
 // =============================== Default Account Factories ===============================
 
+/**
+ * 
+ * @returns {MintAccount}
+ */
 export function get_default_comptoken_mint() {
     return new MintAccount(
         comptoken_mint_pubkey,
@@ -269,6 +314,10 @@ export function get_default_comptoken_mint() {
     );
 }
 
+/**
+ * 
+ * @returns {GlobalDataAccount}
+ */
 export function get_default_global_data() {
     return new GlobalDataAccount(
         new ValidBlockhashes({ blockhash: PublicKey.default.toBytes(), time: 0n }, { blockhash: PublicKey.default.toBytes(), time: 0n }),
@@ -276,6 +325,12 @@ export function get_default_global_data() {
     );
 }
 
+/**
+ * 
+ * @param {PublicKey} address 
+ * @param {PublicKey} owner 
+ * @returns {TokenAccount}
+ */
 export function get_default_comptoken_wallet(address, owner) {
     return new TokenAccount(address, BIG_NUMBER, comptoken_mint_pubkey, owner, 0n, AccountState.Initialized, 0n);
 }
