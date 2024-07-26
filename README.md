@@ -45,7 +45,10 @@ use the integration test deployment script to compile the program
 run with `node test/compto-test-client/<test>`  
 
 component tests  
- - test_mint  
+ - test_mint
+ - initialize_comptoken_program
+ - test_getValidBlockhashes
+ - test_createUserDataAccount
 
 ## integration tests
 
