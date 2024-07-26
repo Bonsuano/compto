@@ -95,6 +95,7 @@ export function getOptionOr(opt_val, fn) {
 export class MintAccount {
     address; //  PublicKey
     lamports; //  u64
+    owner; // PublicKey
     supply; //  u64
     decimals; //  u8
     mintAuthority; //  optional PublicKey
@@ -112,6 +113,7 @@ export class MintAccount {
     constructor(address, lamports, supply, decimals, mintAuthority = null, freezeAuthority = null) {
         this.address = address;
         this.lamports = lamports;
+        this.owner = TOKEN_2022_PROGRAM_ID
         this.supply = supply;
         this.decimals = decimals;
         this.mintAuthority = toOption(mintAuthority);
@@ -145,7 +147,7 @@ export class MintAccount {
             info: {
                 lamports: this.lamports,
                 data: buffer,
-                owner: TOKEN_2022_PROGRAM_ID,
+                owner: this.owner,
                 executable: false,
             },
         };
@@ -274,6 +276,8 @@ export class DailyDistributionData {
 }
 
 export class GlobalDataAccount {
+    address;
+    owner;
     validBlockhashes;
     dailyDistributionData;
 
@@ -283,6 +287,8 @@ export class GlobalDataAccount {
      * @param {DailyDistributionData} dailyDistributionData
      */
     constructor(validBlockhashes, dailyDistributionData) {
+        this.address = global_data_account_pubkey;
+        this.owner = programId;
         this.validBlockhashes = validBlockhashes;
         this.dailyDistributionData = dailyDistributionData;
     }
@@ -293,11 +299,11 @@ export class GlobalDataAccount {
      */
     toAccount() {
         return {
-            address: global_data_account_pubkey,
+            address: this.address,
             info: {
                 lamports: BIG_NUMBER,
                 data: new Uint8Array([...this.validBlockhashes.toBytes(), ...this.dailyDistributionData.toBytes()]),
-                owner: programId,
+                owner: this.owner,
                 executable: false,
             },
         };
@@ -320,8 +326,9 @@ export class GlobalDataAccount {
 export class TokenAccount {
     address; //  PublicKey
     lamports; //  u64
+    owner; // PublicKey
     mint; //  PublicKey
-    owner; //  PublicKey
+    nominalOwner; //  PublicKey
     amount; //  u64
     delegate; //  optional PublicKey
     isNative; //  optional u64
@@ -334,7 +341,7 @@ export class TokenAccount {
      * @param {PublicKey} address
      * @param {number} lamports
      * @param {PublicKey} mint
-     * @param {PublicKey} owner
+     * @param {PublicKey} nominalOwner
      * @param {bigint} amount
      * @param {AccountState} state
      * @param {bigint} delegatedAmount
@@ -342,12 +349,13 @@ export class TokenAccount {
      * @param {bigint | null} isNative if is_some, mint should be native mint, and this stores rent exempt amt
      * @param {PublicKey | null} closeAuthority
      */
-    constructor(address, lamports, mint, owner, amount, state, delegatedAmount, delegate = null, isNative = null, closeAuthority = null) {
+    constructor(address, lamports, mint, nominalOwner, amount, state, delegatedAmount, delegate = null, isNative = null, closeAuthority = null) {
         this.address = address;
         this.lamports = lamports;
+        this.owner = TOKEN_2022_PROGRAM_ID;
         this.mint = mint;
         this.isNative = toOption(isNative);
-        this.owner = owner;
+        this.nominalOwner = nominalOwner;
         this.amount = amount;
         this.state = state;
         this.delegatedAmount = delegatedAmount;
@@ -368,7 +376,7 @@ export class TokenAccount {
         AccountLayout.encode(
             {
                 mint: this.mint,
-                owner: this.owner,
+                owner: this.nominalOwner,
                 amount: this.amount,
                 delegateOption: delegateOption,
                 delegate: delegate,
@@ -387,7 +395,7 @@ export class TokenAccount {
             info: {
                 lamports: this.lamports,
                 data: buffer,
-                owner: TOKEN_2022_PROGRAM_ID,
+                owner: this.owner,
                 executable: false,
             },
         };
@@ -419,7 +427,7 @@ export class TokenAccount {
 export class UserDataAccount {
     address; // PublicKey
     lamports; // u64
-
+    owner; // PublicKey
     lastInterestPayoutDate; // i64
     isVerifiedHuman; // bool
     length; // usize
@@ -439,6 +447,7 @@ export class UserDataAccount {
     constructor(address, lamports, lastInterestPayoutDate, isVerifiedHuman, length, recentBlockhash, proofs) {
         this.address = address;
         this.lamports = lamports;
+        this.owner = compto_program_id_pubkey;
         this.lastInterestPayoutDate = lastInterestPayoutDate;
         this.isVerifiedHuman = isVerifiedHuman;
         this.length = length;
@@ -457,15 +466,14 @@ export class UserDataAccount {
             ...[0, 0, 0, 0, 0, 0, 0], // padding
             ...bigintAsU64ToBytes(this.length),
             ...this.recentBlockhash,
-            ...this.proofs.flat(),
+            ...this.proofs.reduce((a, b) => Uint8Array.from([...a, ...b]), new Uint8Array()),
         ]);
-
         return {
             address: this.address,
             info: {
                 lamports: this.lamports,
                 data: buffer,
-                owner: compto_program_id_pubkey,
+                owner: this.owner,
                 executable: false,
             },
         };
@@ -541,6 +549,11 @@ export function get_default_unpaid_ubi_bank() {
     return get_default_comptoken_wallet(ubi_bank_account_pubkey, global_data_account_pubkey);
 }
 
+/**
+ * 
+ * @param {PublicKey} address 
+ * @returns {UserDataAccount}
+ */
 export function get_default_user_data_account(address) {
-    return new UserDataAccount(address, BIG_NUMBER, DEFAULT_DISTRIBUTION_TIME, false, 8n, new Uint8Array(32), Array.from({ length: 8 }, (v, i) => new Uint8Array(32)));
+    return new UserDataAccount(address, BIG_NUMBER, DEFAULT_DISTRIBUTION_TIME, false, 0n, new Uint8Array(32), Array.from({ length: 8 }, (v, i) => new Uint8Array(32)));
 }
