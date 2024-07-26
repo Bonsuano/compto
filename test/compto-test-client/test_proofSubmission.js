@@ -2,9 +2,12 @@ import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { Clock, start } from "solana-bankrun";
 
-import { get_default_comptoken_mint, get_default_comptoken_wallet, get_default_global_data, get_default_user_data_account, programId } from "./accounts.js";
+import {
+    get_default_comptoken_mint, get_default_comptoken_wallet, get_default_global_data, get_default_user_data_account,
+    isArrayEqual, MintAccount, programId, TokenAccount, UserDataAccount,
+} from "./accounts.js";
 import { Assert } from "./assert.js";
-import { DEFAULT_START_TIME, Instruction, testuser_comptoken_wallet_pubkey } from "./common.js";
+import { DEFAULT_DISTRIBUTION_TIME, DEFAULT_START_TIME, Instruction, testuser_comptoken_wallet_pubkey } from "./common.js";
 import { ComptokenProof } from "./comptoken_proof.js";
 
 async function test_proofSubmission() {
@@ -55,7 +58,23 @@ async function test_proofSubmission() {
     tx.sign(payer);
     context.setClock(new Clock(0n, 0n, 0n, 0n, DEFAULT_START_TIME));
     const meta = await client.processTransaction(tx);
-    Assert.assert(true);
+
+    let account = await client.getAccount(mint_account.address);
+    Assert.assertNotNull(account);
+    const finalMintAccount = MintAccount.fromAccountInfoBytes(mint_account.address, account);
+    Assert.assert(finalMintAccount.supply > mint_account.supply, "comptokens have been minted");
+
+    account = await client.getAccount(destination_comptoken_wallet.address);
+    Assert.assertNotNull(account);
+    const finalDestinationComptokenWallet = TokenAccount.fromAccountInfoBytes(destination_comptoken_wallet.address, account);
+    Assert.assert(finalDestinationComptokenWallet.amount > destination_comptoken_wallet.amount, "destination wallet has gained some comptokens");
+
+    account = await client.getAccount(user_data_account.address);
+    Assert.assertNotNull(account);
+    const finalUserDataAccount = UserDataAccount.fromAccountInfoBytes(user_data_account.address, account);
+    Assert.assert(isArrayEqual(finalUserDataAccount.recentBlockhash, global_data_account.validBlockhashes.validBlockhash), "user datas recent blockhash is the valid blockhash");
+    Assert.assertEqual(finalUserDataAccount.length, user_data_account.length + 1n, "user data has stored a proof");
+    Assert.assert(isArrayEqual(finalUserDataAccount.proofs[0], proof.hash), "user data has stored the proof submitted");
 }
 
 (async () => { await test_proofSubmission(); })();
