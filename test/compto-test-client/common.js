@@ -19,6 +19,10 @@ export const Instruction = {
     GET_OWED_COMPTOKENS: 6,
 };
 
+export const DEFAULT_START_TIME = 1_721_940_656n;
+export const DEFAULT_DISTRIBUTION_TIME = 1_721_865_600n;
+export const DEFAULT_ANNOUNCE_TIME = 1_721_865_300n;
+
 // Read Cache Files
 import global_data_account from "../.cache/compto_global_data_account.json" assert { type: "json" };
 export const global_data_account_str = global_data_account["address"];
