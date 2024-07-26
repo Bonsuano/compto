@@ -1,15 +1,12 @@
 import { AccountState, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import {
-    SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionInstruction
-} from "@solana/web3.js";
+import { SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionInstruction } from "@solana/web3.js";
 import { Clock, start } from "solana-bankrun";
 
-import {
-    get_default_comptoken_mint, GlobalDataAccount, programId, TokenAccount,
-} from "./accounts.js";
+import { get_default_comptoken_mint, GlobalDataAccount, programId, TokenAccount, } from "./accounts.js";
 import { Assert } from "./assert.js";
 import {
-    comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, DEFAULT_START_TIME, global_data_account_pubkey, Instruction, interest_bank_account_pubkey, ubi_bank_account_pubkey
+    comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, DEFAULT_START_TIME, global_data_account_pubkey, Instruction,
+    interest_bank_account_pubkey, ubi_bank_account_pubkey
 } from "./common.js";
 
 async function initialize_comptoken_program() {
