@@ -47,20 +47,26 @@ export function numAsDouble2LEBytes(num) {
 function LEBytes2SplitArray(bytes, elem_size) {
     let len = bytes.length / elem_size;
     let arr = new Array(len);
-    for (let i = 0; i < len; i += elem_size) {
-        arr[i] = bytes.subarray(i, i + elem_size);
+    for (let i = 0; i < len; ++i) {
+        arr[i] = bytes.subarray(i * elem_size, i * elem_size + elem_size);
     }
     return arr;
 }
+
 /**
  *
  * @param {Uint8Array} bytes
  * @returns {number[]}
  */
 export function LEBytes2DoubleArray(bytes) {
-    return LEBytes2SplitArray(bytes, 8).map((elem) => new DataView(elem.buffer).getFloat64(0, true));
+    return LEBytes2SplitArray(bytes, 8).map((elem) => new DataView(elem.buffer.slice(elem.byteOffset)).getFloat64(0, true));
 }
 
+/**
+ * 
+ * @param {Uint8Array} bytes 
+ * @returns {Uint8Array[]}
+ */
 export function LEBytes2BlockhashArray(bytes) {
     return LEBytes2SplitArray(bytes, 32);
 }
@@ -225,7 +231,7 @@ export class ValidBlockhashes {
      * @returns {ValidBlockhashes}
      */
     static fromBytes(bytes) {
-        const dataView = new DataView(bytes.buffer);
+        const dataView = new DataView(bytes.buffer.slice(bytes.byteOffset));
         return new ValidBlockhashes(
             { blockhash: bytes.subarray(0, 32), time: dataView.getBigInt64(32, true) },
             { blockhash: bytes.subarray(40, 72), time: dataView.getBigInt64(72, true) },
@@ -281,7 +287,7 @@ export class DailyDistributionData {
      * @returns {DailyDistributionData}
      */
     static fromBytes(bytes) {
-        let dataView = new DataView(bytes.buffer);
+        let dataView = new DataView(bytes.buffer.slice(bytes.byteOffset));
         return new DailyDistributionData(
             dataView.getBigUint64(0, true),
             dataView.getBigUint64(8, true),
@@ -329,7 +335,7 @@ export class GlobalDataAccount {
     /**
      *
      * @param {PublicKey} address unused; for API consistency with other accounts
-     * @param {AccountInfoBytes} accountInfo
+     * @param {import("solana-bankrun").AccountInfoBytes} accountInfo
      * @returns {GlobalDataAccount}
      */
     static fromAccountInfoBytes(address, accountInfo) {
@@ -523,7 +529,7 @@ export class UserDataAccount {
  * @returns {MintAccount}
  */
 export function get_default_comptoken_mint() {
-    return new MintAccount(comptoken_mint_pubkey, BIG_NUMBER, 0n, COMPTOKEN_DECIMALS, global_data_account_pubkey);
+    return new MintAccount(comptoken_mint_pubkey, BIG_NUMBER, 1n, COMPTOKEN_DECIMALS, global_data_account_pubkey);
 }
 
 /**
