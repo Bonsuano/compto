@@ -1,10 +1,9 @@
 import { SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionInstruction } from "@solana/web3.js";
-import base64 from "base64-js";
 import { Clock, start } from "solana-bankrun";
 
-import { get_default_comptoken_mint, get_default_global_data, programId, ValidBlockhashes } from "./accounts.js";
+import { get_default_comptoken_mint, get_default_global_data, programId } from "./accounts.js";
 import { Assert } from "./assert.js";
-import { bs58, DEFAULT_START_TIME, global_data_account_pubkey, Instruction } from "./common.js";
+import { DEFAULT_START_TIME, global_data_account_pubkey, Instruction } from "./common.js";
 
 async function test_getValidBlockhashes() {
     let globalData = get_default_global_data();
