@@ -47,8 +47,7 @@ export function numAsDouble2LEBytes(num) {
 function LEBytes2SplitArray(bytes, elem_size) {
     let len = bytes.length / elem_size;
     let arr = new Array(len);
-    let dataView = new DataView(bytes.buffer);
-    for (let i = 0; i < len; ++i) {
+    for (let i = 0; i < len; i += elem_size) {
         arr[i] = bytes.subarray(i, i + elem_size);
     }
     return arr;
@@ -89,6 +88,24 @@ export function getOptionOr(opt_val, fn) {
         return { option: 0, val: fn() };
     }
     return { option: 1, val: opt_val };
+}
+
+/**
+ * 
+ * @param {T[]} left 
+ * @param {T[]} right 
+ * @returns {boolean}
+ */
+export function isArrayEqual(left, right) {
+    if (left.length != right.length) {
+        return false;
+    }
+    for (let i = 0; i < left.length; ++i) {
+        if (left[i] != right[i]) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // =============================== Classes ===============================
@@ -483,7 +500,7 @@ export class UserDataAccount {
      *
      * @param {PublicKey} address
      * @param {AccountInfoBytes} accountInfo
-     * @returns {TokenAccount}
+     * @returns {UserDataAccount}
      */
     static fromAccountInfoBytes(address, accountInfo) {
         const dataView = new DataView(accountInfo.data.buffer);
@@ -492,7 +509,7 @@ export class UserDataAccount {
             accountInfo.lamports,
             dataView.getBigInt64(0, true),
             dataView.getUint8(8) === 0 ? false : true,
-            dataView.getBigUint64(16),
+            dataView.getBigUint64(16, true),
             accountInfo.data.subarray(24, 56),
             LEBytes2BlockhashArray(accountInfo.data.subarray(56)),
         );
