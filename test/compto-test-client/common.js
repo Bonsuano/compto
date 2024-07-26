@@ -1,7 +1,4 @@
-import {
-    Keypair,
-    PublicKey,
-} from "@solana/web3.js";
+import { Keypair, PublicKey, } from "@solana/web3.js";
 
 import fs from "fs";
 import os from "os";
