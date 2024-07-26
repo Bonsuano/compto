@@ -57,6 +57,9 @@ async function test_dailyDistributionEvent() {
     Assert.assertNotNull(account);
     const failMint = MintAccount.fromAccountInfoBytes(comptoken_mint.address, account);
     Assert.assertEqual(failMint.supply, comptoken_mint.supply, "interest has not been issued");
+
+    context.setClock(new Clock(0n, 0n, 0n, 0n, DEFAULT_START_TIME + SEC_PER_DAY));
+    const meta = await client.processTransaction(tx);
 }
 
 (async () => { await test_dailyDistributionEvent(); })();
