@@ -4,7 +4,8 @@ import solana_bankrun from "solana-bankrun";
 const { AccountInfoBytes } = solana_bankrun;
 
 import {
-    compto_program_id_pubkey, comptoken_mint_pubkey, global_data_account_pubkey, interest_bank_account_pubkey, ubi_bank_account_pubkey,
+    compto_program_id_pubkey, comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, global_data_account_pubkey,
+    interest_bank_account_pubkey, ubi_bank_account_pubkey,
 } from "./common.js";
 
 export const BIG_NUMBER = 1_000_000_000;
@@ -506,8 +507,11 @@ export function get_default_comptoken_mint() {
  */
 export function get_default_global_data() {
     return new GlobalDataAccount(
-        new ValidBlockhashes({ blockhash: PublicKey.default.toBytes(), time: 0n }, { blockhash: PublicKey.default.toBytes(), time: 0n }),
-        new DailyDistributionData(0n, 0n, 0n, 0n, []),
+        new ValidBlockhashes(
+            { blockhash: PublicKey.default.toBytes(), time: DEFAULT_ANNOUNCE_TIME },
+            { blockhash: PublicKey.default.toBytes(), time: DEFAULT_DISTRIBUTION_TIME },
+        ),
+        new DailyDistributionData(0n, 0n, DEFAULT_DISTRIBUTION_TIME, 0n, []),
     );
 }
 
@@ -538,5 +542,5 @@ export function get_default_unpaid_ubi_bank() {
 }
 
 export function get_default_user_data_account(address) {
-    return new UserDataAccount(address, BIG_NUMBER, 0n, false, 8n, new Uint8Array(32), Array.from({ length: 8 }, (v, i) => new Uint8Array(32)));
+    return new UserDataAccount(address, BIG_NUMBER, DEFAULT_DISTRIBUTION_TIME, false, 8n, new Uint8Array(32), Array.from({ length: 8 }, (v, i) => new Uint8Array(32)));
 }
