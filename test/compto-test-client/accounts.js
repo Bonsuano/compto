@@ -507,7 +507,10 @@ export function get_default_comptoken_mint() {
  */
 export function get_default_global_data() {
     return new GlobalDataAccount(
-        new ValidBlockhashes({ blockhash: PublicKey.default.toBytes(), time: DEFAULT_ANNOUNCE_TIME }, { blockhash: PublicKey.default.toBytes(), time: DEFAULT_DISTRIBUTION_TIME }),
+        new ValidBlockhashes(
+            { blockhash: PublicKey.default.toBytes(), time: DEFAULT_ANNOUNCE_TIME },
+            { blockhash: PublicKey.default.toBytes(), time: DEFAULT_DISTRIBUTION_TIME },
+        ),
         new DailyDistributionData(0n, 0n, DEFAULT_DISTRIBUTION_TIME, 0n, []),
     );
 }
