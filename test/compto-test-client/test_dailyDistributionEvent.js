@@ -78,7 +78,7 @@ async function test_dailyDistributionEvent() {
 
     Assert.assertEqual(dailyDistributionData.highWaterMark, 2n, "highwater mark has increased"); // TODO: find a better way to get oracle value
     Assert.assertEqual(dailyDistributionData.lastDailyDistributionTime, DEFAULT_DISTRIBUTION_TIME + SEC_PER_DAY, "last daily distribution time has updated");
-    Assert.assertEqual(dailyDistributionData.yesterdaySupply, finalMint.supply, "yesterdays supply is where the mint is after"); // this is 292_002 which seems excessively high, for starting with 2
+    Assert.assertEqual(dailyDistributionData.yesterdaySupply, finalMint.supply, "yesterdays supply is where the mint is after");
     Assert.assertEqual(dailyDistributionData.oldestInterest, global_data.dailyDistributionData.oldestInterest + 1n, "oldest interests has increased");
 
     account = await client.getAccount(interest_bank.address);
