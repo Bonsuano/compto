@@ -2,9 +2,9 @@ import { SYSVAR_SLOT_HASHES_PUBKEY, Transaction, TransactionInstruction } from "
 import { Clock, start } from "solana-bankrun";
 
 import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
-import { get_default_comptoken_mint, get_default_global_data, get_default_unpaid_interest_bank, get_default_unpaid_ubi_bank, GlobalDataAccount, MintAccount, programId } from "./accounts.js";
+import { get_default_comptoken_mint, get_default_global_data, get_default_unpaid_interest_bank, get_default_unpaid_ubi_bank, GlobalDataAccount, MintAccount, programId, TokenAccount } from "./accounts.js";
 import { Assert } from "./assert.js";
-import { DEFAULT_START_TIME, Instruction, SEC_PER_DAY } from "./common.js";
+import { DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, DEFAULT_START_TIME, Instruction, SEC_PER_DAY } from "./common.js";
 
 async function test_dailyDistributionEvent() {
     let comptoken_mint = get_default_comptoken_mint();
@@ -60,6 +60,36 @@ async function test_dailyDistributionEvent() {
 
     context.setClock(new Clock(0n, 0n, 0n, 0n, DEFAULT_START_TIME + SEC_PER_DAY));
     const meta = await client.processTransaction(tx);
+
+    account = await client.getAccount(comptoken_mint.address);
+    Assert.assertNotNull(account);
+    const finalMint = MintAccount.fromAccountInfoBytes(comptoken_mint.address, account);
+    Assert.assert(finalMint.supply > comptoken_mint.supply, "interest has been applied");
+
+    account = await client.getAccount(global_data.address);
+    Assert.assertNotNull(account);
+    const finalGlobalData = GlobalDataAccount.fromAccountInfoBytes(global_data.address, account);
+    const validBlockhash = finalGlobalData.validBlockhashes;
+    const dailyDistributionData = finalGlobalData.dailyDistributionData;
+    Assert.assertEqual(validBlockhash.announcedBlockhashTime, DEFAULT_ANNOUNCE_TIME + SEC_PER_DAY, "the announced blockhash time has been updated");
+    Assert.assertNotEqual(validBlockhash.announcedBlockhash, global_data.validBlockhashes.announcedBlockhash, "announced blockhash has changed"); // TODO: can the actual blockhash be predicted/gotten?
+    Assert.assertEqual(validBlockhash.validBlockhashTime, DEFAULT_DISTRIBUTION_TIME + SEC_PER_DAY, "the valid blockhash time has been updated");
+    Assert.assertNotEqual(validBlockhash.validBlockhash, global_data.validBlockhashes.validBlockhash, "valid blockhash has changed");
+
+    Assert.assertEqual(dailyDistributionData.highWaterMark, 2n, "highwater mark has increased"); // TODO: find a better way to get oracle value
+    Assert.assertEqual(dailyDistributionData.lastDailyDistributionTime, DEFAULT_DISTRIBUTION_TIME + SEC_PER_DAY, "last daily distribution time has updated");
+    Assert.assertEqual(dailyDistributionData.yesterdaySupply, finalMint.supply, "yesterdays supply is where the mint is after"); // this is 292_002 which seems excessively high, for starting with 2
+    Assert.assertEqual(dailyDistributionData.oldestInterest, global_data.dailyDistributionData.oldestInterest + 1n, "oldest interests has increased");
+
+    account = await client.getAccount(interest_bank.address);
+    Assert.assertNotNull(account);
+    const finalInterestBank = TokenAccount.fromAccountInfoBytes(interest_bank.address, account);
+    Assert.assert(finalInterestBank.amount > interest_bank.amount, "interest bank has increased");
+
+    account = await client.getAccount(ubi_bank.address);
+    Assert.assertNotNull(account);
+    const finalUbiBank = TokenAccount.fromAccountInfoBytes(ubi_bank.address, account);
+    Assert.assert(finalUbiBank.amount > ubi_bank.amount, "interest bank has increased");
 }
 
 (async () => { await test_dailyDistributionEvent(); })();
