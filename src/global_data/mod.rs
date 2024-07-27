@@ -9,6 +9,7 @@ use valid_blockhashes::ValidBlockhashes;
 
 #[repr(C)]
 #[derive(Debug)]
+// MAGIC NUMBER: Changes to the size of this struct need to be reflected in test_client.js
 pub struct GlobalData {
     pub valid_blockhashes: ValidBlockhashes,
     pub daily_distribution_data: DailyDistributionData,
