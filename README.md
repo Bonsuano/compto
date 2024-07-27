@@ -4,7 +4,10 @@ Ubuntu 22.04
 
 # Build
 
+Default build:  
 `cargo build-sbf`  
+Testing build (If building for the first time default build must be done first):  
+`cargo build-sbf --features testmode` 
 
 # Local Environment
 
@@ -26,31 +29,24 @@ navigate to `test/compt-test-client` and run `npm install`
 
 `pip install -r test/requirements.txt`  
 
-## unit tests
+## Unit Tests
 
 run `cargo test-sbf`  
 
-## component tests
+## Component Tests
 
-ensure that the `comptoken.so` file is in one of these directories  
- - `./tests/fixtures`  
- - the current working directory  
- - a directory defined in the `BPF_OUT_DIR` or `SBF_OUT_DIR` environment variables  
-
-we recommend setting `SBF_OUT_DIR` to `<path-to-compto>/target/deploy/`  
-
-use the integration test deployment script to compile the program  
-<!--compile the program with `cargo build-sbf --features testmode`  -->
-
+Prerequisite: Build the project for testmode.
+Set the location of `comptoken.so`  
+`export SBF_OUT_DIR=$(pwd)/target/deploy`  
 run with `node test/compto-test-client/<test>`  
 
-component tests  
- - test_mint
- - initialize_comptoken_program
- - test_getValidBlockhashes
- - test_createUserDataAccount
+available component tests: 
+- test_mint
+- initialize_comptoken_program
+- test_getValidBlockhashes
+- test_createUserDataAccount
 
-## integration tests
+## Integration Tests
 
 run the test deployment script: `python3 test/full_deploy_test.py`  
 
