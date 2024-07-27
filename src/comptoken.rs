@@ -35,7 +35,6 @@ entrypoint!(process_instruction);
 
 type ProgramResult = Result<(), ProgramError>;
 
-// MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN test_client.js
 const GLOBAL_DATA_ACCOUNT_SPACE: u64 = std::mem::size_of::<GlobalData>() as u64;
 
 mod generated;
