@@ -2,7 +2,7 @@ use spl_token_2022::{solana_program::msg, state::Mint};
 
 use crate::{constants::*, get_current_time, normalize_time};
 
-const HISTORY_SIZE: usize = 365; // trick to get my ide to figure out the size of DailyDistributionData
+const HISTORY_SIZE: usize = 365;
 
 #[repr(C)]
 #[derive(Debug)]
