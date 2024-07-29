@@ -25,9 +25,6 @@ def generateFiles():
     )
     print("done generating files")
 
-def generateTestUser():
-    run(f"solana-keygen new --no-bip39-passphrase --force --silent --outfile {TEST_USER_ACCOUNT_JSON}")
-
 def generateProgramIdFile(programId: str):
     write(COMPTO_PROGRAM_ID_JSON, json.dumps({"programId": programId}))
 

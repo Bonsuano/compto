@@ -42,11 +42,8 @@ def getProgramId():
 def createToken():
     run(f"{SPL_TOKEN_CMD} create-token -v --decimals {MINT_DECIMALS} --output json > {COMPTOKEN_MINT_JSON}")
 
-def createKeyPair(outfile: Path):
-    run(f"solana-keygen new --no-bip39-passphrase --force --silent --outfile {outfile}")
-
 def createComptoAccount():
-    createKeyPair(TEST_USER_ACCOUNT_JSON)
+    generateTestUser()
     run(f"{SPL_TOKEN_CMD} create-account {getTokenAddress()} {TEST_USER_ACCOUNT_JSON}")
 
 def getPubkey(path: Path) -> str:
