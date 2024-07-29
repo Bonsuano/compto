@@ -1,8 +1,9 @@
+import argparse
 import json
 import os
 import subprocess
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Mapping, Sequence
 
 TEST_PATH = Path(__file__).parent
 PROJECT_PATH = TEST_PATH.parent
@@ -36,7 +37,7 @@ class PDA(dict[str, Any]):
                 seeds_str += f"string:'{seed}'"
             elif isinstance(seed, int):
                 seeds_str += f"hex:'{hex(seed)}'"
-            elif isinstance(seed, bytes): # type: ignore
+            elif isinstance(seed, bytes):  # type: ignore
                 seeds_str += f"pubkey:'{seed}'"
             else:
                 raise TypeError(f"bad type: '{seed.__class__}'")
@@ -51,6 +52,7 @@ def run(command: str | list[str], cwd: Path | None = None, env: Mapping[str, str
     return result.stdout.rstrip()
 
 def generateFiles():
+    print("generating files...")
     programId = randAddress()
     # programId
     generateProgramIdFile(programId)
@@ -64,6 +66,7 @@ def generateFiles():
     generateTestUser()
     # rust file
     generateComptokenAddressFile(globalDataSeed, interestBankSeed, UBIBankSeed, mint_address)
+    print("done generating files")
 
 def generateTestUser():
     run(f"solana-keygen new --no-bip39-passphrase --force --silent --outfile {TEST_USER_ACCOUNT_JSON}")
@@ -138,14 +141,80 @@ def randAddress() -> str:
     return keygen.split("\n")[2][8:]
 
 def build():
+    print("building...")
     run('cargo build-sbf --features "testmode"', PROJECT_PATH)
+    print("done buiding")
 
-def runTests():
+def runTest(test: str, file: str) -> bool:
+    print(f"running {test}")
     env = os.environ
-    env["SBF_OUT_DIR"]=  str(PROJECT_PATH / "target/deploy/")
-    print(run(f"node {TEST_PATH/"compto-test-client/test_mint"}", env = env))
+    env["SBF_OUT_DIR"] = str(PROJECT_PATH / "target/deploy/")
+    try:
+        run(f"node {TEST_PATH / f'compto-test-client/{file}'}", env=env)
+        print(f"{test} passed")
+        return True
+    except SubprocessFailedException as e:
+        print(f"{test} failed")
+        print(e)
+        return False
+
+def runTests(args: argparse.Namespace):
+    print("running tests...")
+
+    passed = 0
+    skipped = 0
+    for (arg, val) in args._get_kwargs():
+        if val:
+            passed += runTest(arg, f'test_{arg}')
+        else:
+            skipped += 1
+    failed = len(args._get_kwargs()) - passed - skipped
+    print()
+    print(f"passed: {passed}    failed: {failed}    skipped: {skipped}")
+
+def store_const_multiple(const: Any, *destinations: str):
+    """Returns an `argparse.Action` class that sets multiple argument destinations (`destinations`) to `const`."""
+
+    class store_const_multiple_action(argparse.Action):
+
+        def __init__(self, *args, **kwargs):
+            super(store_const_multiple_action, self).__init__(metavar=None, nargs=0, const=const, *args, **kwargs)
+
+        def __call__(
+            self,
+            parser: argparse.ArgumentParser,
+            namespace: argparse.Namespace,
+            values: str | Sequence[Any] | None,
+            option_string: str | None = None
+        ):
+            for destination in destinations:
+                setattr(namespace, destination, const)
+
+    return store_const_multiple_action
+
+def store_true_multiple(*destinations: str):
+    """Returns an `argparse.Action` class that sets multiple argument destinations (`destinations`) to `True`."""
+    return store_const_multiple(True, *destinations)
+
+def store_false_multiple(*destinations: str):
+    """Returns an `argparse.Action` class that sets multiple argument destinations (`destinations`) to `True`."""
+    return store_const_multiple(False, *destinations)
+
+def parseArgs(tests: list[str]):
+    parser = argparse.ArgumentParser(prog="comptoken component tests")
+    for argument in tests:
+        parser.add_argument(f"--no-{argument.replace('_', '-')}", action="store_false", dest=argument)
+        parser.add_argument(f"--{argument.replace('_', '-')}", action="store_true", dest=argument)
+    parser.add_argument("--none", action=store_false_multiple(*tests), dest="mint")
+
+    return parser.parse_args()
 
 if __name__ == "__main__":
+    tests = [
+        "mint", "initialize_comptoken_program", "create_user_data_account", "proof_submission", "get_valid_blockhashes",
+        "get_owed_comptokens", "daily_distribution_event"
+    ]
+    args = parseArgs(tests)
     generateFiles()
     build()
-    runTests()
+    runTests(args)
