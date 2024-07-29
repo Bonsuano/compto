@@ -1,7 +1,8 @@
 use spl_token_2022::{solana_program::msg, state::Mint};
 
-use super::DailyDistributionValues;
 use crate::{constants::*, get_current_time, normalize_time};
+
+const HISTORY_SIZE: usize = 365;
 
 #[repr(C)]
 #[derive(Debug)]
@@ -10,11 +11,11 @@ pub struct DailyDistributionData {
     pub high_water_mark: u64,
     pub last_daily_distribution_time: i64,
     pub oldest_interest: usize,
-    pub historic_interests: [f64; Self::HISTORY_SIZE],
+    pub historic_interests: [f64; HISTORY_SIZE],
 }
 
 impl DailyDistributionData {
-    const HISTORY_SIZE: usize = 365;
+    const HISTORY_SIZE: usize = HISTORY_SIZE;
 
     pub(super) fn initialize(&mut self) {
         self.last_daily_distribution_time = normalize_time(get_current_time());
@@ -22,6 +23,8 @@ impl DailyDistributionData {
 
     pub(super) fn daily_distribution(&mut self, mint: Mint) -> DailyDistributionValues {
         // calculate interest/high water mark
+        self.last_daily_distribution_time = normalize_time(get_current_time());
+
         let daily_mining_total = mint.supply - self.yesterday_supply;
         let high_water_mark_increase = self.calculate_high_water_mark_increase(daily_mining_total);
         self.high_water_mark += high_water_mark_increase;
@@ -34,7 +37,7 @@ impl DailyDistributionData {
         self.yesterday_supply =
             mint.supply + distribution_values.interest_distributed + distribution_values.ubi_distributed;
 
-        let interest = distribution_values.interest_distributed as f64 / self.yesterday_supply as f64;
+        let interest = distribution_values.interest_distributed as f64 / self.yesterday_supply as f64; // TODO: interest is NaN if yesterday supply is 0
         msg!("Interest: {}", interest);
         self.insert(interest);
 
@@ -106,6 +109,11 @@ impl IntoIterator for &DailyDistributionData {
             ),
         }
     }
+}
+
+pub struct DailyDistributionValues {
+    pub interest_distributed: u64,
+    pub ubi_distributed: u64,
 }
 
 // rust implements round_ties_even in version 1.77, which is more recent than

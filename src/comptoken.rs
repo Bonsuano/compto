@@ -30,7 +30,7 @@ use spl_type_length_value::state::TlvStateBorrowed;
 
 use comptoken_proof::ComptokenProof;
 use constants::*;
-use global_data::{valid_blockhashes::ValidBlockhashes, DailyDistributionValues, GlobalData};
+use global_data::{daily_distribution_data::DailyDistributionValues, valid_blockhashes::ValidBlockhashes, GlobalData};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::*;
 
@@ -39,8 +39,7 @@ entrypoint!(process_instruction);
 
 type ProgramResult = Result<(), ProgramError>;
 
-// MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN test_client.js
-const GLOBAL_DATA_ACCOUNT_SPACE: u64 = 4096;
+const GLOBAL_DATA_ACCOUNT_SPACE: u64 = std::mem::size_of::<GlobalData>() as u64;
 
 mod generated;
 use generated::{
@@ -109,15 +108,16 @@ pub fn test_mint(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data
     //      Solana Token 2022
 
     msg!("instruction_data: {:?}", instruction_data);
-    for account_info in accounts.iter() {
-        msg!("Public Key: {:?}", account_info.key);
-    }
 
     let account_info_iter = &mut accounts.iter();
     let comptoken_mint_account = next_account_info(account_info_iter)?;
+    msg!("Comptoken Mint Key: {:?}", comptoken_mint_account.key);
     let user_comptoken_wallet_account = next_account_info(account_info_iter)?;
+    msg!("User Comptoken Wallet Key: {:?}", user_comptoken_wallet_account.key);
     let global_data_account = next_account_info(account_info_iter)?;
+    msg!("Global Data Key: {:?}", global_data_account.key);
     let _solana_token_account = next_account_info(account_info_iter)?;
+    msg!("Solana Token Key: {:?}", _solana_token_account.key);
 
     let comptoken_mint_account = verify_comptoken_mint(comptoken_mint_account, true);
     let user_comptoken_wallet_account =
@@ -330,7 +330,7 @@ pub fn daily_distribution_event(
 
     let current_time = get_current_time();
     assert!(
-        current_time < global_data.daily_distribution_data.last_daily_distribution_time + SEC_PER_DAY,
+        current_time > global_data.daily_distribution_data.last_daily_distribution_time + SEC_PER_DAY,
         "daily distribution already called today"
     );
 
