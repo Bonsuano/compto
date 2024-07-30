@@ -27,6 +27,7 @@ TOKEN_2022_PROGRAM_ID = "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb"
 
 class SubprocessFailedException(Exception):
     pass
+
 class BackgroundProcess:
     _cmd: str | list[str]
     _kwargs: dict[str, Any]
