@@ -8,11 +8,14 @@ from common import *
 
 def generateFiles():
     print("generating files...")
-    programId = randAddress()
+    # create cache if it doesn't exist
+    run(f"[ -d {CACHE_PATH} ] || mkdir {CACHE_PATH} ")
+    run(f"[ -d {GENERATED_PATH} ] || mkdir {GENERATED_PATH} ")
     # programId
-    generateProgramIdFile(programId)
+    programId = randAddress()
+    generateMockProgramIdFile(programId)
     # mint
-    mint_address = generateMint()
+    mint_address = generateMockMint()
     # pdas
     globalDataPDA = setGlobalDataPDA(programId)
     interestBankPDA = setInterestBankPDA(programId)
@@ -25,10 +28,10 @@ def generateFiles():
     )
     print("done generating files")
 
-def generateProgramIdFile(programId: str):
+def generateMockProgramIdFile(programId: str):
     write(COMPTO_PROGRAM_ID_JSON, json.dumps({"programId": programId}))
 
-def generateMint() -> str:
+def generateMockMint() -> str:
     address = randAddress()
     file_data = f'''\
 {{
@@ -50,11 +53,11 @@ def runTest(test: str, file: str) -> bool:
     env = os.environ
     env["SBF_OUT_DIR"] = str(PROJECT_PATH / "target/deploy/")
     try:
-        run(f"node {TEST_PATH / f'compto-test-client/{file}'}", env=env)
-        print(f"{test} passed")
+        run(f"node --trace-warnings {TEST_PATH / f'compto-test-client/{file}'}", env=env)
+        print(f"✅ \033[92m{test}\033[0m passed")
         return True
     except SubprocessFailedException as e:
-        print(f"{test} failed")
+        print(f"❌ \033[91m{test}\033[0m failed")
         print(e)
         return False
 
@@ -100,7 +103,7 @@ def store_true_multiple(*destinations: str):
     return store_const_multiple(True, *destinations)
 
 def store_false_multiple(*destinations: str):
-    """Returns an `Action` class that sets multiple argument destinations (`destinations`) to `True`."""
+    """Returns an `Action` class that sets multiple argument destinations (`destinations`) to `False`."""
     return store_const_multiple(False, *destinations)
 
 def parseArgs(tests: list[str]):
@@ -118,9 +121,6 @@ if __name__ == "__main__":
         "get_owed_comptokens", "daily_distribution_event"
     ]
     args = parseArgs(tests)
-    # create cache if it doesn't exist
-    run(f"[ -d {CACHE_PATH} ] || mkdir {CACHE_PATH} ")
-    run(f"[ -d {GENERATED_PATH} ] || mkdir {GENERATED_PATH} ")
     generateFiles()
     build()
     runTests(args)
