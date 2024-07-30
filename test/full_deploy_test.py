@@ -257,6 +257,15 @@ def run(command: str | list[str], cwd: Path | None = None):
 def runTestClient():
     return run("node --trace-warnings compto-test-client/test_client.js", TEST_PATH)
 
+def getValidator():
+    return BackgroundProcess(
+        "solana-test-validator --reset",
+        shell=True,
+        cwd=CACHE_PATH,
+        stdout=subprocess.DEVNULL,
+        preexec_fn=os.setsid,
+    )
+
 if __name__ == "__main__":
     # create cache if it doesn't exist
     run(f"[ -d {CACHE_PATH} ] || mkdir {CACHE_PATH} ")
@@ -269,18 +278,15 @@ if __name__ == "__main__":
         print("Creating Comptoken ProgramId...")
         run("cargo build-sbf", PROJECT_PATH)
     print("Creating Validator...")
-    with BackgroundProcess(
-        "solana-test-validator --reset",
-        shell=True,
-        cwd=CACHE_PATH,
-        stdout=subprocess.DEVNULL,
-        preexec_fn=os.setsid,
-    ) as validator:
+    with getValidator() as validator:
         waitTillValidatorReady(validator)
         generateComptokenAddressFile()
         build()
         deployIfNeeded()
         createTokenIfNeeded()
+        generateComptokenAddressFile()
+        build()
+        deployIfNeeded()
         createComptoAccount()
         print("Running Test Client...")
         output = runTestClient()
