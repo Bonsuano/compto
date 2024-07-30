@@ -194,6 +194,7 @@ export class MintAccount {
     decimals; //  u8
     mintAuthority; //  optional PublicKey
     freezeAuthority; //  optional PublicKey
+    extensions; // [tlv]
 
     /**
      * @param {PublicKey} address
@@ -206,22 +207,59 @@ export class MintAccount {
     constructor(address, lamports, supply, decimals, mintAuthority = null, freezeAuthority = null) {
         this.address = address;
         this.lamports = lamports;
-        this.owner = TOKEN_2022_PROGRAM_ID
+        this.owner = TOKEN_2022_PROGRAM_ID;
         this.supply = supply;
         this.decimals = decimals;
         this.mintAuthority = toOption(mintAuthority);
         this.freezeAuthority = toOption(freezeAuthority);
+
+        this.extensions = [];
     }
 
     /**
-     *
+     * @param {TLV} tlv
+     * @returns {MintAccount}
+     */
+    addExtension(tlv) {
+        this.extensions.push(tlv);
+        return this;
+    }
+
+    /**
+     * @returns {number}
+     */
+    getSize() {
+        if (this.extensions.length === 0) {
+            return MINT_SIZE;
+        }
+        let size = this.extensions.reduce((pv, cv, i) => pv + cv.length + 4, 166);
+        if (size == 355) { // solana code say they pad with uninitialized ExtensionType if size is 355 https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L1047-L1049
+            return size + 4;
+        }
+        return size;
+    }
+
+    /**
+     * @param {Uint8Array} buffer
+     */
+    encodeExtensions(buffer) {
+        let index = 165;
+        buffer[index] = index++;
+        for (let extension of this.extensions) {
+            let bytes = extension.toBytes();
+            buffer.set(bytes, index);
+            index += bytes.length;
+        }
+    }
+
+    /**
      * @returns {AddedAccount}
      */
     toAccount() {
         const { option: freezeAuthorityOption, val: freezeAuthority } = getOptionOr(this.freezeAuthority, () => PublicKey.default);
         const { option: mintAuthorityOption, val: mintAuthority } = getOptionOr(this.mintAuthority, () => PublicKey.default);
 
-        let buffer = new Uint8Array(MINT_SIZE);
+        let buffer = new Uint8Array(this.getSize());
         MintLayout.encode(
             {
                 mintAuthorityOption,
@@ -234,6 +272,8 @@ export class MintAccount {
             },
             buffer,
         );
+
+        this.encodeExtensions(buffer);
 
         return {
             address: this.address,
@@ -622,8 +662,7 @@ export function get_default_unpaid_ubi_bank() {
 }
 
 /**
- * 
- * @param {PublicKey} address 
+ * @param {PublicKey} address
  * @returns {UserDataAccount}
  */
 export function get_default_user_data_account(address) {
