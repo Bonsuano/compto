@@ -168,13 +168,22 @@ export class TLV {
      * @param {PublicKey | null} authority
      * @returns {TLV}
      */
-    TransferHook(programId, authority = null) {
+    static transferHook(programId, authority = null) {
         if (authority === null) {
             authority = PublicKey.default;
         }
         let data = Uint8Array.from([...authority.toBytes(), ...programId.toBytes()]);
         let transferHook = TLV.extensionTypes.TransferHook;
         return new TLV(transferHook.val, transferHook.size, data);
+    }
+
+    /**
+     * @returns {TLV}
+     */
+    static TransferHookAccount() {
+        let transferHookAccount = TLV.extensionTypes.TransferHookAccount;
+        let data = new Uint8Array(transferHookAccount.size);
+        return new TLV(transferHookAccount.val, transferHookAccount.size, data);
     }
 
     /**
@@ -244,7 +253,7 @@ export class MintAccount {
      */
     encodeExtensions(buffer) {
         let index = 165;
-        buffer[index] = index++;
+        buffer[index++] = 1;
         for (let extension of this.extensions) {
             let bytes = extension.toBytes();
             buffer.set(bytes, index);
@@ -458,6 +467,7 @@ export class TokenAccount {
     state; //  AccountState
     delegatedAmount; //  u64
     closeAuthority; //  optional PublicKey
+    extensions; // [TLV]
 
     /**
      * @param {PublicKey} address
@@ -483,6 +493,44 @@ export class TokenAccount {
         this.delegatedAmount = delegatedAmount;
         this.delegate = toOption(delegate);
         this.closeAuthority = toOption(closeAuthority);
+
+        this.extensions = [];
+    }
+
+    /**
+     * @param {TLV} tlv
+     * @returns {MintAccount}
+     */
+    addExtension(tlv) {
+        this.extensions.push(tlv);
+        return this;
+    }
+
+    /**
+     * @returns {number}
+     */
+    getSize() {
+        if (this.extensions.length === 0) {
+            return ACCOUNT_SIZE;
+        }
+        let size = this.extensions.reduce((pv, cv, i) => pv + cv.length + 4, 166);
+        if (size == 355) { // solana code say they pad with uninitialized ExtensionType if size is 355 https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L1047-L1049
+            return size + 4;
+        }
+        return size;
+    }
+
+    /**
+     * @param {Uint8Array} buffer
+     */
+    encodeExtensions(buffer) {
+        let index = 165;
+        buffer[index++] = 2;
+        for (let extension of this.extensions) {
+            let bytes = extension.toBytes();
+            buffer.set(bytes, index);
+            index += bytes.length;
+        }
     }
 
     /**
@@ -493,7 +541,7 @@ export class TokenAccount {
         const { option: isNativeOption, val: isNative } = getOptionOr(this.isNative, () => 0n);
         const { option: closeAuthorityOption, val: closeAuthority } = getOptionOr(this.closeAuthority, () => PublicKey.default);
 
-        let buffer = new Uint8Array(ACCOUNT_SIZE);
+        let buffer = new Uint8Array(this.getSize());
         AccountLayout.encode(
             {
                 mint: this.mint,
@@ -510,6 +558,10 @@ export class TokenAccount {
             },
             buffer,
         );
+
+        if (this.extensions.length > 0) {
+            this.encodeExtensions(buffer);
+        }
 
         return {
             address: this.address,
@@ -622,7 +674,8 @@ export class UserDataAccount {
  * @returns {MintAccount}
  */
 export function get_default_comptoken_mint() {
-    return new MintAccount(comptoken_mint_pubkey, BIG_NUMBER, 1n, COMPTOKEN_DECIMALS, global_data_account_pubkey);
+    return new MintAccount(comptoken_mint_pubkey, BIG_NUMBER, 1n, COMPTOKEN_DECIMALS, global_data_account_pubkey)
+        .addExtension(TLV.transferHook(compto_program_id_pubkey));
 }
 
 /**
@@ -644,7 +697,8 @@ export function get_default_global_data() {
  * @returns {TokenAccount}
  */
 export function get_default_comptoken_wallet(address, owner) {
-    return new TokenAccount(address, BIG_NUMBER, comptoken_mint_pubkey, owner, 0n, AccountState.Initialized, 0n);
+    return new TokenAccount(address, BIG_NUMBER, comptoken_mint_pubkey, owner, 0n, AccountState.Initialized, 0n)
+        .addExtension(TLV.TransferHookAccount());
 }
 
 /**
