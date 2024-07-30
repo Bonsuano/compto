@@ -46,19 +46,19 @@ async function test_getOwedComptokens() {
     const blockhash = context.lastBlockhash;
     const rent = await client.getRent();
     const keys = [
-        //  User's Data Account
+        //  User's Data Account stores how long it's been since they received owed comptokens
         { pubkey: user_data.address, isSigner: false, isWritable: true },
-        //  User's Comptoken Wallet
+        //  User's Comptoken Wallet is the account to send the comptokens to
         { pubkey: user_wallet.address, isSigner: false, isWritable: true },
-        //  Comptoken Mint
+        //  Comptoken Mint lets the token program know what kind of token to move
         { pubkey: comptoken_mint.address, isSigner: false, isWritable: false },
-        //  Comptoken Global Data (also mint authority)
+        //  Comptoken Global Data (also mint authority) stores interest data
         { pubkey: global_data.address, isSigner: false, isWritable: false },
-        //  Comptoken Interest Bank 
+        //  Comptoken Interest Bank stores comptokens owed for interest
         { pubkey: interest_bank.address, isSigner: false, isWritable: true },
-        //  Comptoken UBI Bank
+        //  Comptoken UBI Bank stores comptokens owed for UBI
         { pubkey: ubi_bank.address, isSigner: false, isWritable: true },
-        //  Token 2022 Program
+        //  Token 2022 Program moves the tokens
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
     ];
 
