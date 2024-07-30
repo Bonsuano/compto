@@ -93,7 +93,7 @@ def getProgramId():
     return run(f"solana address -k target/deploy/comptoken-keypair.json")
 
 def createToken():
-    run(f"{SPL_TOKEN_CMD} create-token -v --decimals {MINT_DECIMALS} --output json > {COMPTOKEN_MINT_JSON}")
+    run(f"{SPL_TOKEN_CMD} create-token -v --decimals {MINT_DECIMALS} --transfer-hook {getProgramId()} --output json > {COMPTOKEN_MINT_JSON}")
 
 def createKeyPair(outfile: Path):
     run(f"solana-keygen new --no-bip39-passphrase --force --silent --outfile {outfile}")
