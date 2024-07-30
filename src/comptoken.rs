@@ -8,6 +8,7 @@ extern crate bs58;
 
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 use spl_token_2022::{
+    extension::StateWithExtensions,
     instruction::mint_to,
     solana_program::{
         account_info::{next_account_info, AccountInfo},
@@ -326,8 +327,9 @@ pub fn daily_distribution_event(
     let slot_hashes_account = verify_slothashes_account(slot_hashes_account);
 
     let global_data: &mut GlobalData = (&global_data_account).into();
-    let comptoken_mint = Mint::unpack(comptoken_mint_account.try_borrow_data().unwrap().as_ref()).unwrap();
-
+    let mint_data = comptoken_mint_account.try_borrow_data().unwrap();
+    let comptoken_mint = StateWithExtensions::<Mint>::unpack(mint_data.as_ref()).unwrap();
+    msg!("mint: {:?}", mint_data);
     let current_time = get_current_time();
     assert!(
         current_time > global_data.daily_distribution_data.last_daily_distribution_time + SEC_PER_DAY,
@@ -337,7 +339,7 @@ pub fn daily_distribution_event(
     let DailyDistributionValues {
         interest_distributed: interest_daily_distribution,
         ubi_distributed: ubi_daily_distribution,
-    } = global_data.daily_distribution_event(comptoken_mint, &slot_hashes_account);
+    } = global_data.daily_distribution_event(comptoken_mint.base, &slot_hashes_account);
 
     // mint to banks
     mint(
@@ -407,8 +409,8 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let unpaid_interest_bank = verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     let unpaid_ubi_bank = verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
 
-    let user_comptoken_wallet =
-        Account::unpack(user_comptoken_wallet_account.try_borrow_data().unwrap().as_ref()).unwrap();
+    let user_wallet_data = user_comptoken_wallet_account.try_borrow_data().unwrap();
+    let user_comptoken_wallet = StateWithExtensions::<Account>::unpack(user_wallet_data.as_ref()).unwrap();
     let global_data: &mut GlobalData = (&global_data_account).into();
     let user_data: &mut UserData = (&user_data_account).into();
 
@@ -416,12 +418,12 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let current_day = normalize_time(get_current_time());
     let days_since_last_update = (current_day - user_data.last_interest_payout_date) / SEC_PER_DAY;
 
-    msg!("total before interest: {}", user_comptoken_wallet.amount);
+    msg!("total before interest: {}", user_comptoken_wallet.base.amount);
     // get interest
     let interest = global_data
         .daily_distribution_data
-        .apply_n_interests(days_since_last_update as usize, user_comptoken_wallet.amount)
-        - user_comptoken_wallet.amount;
+        .apply_n_interests(days_since_last_update as usize, user_comptoken_wallet.base.amount)
+        - user_comptoken_wallet.base.amount;
 
     msg!("Interest: {}", interest);
 
