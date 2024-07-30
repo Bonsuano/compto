@@ -117,6 +117,75 @@ export function isArrayEqual(left, right) {
 }
 
 // =============================== Classes ===============================
+export class TLV {
+    type; // u16
+    length; // u16
+    data; // [u8; length]
+
+    static extensionTypes = {
+        Uninitialized: { val: 0, size: undefined },
+        TransferFeeConfig: { val: 1, size: undefined },
+        TransferFeeAmount: { val: 2, size: undefined },
+        MintCloseAuthority: { val: 3, size: undefined },
+        ConfidentialTransferMint: { val: 4, size: undefined },
+        ConfidentialTransferAccount: { val: 5, size: undefined },
+        DefaultAccountState: { val: 6, size: undefined },
+        ImmutableOwner: { val: 7, size: undefined },
+        MemoTransfer: { val: 8, size: undefined },
+        NonTransferable: { val: 9, size: undefined },
+        InterestBearingConfig: { val: 10, size: undefined },
+        CpiGuard: { val: 11, size: undefined },
+        PermanentDelegate: { val: 12, size: undefined },
+        NonTransferableAccount: { val: 13, size: undefined },
+        TransferHook: { val: 14, size: 64 },
+        TransferHookAccount: { val: 15, size: 1 },
+        ConfidentialTransferFeeConfig: { val: 16, size: undefined },
+        ConfidentialTransferFeeAmount: { val: 17, size: undefined },
+        MetadataPointer: { val: 18, size: undefined },
+        TokenMetadata: { val: 19, size: undefined },
+        GroupPointer: { val: 20, size: undefined },
+        TokenGroup: { val: 21, size: undefined },
+        GroupMemberPointer: { val: 22, size: undefined },
+        TokenGroupMember: { val: 23, size: undefined },
+        VariableLenMintTest: { val: 65533, size: undefined },
+        AccountPaddingTest: { val: 65534, size: undefined },
+        MintPaddingTest: { val: 65535, size: undefined },
+    }
+
+    /**
+     * @param {number} type
+     * @param {number} length
+     * @param {Uint8Array} data
+     */
+    constructor(type, length, data) {
+        this.type = type;
+        this.length = length;
+        this.data = data;
+    }
+
+    /**
+     * @param {PublicKey} programId
+     * @param {PublicKey | null} authority
+     * @returns {TLV}
+     */
+    TransferHook(programId, authority = null) {
+        if (authority === null) {
+            authority = PublicKey.default;
+        }
+        let data = Uint8Array.from([...authority.toBytes(), ...programId.toBytes()]);
+        let transferHook = TLV.extensionTypes.TransferHook;
+        return new TLV(transferHook.val, transferHook.size, data);
+    }
+
+    /**
+     * @returns {Uint8Array}
+     */
+    toBytes() {
+        let data = Uint8Array.from([...numAsU162LEBytes(this.type), ...numAsU162LEBytes(this.length), ...this.data]);
+        return data;
+    }
+}
+
 export class MintAccount {
     address; //  PublicKey
     lamports; //  u64
