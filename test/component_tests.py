@@ -1,7 +1,6 @@
 import json
 import os
-from argparse import Action, ArgumentParser, Namespace
-from typing import Any, Sequence
+from argparse import ArgumentParser, Namespace
 
 from common import *
 
@@ -48,12 +47,15 @@ def generateMockMint() -> str:
     write(COMPTOKEN_MINT_JSON, file_data)
     return address
 
-def runTest(test: str, file: str) -> bool:
+def runTest(args: Namespace, test: str, file: str) -> bool:
     print(f"running {test}")
     env = os.environ
     env["SBF_OUT_DIR"] = str(PROJECT_PATH / "target/deploy/")
+    node = ("node --trace-warnings" if args.verbose >= 2 else "node")
     try:
-        run(f"node --trace-warnings {TEST_PATH / f'compto-test-client/{file}'}", env=env)
+        stdout = run(f"{node} {TEST_PATH / f'compto-test-client/{file}'}", env=env)
+        if args.verbose >= 1:
+            print(stdout)
         print(f"✅ \033[92m{test}\033[0m passed")
         return True
     except SubprocessFailedException as e:
@@ -61,57 +63,19 @@ def runTest(test: str, file: str) -> bool:
         print(e)
         return False
 
-def runTests(args: Namespace):
+def runTests(args: Namespace, tests: list[str]):
     print("running tests...")
 
     passed = 0
-    skipped = 0
-    for (test, val) in args._get_kwargs():
-        if val:
-            passed += runTest(test, f'test_{test}')
-        else:
-            skipped += 1
-            print(f"{test} skipped")
-    failed = len(args._get_kwargs()) - passed - skipped
+    for test in tests:
+        passed += runTest(args, test, f'test_{test}')
+    failed = len(tests) - passed
     print()
-    print(f"passed: {passed}    failed: {failed}    skipped: {skipped}")
+    print(f"passed: {passed}    failed: {failed}")
 
-# from https://stackoverflow.com/questions/48834678/python-argparse-is-there-a-clean-way-to-add-a-flag-that-sets-multiple-flags
-def store_const_multiple(const: Any, *destinations: str):
-    """Returns an `Action` class that sets multiple argument destinations (`destinations`) to `const`."""
-
-    class store_const_multiple_action(Action):
-
-        def __init__(self, *args, **kwargs):  # type: ignore
-            super(store_const_multiple_action,
-                  self).__init__(metavar=None, nargs=0, const=const, *args, **kwargs)  # type: ignore
-
-        def __call__(
-            self,
-            parser: ArgumentParser,
-            namespace: Namespace,
-            values: str | Sequence[Any] | None,
-            option_string: str | None = None
-        ):
-            for destination in destinations:
-                setattr(namespace, destination, const)
-
-    return store_const_multiple_action
-
-def store_true_multiple(*destinations: str):
-    """Returns an `Action` class that sets multiple argument destinations (`destinations`) to `True`."""
-    return store_const_multiple(True, *destinations)
-
-def store_false_multiple(*destinations: str):
-    """Returns an `Action` class that sets multiple argument destinations (`destinations`) to `False`."""
-    return store_const_multiple(False, *destinations)
-
-def parseArgs(tests: list[str]):
+def parseArgs():
     parser = ArgumentParser(prog="comptoken component tests")
-    for argument in tests:
-        parser.add_argument(f"--no-{argument.replace('_', '-')}", action="store_false", dest=argument)
-        parser.add_argument(f"--{argument.replace('_', '-')}", action="store_true", dest=argument)
-    parser.add_argument("--none", action=store_false_multiple(*tests), dest="mint")
+    parser.add_argument("--verbose", "-v", action="count", default=0)
 
     return parser.parse_args()
 
@@ -120,7 +84,7 @@ if __name__ == "__main__":
         "mint", "initialize_comptoken_program", "create_user_data_account", "proof_submission", "get_valid_blockhashes",
         "get_owed_comptokens", "daily_distribution_event"
     ]
-    args = parseArgs(tests)
+    args = parseArgs()
     generateFiles()
     build()
-    runTests(args)
+    runTests(args, tests)
