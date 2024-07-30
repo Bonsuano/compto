@@ -1,7 +1,7 @@
 import { ACCOUNT_SIZE, AccountLayout, AccountState, MINT_SIZE, MintLayout, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import solana_bankrun from "solana-bankrun";
-const { AccountInfoBytes } = solana_bankrun;
+const { AddedAccount, AccountInfoBytes } = solana_bankrun;
 
 import {
     compto_program_id_pubkey, comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, global_data_account_pubkey,
@@ -14,7 +14,6 @@ export const COMPTOKEN_DECIMALS = 0; // MAGIC NUMBER: remain consistent with com
 
 // =============================== Helper functions ===============================
 /**
- *
  * @param {bigint} int
  * @returns {number[]}
  */
@@ -28,7 +27,6 @@ export function bigintAsU64ToBytes(int) {
 }
 
 /**
- *
  * @param {number} num
  * @returns {number[]}
  */
@@ -39,7 +37,16 @@ export function numAsDouble2LEBytes(num) {
 }
 
 /**
- *
+ * @param {number} num
+ * @returns {number[]}
+ */
+export function numAsU162LEBytes(num) {
+    let buffer = Buffer.alloc(2);
+    buffer.writeUInt16LE(num);
+    return Array.from({ length: 2 }, (v, i) => buffer.readUint8(i));
+}
+
+/**
  * @param {Uint8Array} bytes
  * @param {number} elem_size
  * @returns {Uint8Array[]}
@@ -54,7 +61,6 @@ function LEBytes2SplitArray(bytes, elem_size) {
 }
 
 /**
- *
  * @param {Uint8Array} bytes
  * @returns {number[]}
  */
@@ -63,8 +69,7 @@ export function LEBytes2DoubleArray(bytes) {
 }
 
 /**
- * 
- * @param {Uint8Array} bytes 
+ * @param {Uint8Array} bytes
  * @returns {Uint8Array[]}
  */
 export function LEBytes2BlockhashArray(bytes) {
@@ -72,7 +77,6 @@ export function LEBytes2BlockhashArray(bytes) {
 }
 
 /**
- *
  * @param {T | null | undefined} val
  * @returns {T | null}
  */
@@ -84,7 +88,6 @@ export function toOption(val) {
 }
 
 /**
- *
  * @param {T | null} opt_val
  * @param {() => T} fn
  * @returns {T} opt_val if it is not null or result of calling fn
@@ -97,9 +100,8 @@ export function getOptionOr(opt_val, fn) {
 }
 
 /**
- * 
- * @param {T[]} left 
- * @param {T[]} right 
+ * @param {T[]} left
+ * @param {T[]} right
  * @returns {boolean}
  */
 export function isArrayEqual(left, right) {
@@ -125,7 +127,6 @@ export class MintAccount {
     freezeAuthority; //  optional PublicKey
 
     /**
-     *
      * @param {PublicKey} address
      * @param {number} lamports
      * @param {bigint} supply
@@ -177,7 +178,6 @@ export class MintAccount {
     }
 
     /**
-     *
      * @param {PublicKey} address
      * @param {AccountInfoBytes} accountInfo
      * @returns {MintAccount}
@@ -201,7 +201,6 @@ export class ValidBlockhashes {
     validBlockhashTime; //  i64
 
     /**
-     *
      * @param {{ blockhash: Uint8Array; time: bigint }} announced
      * @param {{ blockhash: Uint8Array; time: bigint }} valid
      */
@@ -213,7 +212,6 @@ export class ValidBlockhashes {
     }
 
     /**
-     *
      * @returns {Uint8Array}
      */
     toBytes() {
@@ -226,7 +224,6 @@ export class ValidBlockhashes {
     }
 
     /**
-     *
      * @param {Uint8Array} bytes
      * @returns {ValidBlockhashes}
      */
@@ -249,7 +246,6 @@ export class DailyDistributionData {
     static HISTORY_SIZE = 365; //   remain consistent with rust
 
     /**
-     *
      * @param {bigint} yesterdaySupply
      * @param {bigint} highWaterMark
      * @param {bigint} lastDailyDistributionTime
@@ -268,7 +264,6 @@ export class DailyDistributionData {
     }
 
     /**
-     *
      * @returns {Uint8Array}
      */
     toBytes() {
@@ -282,7 +277,6 @@ export class DailyDistributionData {
     }
 
     /**
-     *
      * @param {Uint8Array} bytes
      * @returns {DailyDistributionData}
      */
@@ -305,7 +299,6 @@ export class GlobalDataAccount {
     dailyDistributionData;
 
     /**
-     *
      * @param {ValidBlockhashes} validBlockhashes
      * @param {DailyDistributionData} dailyDistributionData
      */
@@ -317,7 +310,6 @@ export class GlobalDataAccount {
     }
 
     /**
-     *
      * @returns {AddedAccount}
      */
     toAccount() {
@@ -333,7 +325,6 @@ export class GlobalDataAccount {
     }
 
     /**
-     *
      * @param {PublicKey} address unused; for API consistency with other accounts
      * @param {import("solana-bankrun").AccountInfoBytes} accountInfo
      * @returns {GlobalDataAccount}
@@ -360,7 +351,6 @@ export class TokenAccount {
     closeAuthority; //  optional PublicKey
 
     /**
-     *
      * @param {PublicKey} address
      * @param {number} lamports
      * @param {PublicKey} mint
@@ -387,7 +377,6 @@ export class TokenAccount {
     }
 
     /**
-     *
      * @returns {AddedAccount}
      */
     toAccount() {
@@ -425,7 +414,6 @@ export class TokenAccount {
     }
 
     /**
-     *
      * @param {PublicKey} address
      * @param {AccountInfoBytes} accountInfo
      * @returns {TokenAccount}
@@ -458,9 +446,8 @@ export class UserDataAccount {
     proofs; // [Hash]
 
     /**
-     *
      * @param {PublicKey} address
-     * @param {bigint} lamports
+     * @param {number} lamports
      * @param {bigint} lastInterestPayoutDate
      * @param {boolean} isVerifiedHuman
      * @param {bigint} length
@@ -479,7 +466,6 @@ export class UserDataAccount {
     }
 
     /**
-     *
      * @returns {AddedAccount}
      */
     toAccount() {
@@ -503,7 +489,6 @@ export class UserDataAccount {
     }
 
     /**
-     *
      * @param {PublicKey} address
      * @param {AccountInfoBytes} accountInfo
      * @returns {UserDataAccount}
@@ -525,7 +510,6 @@ export class UserDataAccount {
 // =============================== Default Account Factories ===============================
 
 /**
- *
  * @returns {MintAccount}
  */
 export function get_default_comptoken_mint() {
@@ -533,21 +517,19 @@ export function get_default_comptoken_mint() {
 }
 
 /**
- *
  * @returns {GlobalDataAccount}
  */
 export function get_default_global_data() {
     return new GlobalDataAccount(
         new ValidBlockhashes(
             { blockhash: Uint8Array.from({ length: 32 }, (v, i) => i), time: DEFAULT_ANNOUNCE_TIME },
-            { blockhash: Uint8Array.from({ length: 32 }, (v, i) => 2 * i), time: DEFAULT_DISTRIBUTION_TIME }
+            { blockhash: Uint8Array.from({ length: 32 }, (v, i) => 2 * i), time: DEFAULT_DISTRIBUTION_TIME },
         ),
         new DailyDistributionData(0n, 0n, DEFAULT_DISTRIBUTION_TIME, 0n, []),
     );
 }
 
 /**
- *
  * @param {PublicKey} address
  * @param {PublicKey} owner
  * @returns {TokenAccount}
@@ -557,7 +539,6 @@ export function get_default_comptoken_wallet(address, owner) {
 }
 
 /**
- *
  * @returns {TokenAccount}
  */
 export function get_default_unpaid_interest_bank() {
@@ -565,7 +546,6 @@ export function get_default_unpaid_interest_bank() {
 }
 
 /**
- *
  * @returns {TokenAccount}
  */
 export function get_default_unpaid_ubi_bank() {
