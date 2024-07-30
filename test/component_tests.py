@@ -81,8 +81,8 @@ def parseArgs():
 
 if __name__ == "__main__":
     tests = [
-        "mint", "initialize_comptoken_program", "create_user_data_account", "proof_submission", "get_valid_blockhashes",
-        "get_owed_comptokens", "daily_distribution_event"
+        "mint", "initializeComptokenProgram", "createUserDataAccount", "proofSubmission", "getValidBlockhashes",
+        "getOwedComptokens", "dailyDistributionEvent"
     ]
     args = parseArgs()
     generateFiles()
