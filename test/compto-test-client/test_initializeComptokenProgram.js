@@ -5,6 +5,7 @@ import { Clock, start } from "solana-bankrun";
 import { get_default_comptoken_mint, GlobalDataAccount, programId, TokenAccount, } from "./accounts.js";
 import { Assert } from "./assert.js";
 import {
+    compto_validation_account_pubkey,
     comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, DEFAULT_START_TIME, global_data_account_pubkey, Instruction,
     interest_bank_account_pubkey, ubi_bank_account_pubkey
 } from "./common.js";
@@ -30,6 +31,8 @@ async function initialize_comptoken_program() {
         { pubkey: ubi_bank_account_pubkey, isSigner: false, isWritable: true },
         // the comptoken mint account
         { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: false },
+
+        { pubkey: compto_validation_account_pubkey, isSigner: false, isWritable: true },
         // needed because compto program interacts with the system program to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         // the token program that will mint the tokens when instructed by the mint authority

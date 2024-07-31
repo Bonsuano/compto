@@ -199,6 +199,7 @@ pub fn initialize_comptoken_program(
     let unpaid_interest_bank = next_account_info(account_info_iter)?;
     let unpaid_ubi_bank = next_account_info(account_info_iter)?;
     let comptoken_mint = next_account_info(account_info_iter)?;
+    let validation_account = next_account_info(account_info_iter)?;
     let _solana_program = next_account_info(account_info_iter)?;
     let _token_2022_program = next_account_info(account_info_iter)?;
     let slot_hashes_account = next_account_info(account_info_iter)?;
@@ -208,6 +209,7 @@ pub fn initialize_comptoken_program(
     let unpaid_interest_bank = verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     let unpaid_ubi_bank = verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
     let comptoken_mint = verify_comptoken_mint(comptoken_mint, false);
+    let validation_account = verify_validation_account(validation_account, program_id, true);
     let slot_hashes_account = verify_slothashes_account(slot_hashes_account);
 
     let first_8_bytes: [u8; 8] = instruction_data[0..8].try_into().unwrap();
@@ -252,6 +254,14 @@ pub fn initialize_comptoken_program(
 
     let global_data: &mut GlobalData = (&global_data_account).into();
     global_data.initialize(&slot_hashes_account);
+
+    // create validation account
+    let account_metas = vec![];
+    let account_size = ExtraAccountMetaList::size_of(account_metas.len())? as u64;
+    let lamports = Rent::get()?.minimum_balance(account_size as usize);
+    let signer_seeds: &[&[&[u8]]] = &[COMPTO_VALIDATION_ACCOUNT_SEEDS, COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS];
+    create_pda(&payer_account, &validation_account, lamports, account_size, program_id, signer_seeds)?;
+    ExtraAccountMetaList::init::<ExecuteInstruction>(&mut validation_account.try_borrow_mut_data()?, &account_metas)?;
 
     Ok(())
 }
@@ -500,6 +510,7 @@ fn initialize_transfer_hook_account_metas(
     //      Comptoken Mint
     //      Comptoken Global Data (also mint authority) (signer?)
     //      Solana Program
+    //      payer account ????
 
     let account_info_iter = &mut accounts.iter();
     let validation_account = next_account_info(account_info_iter)?;
