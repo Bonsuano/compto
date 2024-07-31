@@ -10,7 +10,7 @@ import {
     UserDataAccount
 } from "./accounts.js";
 import { Assert } from "./assert.js";
-import { DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, DEFAULT_START_TIME, Instruction, SEC_PER_DAY, testuser_comptoken_wallet_pubkey } from "./common.js";
+import { DEFAULT_DISTRIBUTION_TIME, DEFAULT_START_TIME, Instruction, SEC_PER_DAY, testuser_comptoken_wallet_pubkey } from "./common.js";
 
 async function test_getOwedComptokens() {
     let comptoken_mint = get_default_comptoken_mint();
@@ -41,6 +41,7 @@ async function test_getOwedComptokens() {
             get_validation_account(),
         ]
     );
+    console.log(get_validation_account().address)
     const client = context.banksClient;
     const payer = context.payer;
     const blockhash = context.lastBlockhash;
@@ -60,6 +61,8 @@ async function test_getOwedComptokens() {
         { pubkey: ubi_bank.address, isSigner: false, isWritable: true },
         //  Token 2022 Program moves the tokens
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
+        { pubkey: get_validation_account().address, isSigner: false, isWritable: false },
+        { pubkey: programId, isSigner: false, isWritable: false },
     ];
 
     let data = Buffer.from([Instruction.GET_OWED_COMPTOKENS]);
@@ -72,10 +75,11 @@ async function test_getOwedComptokens() {
     context.setClock(new Clock(0n, 0n, 0n, 0n, DEFAULT_START_TIME));
     const meta = await client.processTransaction(tx);
 
+    console.log(meta.logMessages);
     let account = await client.getAccount(user_wallet.address);
     Assert.assertNotNull(account);
     let finalUserWallet = TokenAccount.fromAccountInfoBytes(user_wallet.address, account);
-    Assert.assertEqual(finalUserWallet.amount, 3n, "interest amount");
+    Assert.assertEqual(finalUserWallet.amount, BigInt(Number(user_wallet.amount) * (1 + global_data.dailyDistributionData.historicInterests[0])), "interest amount");
 
     account = await client.getAccount(user_data.address);
     Assert.assertNotNull(account);

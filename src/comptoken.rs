@@ -6,6 +6,7 @@ mod verify_accounts;
 
 extern crate bs58;
 
+use solana_program::instruction;
 use spl_tlv_account_resolution::state::ExtraAccountMetaList;
 use spl_token_2022::{
     extension::StateWithExtensions,
@@ -18,7 +19,6 @@ use spl_token_2022::{
         instruction::Instruction,
         msg,
         program::{invoke_signed, set_return_data},
-        program_pack::Pack,
         pubkey::Pubkey,
         rent::Rent,
         system_instruction,
@@ -26,7 +26,10 @@ use spl_token_2022::{
     },
     state::{Account, Mint},
 };
-use spl_transfer_hook_interface::instruction::{ExecuteInstruction, TransferHookInstruction};
+use spl_transfer_hook_interface::{
+    get_extra_account_metas_address,
+    instruction::{ExecuteInstruction, TransferHookInstruction},
+};
 use spl_type_length_value::state::TlvStateBorrowed;
 
 use comptoken_proof::ComptokenProof;
@@ -419,6 +422,8 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let unpaid_interest_bank = next_account_info(account_info_iter)?;
     let unpaid_ubi_bank = next_account_info(account_info_iter)?;
     let _solana_token_account = next_account_info(account_info_iter)?;
+    let validation_account = next_account_info(account_info_iter)?;
+    let transfer_hook_program = next_account_info(account_info_iter)?;
 
     let user_comptoken_wallet_account =
         verify_user_comptoken_wallet_account(user_comptoken_wallet_account, false, true);
@@ -428,6 +433,8 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let global_data_account = verify_global_data_account(global_data_account, program_id, false);
     let unpaid_interest_bank = verify_interest_bank_account(unpaid_interest_bank, program_id, true);
     let unpaid_ubi_bank = verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
+    let validation_account = verify_validation_account(validation_account, program_id, false);
+    let transfer_hook_program = VerifiedAccountInfo::new(transfer_hook_program.clone());
 
     let interest;
     let is_verified_human;
@@ -458,6 +465,8 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
         &user_comptoken_wallet_account,
         &comptoken_mint_account,
         &global_data_account,
+        &validation_account,
+        &transfer_hook_program,
         interest,
     )?;
 
@@ -468,6 +477,8 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
             &user_comptoken_wallet_account,
             &comptoken_mint_account,
             &global_data_account,
+            &validation_account,
+            &transfer_hook_program,
             0, // TODO figure out correct amount
         )?;
     }
@@ -565,7 +576,8 @@ fn mint(
 
 fn transfer<'a>(
     source: &VerifiedAccountInfo<'a>, destination: &VerifiedAccountInfo<'a>, mint: &VerifiedAccountInfo<'a>,
-    global_data: &VerifiedAccountInfo<'a>, amount: u64,
+    global_data: &VerifiedAccountInfo<'a>, validation_account: &VerifiedAccountInfo<'a>,
+    transfer_hook_program: &VerifiedAccountInfo<'a>, amount: u64,
 ) -> ProgramResult {
     spl_token_2022::onchain::invoke_transfer_checked(
         &spl_token_2022::ID,
@@ -573,12 +585,11 @@ fn transfer<'a>(
         mint.0.clone(),
         destination.0.clone(),
         global_data.0.clone(),
-        &[],
+        &[validation_account.0.clone(), transfer_hook_program.0.clone()],
         amount,
         MINT_DECIMALS,
         &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
     )
-    //invoke_signed_verified(&instruction, &[source, mint, destination, global_data], )
 }
 
 fn create_pda<'a>(
