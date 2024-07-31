@@ -50,8 +50,9 @@ async function test_dailyDistributionEvent() {
     context.setClock(new Clock(0n, 0n, 0n, 0n, DEFAULT_START_TIME));
     const result = await client.simulateTransaction(tx);
 
-    // TODO: make this assert less brittle
-    Assert.assert(result.meta.logMessages[3].includes("daily distribution already called today"), "daily distribution already called");
+    // basically, asserts that the error message is in one of the logged messages
+    Assert.assert(result.meta.logMessages.reduce((pv, cv, i) => pv || cv.includes("daily distribution already called"), false),
+        "daily distribution should already called");
 
     let account = await client.getAccount(comptoken_mint.address);
     Assert.assertNotNull(account);
