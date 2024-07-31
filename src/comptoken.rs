@@ -83,8 +83,8 @@ pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instru
             msg!("Get Owed Comptokens");
             get_owed_comptokens(program_id, accounts, &instruction_data[1..])
         }
-        43 => {
-            // initialize extra AccountMeta (transfer hook)  MUST BE 43
+        36 => {
+            // initialize extra AccountMeta (transfer hook)  MUST BE 36
             initialize_transfer_hook_account_metas(program_id, accounts, instruction_data)
         }
         105 => {
@@ -326,14 +326,17 @@ pub fn daily_distribution_event(
     let unpaid_ubi_bank = verify_ubi_bank_account(unpaid_ubi_bank, program_id, true);
     let slot_hashes_account = verify_slothashes_account(slot_hashes_account);
 
-    let global_data: &mut GlobalData = (&global_data_account).into();
+    let mut global_data_account_data = global_data_account.try_borrow_mut_data().unwrap();
+    let global_data: &mut GlobalData = global_data_account_data.as_mut().into();
     let mint_data = comptoken_mint_account.try_borrow_data().unwrap();
     let comptoken_mint = StateWithExtensions::<Mint>::unpack(mint_data.as_ref()).unwrap();
     msg!("mint: {:?}", mint_data);
     let current_time = get_current_time();
     assert!(
         current_time > global_data.daily_distribution_data.last_daily_distribution_time + SEC_PER_DAY,
-        "daily distribution already called today"
+        "daily distribution already called today: current time: {}, last distribution time: {}",
+        current_time,
+        global_data.daily_distribution_data.last_daily_distribution_time + SEC_PER_DAY
     );
 
     let DailyDistributionValues {
@@ -341,6 +344,8 @@ pub fn daily_distribution_event(
         ubi_distributed: ubi_daily_distribution,
     } = global_data.daily_distribution_event(comptoken_mint.base, &slot_hashes_account);
 
+    drop(global_data_account_data);
+    drop(mint_data);
     // mint to banks
     mint(
         &global_data_account,
@@ -541,17 +546,18 @@ fn transfer<'a>(
     source: &VerifiedAccountInfo<'a>, destination: &VerifiedAccountInfo<'a>, mint: &VerifiedAccountInfo<'a>,
     global_data: &VerifiedAccountInfo<'a>, amount: u64,
 ) -> ProgramResult {
-    let instruction = spl_token_2022::instruction::transfer_checked(
+    spl_token_2022::onchain::invoke_transfer_checked(
         &spl_token_2022::ID,
-        source.key,
-        mint.key,
-        destination.key,
-        global_data.key,
+        source.0.clone(),
+        mint.0.clone(),
+        destination.0.clone(),
+        global_data.0.clone(),
         &[],
         amount,
         MINT_DECIMALS,
-    )?;
-    invoke_signed_verified(&instruction, &[source, mint, destination, global_data], &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS])
+        &[COMPTO_GLOBAL_DATA_ACCOUNT_SEEDS],
+    )
+    //invoke_signed_verified(&instruction, &[source, mint, destination, global_data], )
 }
 
 fn create_pda<'a>(
