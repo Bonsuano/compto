@@ -4,7 +4,7 @@ import solana_bankrun from "solana-bankrun";
 const { AddedAccount, AccountInfoBytes } = solana_bankrun;
 
 import {
-    compto_program_id_pubkey, comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, global_data_account_pubkey,
+    compto_program_id_pubkey, compto_validation_account_pubkey, comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, global_data_account_pubkey,
     interest_bank_account_pubkey, ubi_bank_account_pubkey,
 } from "./common.js";
 
@@ -721,4 +721,16 @@ export function get_default_unpaid_ubi_bank() {
  */
 export function get_default_user_data_account(address) {
     return new UserDataAccount(address, BIG_NUMBER, DEFAULT_DISTRIBUTION_TIME, false, 0n, new Uint8Array(32), Array.from({ length: 8 }, (v, i) => new Uint8Array(32)));
+}
+
+export function get_validation_account() {
+    return {
+        address: compto_validation_account_pubkey,
+        info: {
+            lamports: BIG_NUMBER,
+            data: Uint8Array.from([105, 37, 101, 197, 75, 251, 102, 26, 4, 0, 0, 0, 0, 0, 0, 0]),
+            owner: global_data_account_pubkey,
+            executable: false,
+        }
+    }
 }

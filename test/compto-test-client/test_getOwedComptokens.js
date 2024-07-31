@@ -5,7 +5,7 @@ import { Clock, start } from "solana-bankrun";
 import {
     BIG_NUMBER,
     get_default_comptoken_mint, get_default_comptoken_wallet, get_default_global_data, get_default_unpaid_interest_bank,
-    get_default_unpaid_ubi_bank, get_default_user_data_account, programId,
+    get_default_unpaid_ubi_bank, get_default_user_data_account, get_validation_account, programId,
     TokenAccount,
     UserDataAccount
 } from "./accounts.js";
@@ -38,6 +38,7 @@ async function test_getOwedComptokens() {
             global_data.toAccount(),
             interest_bank.toAccount(),
             ubi_bank.toAccount(),
+            get_validation_account(),
         ]
     );
     const client = context.banksClient;

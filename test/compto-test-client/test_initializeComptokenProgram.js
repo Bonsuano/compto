@@ -31,7 +31,7 @@ async function initialize_comptoken_program() {
         { pubkey: ubi_bank_account_pubkey, isSigner: false, isWritable: true },
         // the comptoken mint account
         { pubkey: comptoken_mint_pubkey, isSigner: false, isWritable: false },
-
+        // the address of the validation account to be created
         { pubkey: compto_validation_account_pubkey, isSigner: false, isWritable: true },
         // needed because compto program interacts with the system program to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
@@ -62,6 +62,7 @@ async function initialize_comptoken_program() {
     context.setClock(new Clock(0n, 0n, 0n, 0n, DEFAULT_START_TIME));
     const meta = await client.processTransaction(tx);
 
+    console.log(meta.logMessages);
     const finalGlobalData = GlobalDataAccount.fromAccountInfoBytes(global_data_account_pubkey, await client.getAccount(global_data_account_pubkey));
     Assert.assertEqual(finalGlobalData.validBlockhashes.announcedBlockhashTime, DEFAULT_ANNOUNCE_TIME, "announced blockhash time");
     Assert.assertEqual(finalGlobalData.validBlockhashes.validBlockhashTime, DEFAULT_DISTRIBUTION_TIME, "valid blockhash time");
