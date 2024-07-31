@@ -133,8 +133,8 @@ if __name__ == "__main__":
         globalDataSeed = setGlobalDataPDA(programId)["bumpSeed"]
         interestBankSeed = setInterestBankPDA(programId)["bumpSeed"]
         UBIBankSeed = setUBIBankPDA(programId)["bumpSeed"]
-        validationSeed = setValidationPda(programId)["bumpSeed"]
         comptoken_id = getTokenAddress()
+        validationSeed = setValidationPda(programId, Pubkey(comptoken_id))["bumpSeed"]
         print("Checking Compto Program for hardcoded Comptoken Address and static seed...")
         generateComptokenAddressFile(
             globalDataSeed, interestBankSeed, UBIBankSeed, validationSeed, comptoken_id

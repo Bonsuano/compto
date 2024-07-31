@@ -2,6 +2,7 @@ import json
 import os
 import signal
 import subprocess
+from functools import reduce
 from pathlib import Path
 from types import TracebackType
 from typing import Any, Mapping, Self, Type
@@ -62,16 +63,17 @@ class Pubkey(str):
 class PDA(dict[str, Any]):
 
     def __init__(self, programId: str, *seeds: str | int | Pubkey) -> None:
-        seeds_str = ""
-        for seed in seeds:
+        def get_seed_str(seed: str | int | Pubkey):
             if isinstance(seed, Pubkey):
-                seeds_str += f"pubkey:'{seed}'"
+                return f"pubkey:'{seed}'"
             elif isinstance(seed, str):
-                seeds_str += f"string:'{seed}'"
+                return f"string:'{seed}'"
             elif isinstance(seed, int):  # type: ignore
-                seeds_str += f"hex:'{hex(seed)}'"
+                return f"hex:'{hex(seed)}'"
             else:
                 raise TypeError(f"bad type: '{seed.__class__}'")
+        seeds_str = reduce(lambda l, r : l + " " + r,map(get_seed_str, seeds))
+        
         super().__init__(json.loads(run(f"solana find-program-derived-address {programId} {seeds_str} --output json")))
 
 def run(command: str | list[str], cwd: Path | None = None, env: Mapping[str, str] | None = None) -> str:
@@ -134,8 +136,8 @@ def setUBIBankPDA(programId: str) -> PDA:
     write(COMPTO_UBI_BANK_ACCOUNT_JSON, json.dumps(pda))
     return pda
 
-def setValidationPda(programId: str) -> PDA:
-    pda = PDA(programId, "extra-account-metas")
+def setValidationPda(programId: str, mintAddress: Pubkey) -> PDA:
+    pda = PDA(programId, "extra-account-metas", mintAddress)
     write(COMPTO_VALIDATION_ACCOUNT_JSON, json.dumps(pda))
     return pda
 

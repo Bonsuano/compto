@@ -19,7 +19,7 @@ def generateFiles():
     globalDataSeed = setGlobalDataPDA(programId)["bumpSeed"]
     interestBankSeed = setInterestBankPDA(programId)["bumpSeed"]
     UBIBankSeed = setUBIBankPDA(programId)["bumpSeed"]
-    validationSeed = setValidationPda(programId)["bumpSeed"]
+    validationSeed = setValidationPda(programId, Pubkey(mint_address))["bumpSeed"]
     # test user
     generateTestUser()
     # rust file
