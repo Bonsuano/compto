@@ -40,6 +40,9 @@ export const compto_program_id_str = compto_program_id["programId"];
 import testuser_comptoken_wallet_ from "../.cache/test_user_account.json" assert { type: "json" };
 export const testuser_comptoken_wallet_num_arr = testuser_comptoken_wallet_;
 
+import compto_validation_account from "../.cache/compto_validation_account.json" assert { type: "json" };
+export const compto_validation_account_str = compto_validation_account["address"];
+
 // Pubkeys
 export const testuser_comptoken_wallet_pubkey = Keypair.fromSecretKey(new Uint8Array(testuser_comptoken_wallet_num_arr)).publicKey;
 export const global_data_account_pubkey = new PublicKey(bs58.decode(global_data_account_str));
@@ -47,6 +50,7 @@ export const interest_bank_account_pubkey = new PublicKey(bs58.decode(interest_b
 export const ubi_bank_account_pubkey = new PublicKey(bs58.decode(ubi_bank_account_str));
 export const comptoken_mint_pubkey = new PublicKey(bs58.decode(comptoken_mint_str));
 export const compto_program_id_pubkey = new PublicKey(bs58.decode(compto_program_id_str));
+export const compto_validation_account_pubkey = new PublicKey(bs58.decode(compto_validation_account_str));
 
 // KeyPair
 let solana_id = JSON.parse(fs.readFileSync(os.homedir() + "/.config/solana/id.json").toString());
