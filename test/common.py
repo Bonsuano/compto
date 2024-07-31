@@ -20,7 +20,7 @@ TEST_USER_ACCOUNT_JSON = CACHE_PATH / "test_user_account.json"
 COMPTO_GLOBAL_DATA_ACCOUNT_JSON = CACHE_PATH / "compto_global_data_account.json"
 COMPTO_INTEREST_BANK_ACCOUNT_JSON = CACHE_PATH / "compto_interest_bank_account.json"
 COMPTO_UBI_BANK_ACCOUNT_JSON = CACHE_PATH / "compto_ubi_bank_account.json"
-COMPTO_VALIDATION_ACCOUNT_JSON = CACHE_PATH / "compto_validation_account"
+COMPTO_VALIDATION_ACCOUNT_JSON = CACHE_PATH / "compto_validation_account.json"
 COMPTO_MD5_JSON = CACHE_PATH / "compto_md5sum.json"
 
 MINT_DECIMALS = 0  # MAGIC NUMBER ensure this remains consistent with constants.rs
