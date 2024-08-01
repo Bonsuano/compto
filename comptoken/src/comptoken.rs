@@ -25,7 +25,7 @@ use comptoken_utils::{create_pda, get_current_time, invoke_signed_verified, norm
 
 use comptoken_proof::ComptokenProof;
 use constants::*;
-use global_data::{daily_distribution_data::DailyDistributionValues, valid_blockhashes::ValidBlockhashes, GlobalData};
+use global_data::{daily_distribution_data::DailyDistributionValues, GlobalData};
 use user_data::{UserData, USER_DATA_MIN_SIZE};
 use verify_accounts::*;
 
@@ -138,7 +138,7 @@ pub fn mint_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], instructio
     let global_data: &mut GlobalData = (&global_data_account).into();
     let user_comptoken_wallet_account =
         verify_user_comptoken_wallet_account(user_comptoken_wallet_account, false, true);
-    let proof = verify_comptoken_proof_userdata(
+    let proof = ComptokenProof::verify_submitted_proof(
         &user_comptoken_wallet_account,
         instruction_data,
         &global_data.valid_blockhashes,
@@ -484,14 +484,4 @@ fn init_comptoken_account<'a>(
 fn store_hash(proof: ComptokenProof, data_account: &VerifiedAccountInfo) {
     let user_data: &mut UserData = data_account.into();
     user_data.insert(&proof.hash, &proof.recent_block_hash)
-}
-
-fn verify_comptoken_proof_userdata<'a>(
-    comptoken_wallet: &'a VerifiedAccountInfo, data: &[u8], valid_blockhashes: &ValidBlockhashes,
-) -> ComptokenProof<'a> {
-    assert_eq!(data.len(), comptoken_proof::VERIFY_DATA_SIZE, "Invalid proof size");
-    let proof = ComptokenProof::from_bytes(comptoken_wallet.key, data.try_into().expect("correct size"));
-    msg!("block: {:?}", proof);
-    assert!(comptoken_proof::verify_proof(&proof, valid_blockhashes), "invalid proof");
-    proof
 }
