@@ -8,8 +8,8 @@ edition = "2021"
 [dependencies]
 bs58 = "0.5.1"
 hex = "0.4.3"
-solana-program = "*"
-spl-token-2022 = { version="4.0.0", features=["no-entrypoint"] }
+solana-program = { workspace = true }
+spl-token-2022 = { workspace = true }
 
 [dev-dependencies]
 hex-literal = "0.4.1"
