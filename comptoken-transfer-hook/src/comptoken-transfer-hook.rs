@@ -5,14 +5,13 @@ use spl_token_2022::solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
-    instruction::Instruction,
-    program::invoke_signed,
     pubkey::Pubkey,
     rent::Rent,
-    system_instruction,
     sysvar::Sysvar,
 };
 use spl_transfer_hook_interface::instruction::{ExecuteInstruction, TransferHookInstruction};
+
+use comptoken_utils::create_pda;
 
 use verify_accounts::{verify_mint_account, verify_validation_account, VerifiedAccountInfo};
 
@@ -68,23 +67,6 @@ fn process_initialize_extra_account_meta_list(
     )?;
 
     Ok(())
-}
-
-fn create_pda<'a>(
-    payer: &VerifiedAccountInfo<'a>, new_account: &VerifiedAccountInfo<'a>, lamports: u64, space: u64, owner: &Pubkey,
-    signers_seeds: &[&[&[u8]]],
-) -> ProgramResult {
-    let create_acct_instr = system_instruction::create_account(payer.key, new_account.key, lamports, space, owner);
-    // The PDA that is being created must sign for its own creation.
-    invoke_signed_verified(&create_acct_instr, &[payer, new_account], signers_seeds)
-}
-
-fn invoke_signed_verified<'a>(
-    instruction: &Instruction, accounts: &[&VerifiedAccountInfo<'a>], signers_seeds: &[&[&[u8]]],
-) -> ProgramResult {
-    // Convert VerifiedAccountInfo references to AccountInfo references
-    let account_refs: Vec<_> = accounts.iter().map(|acct| acct.0.clone()).collect();
-    invoke_signed(instruction, &account_refs, signers_seeds)
 }
 
 fn get_validation_account_seeds<'a>(mint: &'a VerifiedAccountInfo) -> Vec<&'a [u8]> {
