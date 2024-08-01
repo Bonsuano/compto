@@ -1,0 +1,13 @@
+[package]
+name = "comptoken-transfer-hook"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+solana-program = { workspace = true }
+spl-token-2022 = { workspace = true }
+
+[lib]
+path = "src/comptoken-transfer-hook.rs"
+name = "comptoken_transfer_hook"
+crate-type = ["cdylib", "lib"]
