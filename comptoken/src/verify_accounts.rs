@@ -8,7 +8,7 @@ use crate::generated::{
 pub use comptoken_utils::verify_accounts::VerifiedAccountInfo;
 
 pub fn verify_payer_account<'a>(account: &AccountInfo<'a>) -> VerifiedAccountInfo<'a> {
-    VerifiedAccountInfo::verify_payer_account(account)
+    VerifiedAccountInfo::verify_account_signer_or_writable(account, true, true)
 }
 
 pub fn verify_comptoken_mint<'a>(account: &AccountInfo<'a>, needs_writable: bool) -> VerifiedAccountInfo<'a> {

@@ -1,9 +1,8 @@
 pub mod verify_accounts;
 
-use solana_program::sysvar::Sysvar;
 use spl_token_2022::solana_program::{
     clock::Clock, entrypoint::ProgramResult, instruction::Instruction, program::invoke_signed, pubkey::Pubkey,
-    system_instruction,
+    system_instruction, sysvar::Sysvar,
 };
 
 use verify_accounts::VerifiedAccountInfo;

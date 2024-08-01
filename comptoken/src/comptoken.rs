@@ -14,9 +14,9 @@ use spl_token_2022::{
         hash::HASH_BYTES,
         msg,
         program::set_return_data,
+        program_error::ProgramError,
         program_pack::Pack,
         pubkey::Pubkey,
-        sysvar::slot_history::ProgramError,
     },
     state::{Account, Mint},
 };

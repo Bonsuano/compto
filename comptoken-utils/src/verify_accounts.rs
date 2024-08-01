@@ -1,13 +1,12 @@
 use std::ops::Deref;
 
-use solana_program::sysvar::SysvarId;
-use spl_token_2022::solana_program::{account_info::AccountInfo, pubkey::Pubkey};
+use spl_token_2022::solana_program::{account_info::AccountInfo, pubkey::Pubkey, sysvar::SysvarId};
 
 #[derive(Debug, Clone)]
 pub struct VerifiedAccountInfo<'a>(pub AccountInfo<'a>);
 
 impl<'a> VerifiedAccountInfo<'a> {
-    pub fn new(account: AccountInfo<'a>) -> Self {
+    fn new(account: AccountInfo<'a>) -> Self {
         Self(account)
     }
 
@@ -39,10 +38,6 @@ impl<'a> VerifiedAccountInfo<'a> {
     pub fn verify_sysvar<S: SysvarId>(account: &AccountInfo<'a>) -> Self {
         assert!(S::check_id(account.key));
         Self::new(account.clone())
-    }
-
-    pub fn verify_payer_account(account: &AccountInfo<'a>) -> Self {
-        Self::verify_account_signer_or_writable(account, true, true)
     }
 
     pub fn verify_specific_address(
