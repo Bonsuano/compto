@@ -50,7 +50,7 @@ def generateMockMint() -> str:
 def runTest(args: Namespace, test: str, file: str) -> bool:
     print(f"running {test}")
     env = os.environ
-    env["SBF_OUT_DIR"] = str(COMPTOKEN_SRC_PATH / "target/deploy/")
+    env["SBF_OUT_DIR"] = str(PROJECT_PATH / "target/deploy/")
     node = ("node --trace-warnings" if args.verbose >= 2 else "node")
     try:
         stdout = run(f"{node} {TEST_PATH / f'compto-test-client/{file}'}", env=env)
