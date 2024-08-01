@@ -84,8 +84,11 @@ if __name__ == "__main__":
         "mint", "initializeComptokenProgram", "createUserDataAccount", "proofSubmission", "getValidBlockhashes",
         "getOwedComptokens", "dailyDistributionEvent"
     ]
+    transfer_hook_tests: list[str] = []
 
-    tests = list(map(lambda test: "comptoken-tests/" + test, comptoken_tests))
+    tests = list(map(lambda test: "comptoken-tests/" + test, comptoken_tests)
+                 ) + list(map(lambda test: "transfer-hook-tests/" + test, transfer_hook_tests))
+
     args = parseArgs()
     generateFiles()
     build()
