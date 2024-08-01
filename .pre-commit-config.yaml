@@ -19,4 +19,4 @@ repos:
   hooks:
   - id: fmt
       # entry: cargo fmt
-      # types: [rust]
+    types: [rust]

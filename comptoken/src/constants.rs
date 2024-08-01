@@ -18,4 +18,4 @@ pub const SEC_PER_DAY: i64 = 86_400;
 pub const ANNOUNCEMENT_INTERVAL: i64 = 60 * 5;
 
 // MAGIC NUMBER: ensure this remains consistent with full_deploy_test.py
-pub const MINT_DECIMALS: u8 = 0;
+pub const MINT_DECIMALS: u8 = 00;
