@@ -416,6 +416,7 @@ name = "comptoken"
 version = "0.1.0"
 dependencies = [
  "bs58",
+ "comptoken-utils",
  "hex",
  "hex-literal",
  "solana-program",
