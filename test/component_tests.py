@@ -68,7 +68,7 @@ def runTests(args: Namespace, tests: list[str]):
 
     passed = 0
     for test in tests:
-        passed += runTest(args, test, f'{test}')
+        passed += runTest(args, test, test)
     failed = len(tests) - passed
     print()
     print(f"passed: {passed}    failed: {failed}")
