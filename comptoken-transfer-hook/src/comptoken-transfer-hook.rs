@@ -5,6 +5,7 @@ use spl_token_2022::solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
+    pubkey,
     pubkey::Pubkey,
     rent::Rent,
     sysvar::Sysvar,
@@ -14,6 +15,8 @@ use spl_transfer_hook_interface::instruction::{ExecuteInstruction, TransferHookI
 use comptoken_utils::create_pda;
 
 use verify_accounts::{verify_mint_account, verify_mint_authority, verify_validation_account, VerifiedAccountInfo};
+
+const COMPTOKEN_ID: Pubkey = pubkey!("11111111111111111111111111111111"); // TODO correct value
 
 entrypoint!(process_instruction);
 pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
@@ -55,8 +58,9 @@ fn process_initialize_extra_account_meta_list(
     let payer_account = VerifiedAccountInfo::verify_account_signer_or_writable(payer_account, true, true);
 
     let account_metas = vec![
-        ExtraAccountMeta::new_with_seeds(&[Seed::AccountKey { index: 0 }], false, false)?,
-        ExtraAccountMeta::new_with_seeds(&[Seed::AccountKey { index: 2 }], false, false)?,
+        ExtraAccountMeta::new_with_pubkey(&COMPTOKEN_ID, false, false)?,
+        ExtraAccountMeta::new_external_pda_with_seeds(5, &[Seed::AccountKey { index: 0 }], false, false)?,
+        ExtraAccountMeta::new_external_pda_with_seeds(5, &[Seed::AccountKey { index: 2 }], false, false)?,
     ];
 
     let account_size = ExtraAccountMetaList::size_of(account_metas.len())? as u64;
