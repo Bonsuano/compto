@@ -1,19 +1,20 @@
-import { PublicKey, SystemProgram, Transaction, TransactionInstruction, } from "@solana/web3.js";
+import { Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction, } from "@solana/web3.js";
 import { Clock, start } from "solana-bankrun";
 
-import { initializeTransferHookInstructionData, TokenInstruction, TransferHookInstruction } from "@solana/spl-token";
+import { createInitializeTransferHookInstruction, initializeTransferHookInstructionData, TokenInstruction, TransferHookInstruction } from "@solana/spl-token";
 import { get_default_comptoken_mint, get_default_global_data } from "../accounts.js";
 import { Assert } from "../assert.js";
-import { compto_transfer_hook_id_pubkey, } from "../common.js";
+import { compto_transfer_hook_id_pubkey, DEFAULT_START_TIME, } from "../common.js";
 
 async function test_initializeExtraAccountMetaList() {
     let comptoken_mint = get_default_comptoken_mint();
-    let global_data = get_default_global_data();
+    const mint_authority = Keypair.generate();
+    comptoken_mint.mintAuthority = mint_authority.publicKey;
+
     const context = await start(
         [{ name: "comptoken_transfer_hook", programId: compto_transfer_hook_id_pubkey }],
         [
             comptoken_mint.toAccount(),
-            global_data.toAccount(),
         ]
     );
 
@@ -32,24 +33,30 @@ async function test_initializeExtraAccountMetaList() {
         // the mint account associated with the transfer hook
         { pubkey: comptoken_mint.address, isSigner: false, isWritable: true },
         // the mint authority for the mint
-        { pubkey: global_data.address, isSigner: false, isWritable: false },
+        { pubkey: mint_authority.publicKey, isSigner: true, isWritable: false },
         // system account is used to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
         // the account who pays for the creation
         { pubkey: payer.publicKey, isSigner: true, isWritable: true },
     ];
 
-    let data = Buffer.alloc(32);
+    let data = Buffer.from([43, 34, 13, 49, 167, 88, 235, 235, 0, 0, 0, 0]);
 
     const ixs = [new TransactionInstruction({ programId: compto_transfer_hook_id_pubkey, keys, data })];
     const tx = new Transaction();
     tx.recentBlockhash = blockhash;
     tx.add(...ixs);
-    tx.sign(payer);
-    context.setClock(new Clock(0n, 0n, 0n, 0n, 1_721_940_656n));
+    tx.sign(payer, mint_authority);
+    context.setClock(new Clock(0n, 0n, 0n, 0n, DEFAULT_START_TIME));
     const meta = await client.processTransaction(tx);
 
-    console.log(meta);
+    console.log("logMessages: %s", meta.logMessages);
+    console.log("computeUnitsConsumed: %d", meta.computeUnitsConsumed);
+    console.log("returnData: %s", meta.returnData);
+
+    const finalMetaListAccount = await client.getAccount(extraAccountMetaListPDA);
+
+    console.log(finalMetaListAccount);
 
 }
 

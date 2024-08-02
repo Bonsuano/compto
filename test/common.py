@@ -82,7 +82,7 @@ def run(command: str | list[str], cwd: Path | None = None, env: Mapping[str, str
 
 def build():
     print("building...")
-    run('cargo build-sbf --features "testmode"', COMPTOKEN_SRC_PATH)
+    run('cargo build-sbf --features testmode -- -v', PROJECT_PATH)
     print("done buiding")
 
 def write(path: Path, data: str):

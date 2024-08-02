@@ -81,6 +81,7 @@ def runTests(args: Namespace, tests: list[str]):
 def parseArgs():
     parser = ArgumentParser(prog="comptoken component tests")
     parser.add_argument("--verbose", "-v", action="count", default=0)
+    parser.add_argument("--no-build", action="store_false", dest="build")
 
     return parser.parse_args()
 
@@ -95,6 +96,11 @@ if __name__ == "__main__":
                  ) + list(map(lambda test: "transfer-hook-tests/" + test, transfer_hook_tests))
 
     args = parseArgs()
-    generateFiles()
-    build()
+    if args.build:
+        generateFiles()
+        build()
+    else:
+        print("skipping generating files")
+        print("skipping building")
+
     runTests(args, tests)

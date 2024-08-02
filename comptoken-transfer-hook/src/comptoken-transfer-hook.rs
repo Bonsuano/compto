@@ -5,6 +5,7 @@ use spl_token_2022::solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
+    msg,
     pubkey::Pubkey,
     rent::Rent,
     sysvar::Sysvar,
@@ -17,6 +18,7 @@ use verify_accounts::{verify_mint_account, verify_mint_authority, verify_validat
 
 entrypoint!(process_instruction);
 pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
+    msg!("{:?}", instruction_data);
     match TransferHookInstruction::unpack(instruction_data)? {
         TransferHookInstruction::Execute { amount } => process_execute(program_id, accounts, amount),
         TransferHookInstruction::InitializeExtraAccountMetaList { extra_account_metas } => {
