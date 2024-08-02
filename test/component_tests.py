@@ -52,8 +52,8 @@ def generateMockMint() -> str:
     write(COMPTOKEN_MINT_JSON, file_data)
     return address
 
-def runTest(args: Namespace, test: str, file: str) -> bool:
-    print(f"running {test}")
+def runTest(args: Namespace, file: str) -> bool:
+    print(f"running {file}")
     env = os.environ
     env["SBF_OUT_DIR"] = str(PROJECT_PATH / "target/deploy/")
     node = ("node --trace-warnings" if args.verbose >= 2 else "node")
@@ -61,10 +61,10 @@ def runTest(args: Namespace, test: str, file: str) -> bool:
         stdout = run(f"{node} {TEST_PATH / f'compto-test-client/{file}'}", env=env)
         if args.verbose >= 1:
             print(stdout)
-        print(f"✅ \033[92m{test}\033[0m passed")
+        print(f"✅ \033[92m{file}\033[0m passed")
         return True
     except SubprocessFailedException as e:
-        print(f"❌ \033[91m{test}\033[0m failed")
+        print(f"❌ \033[91m{file}\033[0m failed")
         print(e)
         return False
 
@@ -73,7 +73,7 @@ def runTests(args: Namespace, tests: list[str]):
 
     passed = 0
     for test in tests:
-        passed += runTest(args, test, f'{test}')
+        passed += runTest(args, test)
     failed = len(tests) - passed
     print()
     print(f"passed: {passed}    failed: {failed}")

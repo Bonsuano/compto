@@ -6,13 +6,13 @@ use spl_token_2022::{
 
 pub use comptoken_utils::verify_accounts::VerifiedAccountInfo;
 
-pub fn verify_validation_account<'a>(
+pub fn verify_account_meta_storage_account<'a>(
     account: &AccountInfo<'a>, mint: &VerifiedAccountInfo, program_id: &Pubkey, needs_writable: bool,
 ) -> (VerifiedAccountInfo<'a>, u8) {
     VerifiedAccountInfo::verify_pda(
         account,
         program_id,
-        &crate::get_validation_account_seeds(mint),
+        &crate::get_account_meta_storage_account_seeds(mint),
         false,
         needs_writable,
     )
