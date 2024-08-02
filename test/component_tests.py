@@ -11,14 +11,16 @@ def generateFiles():
     run(f"[ -d {CACHE_PATH} ] || mkdir {CACHE_PATH} ")
     run(f"[ -d {GENERATED_PATH} ] || mkdir {GENERATED_PATH} ")
     # programId
-    programId = randAddress()
-    generateMockProgramIdFile(programId)
+    comptokenProgramId = randAddress()
+    transferHookId = randAddress()
+    generateMockComptokenProgramIdFile(comptokenProgramId)
+    generateMockTransferHookProgramIdFile(transferHookId)
     # mint
     mint_address = generateMockMint()
     # pdas
-    globalDataPDA = setGlobalDataPDA(programId)
-    interestBankPDA = setInterestBankPDA(programId)
-    UBIBankPDA = setUBIBankPDA(programId)
+    globalDataPDA = setGlobalDataPDA(comptokenProgramId)
+    interestBankPDA = setInterestBankPDA(comptokenProgramId)
+    UBIBankPDA = setUBIBankPDA(comptokenProgramId)
     # test user
     generateTestUser()
     # rust file
@@ -27,8 +29,11 @@ def generateFiles():
     )
     print("done generating files")
 
-def generateMockProgramIdFile(programId: str):
+def generateMockComptokenProgramIdFile(programId: str):
     write(COMPTO_PROGRAM_ID_JSON, json.dumps({"programId": programId}))
+
+def generateMockTransferHookProgramIdFile(programId: str):
+    write(COMPTO_TRANSFER_HOOK_ID_JSON, json.dumps({"programId": programId}))
 
 def generateMockMint() -> str:
     address = randAddress()
@@ -84,7 +89,7 @@ if __name__ == "__main__":
         "mint", "initializeComptokenProgram", "createUserDataAccount", "proofSubmission", "getValidBlockhashes",
         "getOwedComptokens", "dailyDistributionEvent"
     ]
-    transfer_hook_tests: list[str] = []
+    transfer_hook_tests: list[str] = ["initialize_extra_account_meta_list"]
 
     tests = list(map(lambda test: "comptoken-tests/" + test, comptoken_tests)
                  ) + list(map(lambda test: "transfer-hook-tests/" + test, transfer_hook_tests))

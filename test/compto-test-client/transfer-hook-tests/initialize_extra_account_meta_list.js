@@ -1,61 +1,56 @@
 import { PublicKey, SystemProgram, Transaction, TransactionInstruction, } from "@solana/web3.js";
 import { Clock, start } from "solana-bankrun";
 
-import { get_default_comptoken_mint, get_default_global_data, UserDataAccount } from "../accounts.js";
+import { initializeTransferHookInstructionData, TokenInstruction, TransferHookInstruction } from "@solana/spl-token";
+import { get_default_comptoken_mint, get_default_global_data } from "../accounts.js";
 import { Assert } from "../assert.js";
-import { compto_program_id_pubkey, Instruction, testuser_comptoken_wallet_pubkey } from "../common.js";
+import { compto_transfer_hook_id_pubkey, } from "../common.js";
 
-async function test_createUserDataAccount() {
-    let comptoken_mint = get_default_comptoken_mint().toAccount();
+async function test_initializeExtraAccountMetaList() {
+    let comptoken_mint = get_default_comptoken_mint();
+    let global_data = get_default_global_data();
     const context = await start(
-        [{ name: "comptoken_transfer_hook", programId }],
+        [{ name: "comptoken_transfer_hook", programId: compto_transfer_hook_id_pubkey }],
         [
-            get_default_comptoken_mint().toAccount(),
-            get_default_global_data().toAccount(),
+            comptoken_mint.toAccount(),
+            global_data.toAccount(),
         ]
     );
 
     const client = context.banksClient;
     const payer = context.payer;
     const blockhash = context.lastBlockhash;
-    const rent = await client.getRent()
-    let user_data_account = PublicKey.findProgramAddressSync([testuser_comptoken_wallet_pubkey.toBytes()], compto_program_id_pubkey)[0];
 
     const [extraAccountMetaListPDA] = PublicKey.findProgramAddressSync(
-        [Buffer.from("extra-account-metas"), mint.publicKey.toBuffer()],
-        programId
+        [Buffer.from("extra-account-metas"), comptoken_mint.address.toBuffer()],
+        compto_transfer_hook_id_pubkey
     );
 
     const keys = [
-        // the payer of the rent for the account
-        { pubkey: payer.publicKey, isSigner: true, isWritable: true },
-        // the data account tied to the comptoken wallet
-        { pubkey: user_data_account, isSigner: false, isWritable: true },
-        // the payers comptoken wallet (comptoken token acct)
-        { pubkey: testuser_comptoken_wallet_pubkey, isSigner: false, isWritable: false },
+        // the account that stores the extra account metas
+        { pubkey: extraAccountMetaListPDA, isSigner: false, isWritable: true },
+        // the mint account associated with the transfer hook
+        { pubkey: comptoken_mint.address, isSigner: false, isWritable: true },
+        // the mint authority for the mint
+        { pubkey: global_data.address, isSigner: false, isWritable: false },
         // system account is used to create the account
         { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        // the account who pays for the creation
+        { pubkey: payer.publicKey, isSigner: true, isWritable: true },
     ];
 
-    // MAGIC NUMBER: CHANGE NEEDS TO BE REFLECTED IN user_data.rs
-    const PROOF_STORAGE_MIN_SIZE = 88n;
-    const rentExemptAmount = await rent.minimumBalance(PROOF_STORAGE_MIN_SIZE);
+    let data = Buffer.alloc(32);
 
-    let data = Buffer.alloc(17);
-    data.writeUInt8(Instruction.CREATE_USER_DATA_ACCOUNT, 0);
-    data.writeBigInt64LE(rentExemptAmount, 1);
-    data.writeBigInt64LE(PROOF_STORAGE_MIN_SIZE, 9);
-
-    const ixs = [new TransactionInstruction({ programId, keys, data })];
+    const ixs = [new TransactionInstruction({ programId: compto_transfer_hook_id_pubkey, keys, data })];
     const tx = new Transaction();
     tx.recentBlockhash = blockhash;
     tx.add(...ixs);
     tx.sign(payer);
     context.setClock(new Clock(0n, 0n, 0n, 0n, 1_721_940_656n));
     const meta = await client.processTransaction(tx);
-    const finalUserData = UserDataAccount.fromAccountInfoBytes(user_data_account, await client.getAccount(user_data_account));
-    Assert.assertEqual(finalUserData.lastInterestPayoutDate, 1_721_865_600n, "user data lastInterestPayoutDate");
-    Assert.assert(!finalUserData.isVerifiedHuman, "user data isVerifiedHuman");
+
+    console.log(meta);
+
 }
 
-(async () => { await test_createUserDataAccount(); })();
+(async () => { await test_initializeExtraAccountMetaList(); })();

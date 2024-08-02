@@ -16,6 +16,7 @@ COMPTO_GENERATED_RS_FILE = GENERATED_PATH / "comptoken_generated.rs"
 COMPTO_SO = PROJECT_PATH / "target/deploy/comptoken.so"
 
 COMPTO_PROGRAM_ID_JSON = CACHE_PATH / "compto_program_id.json"
+COMPTO_TRANSFER_HOOK_ID_JSON = CACHE_PATH / "compto_transfer_hook_id.json"
 COMPTOKEN_MINT_JSON = CACHE_PATH / "comptoken_mint.json"
 TEST_USER_ACCOUNT_JSON = CACHE_PATH / "test_user_account.json"
 COMPTO_GLOBAL_DATA_ACCOUNT_JSON = CACHE_PATH / "compto_global_data_account.json"
