@@ -4,8 +4,8 @@ import solana_bankrun from "solana-bankrun";
 const { AccountInfoBytes } = solana_bankrun;
 
 import {
-    compto_program_id_pubkey, comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME, DEFAULT_DISTRIBUTION_TIME, global_data_account_pubkey,
-    interest_bank_account_pubkey, ubi_bank_account_pubkey,
+    compto_extra_account_metas_account_pubkey, compto_program_id_pubkey, compto_transfer_hook_id_pubkey, comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME,
+    DEFAULT_DISTRIBUTION_TIME, global_data_account_pubkey, interest_bank_account_pubkey, ubi_bank_account_pubkey,
 } from "./common.js";
 
 export const BIG_NUMBER = 1_000_000_000;
@@ -24,6 +24,26 @@ export function bigintAsU64ToBytes(int) {
         int >>= 8n;
     }
     return arr;
+}
+
+/**
+ * @param {number} num
+ * @returns {number[]}
+ */
+export function numAsU162LEBytes(num) {
+    let buffer = Buffer.alloc(2);
+    buffer.writeUInt16LE(num);
+    return Array.from({ length: 2 }, (v, i) => buffer.readUint8(i));
+}
+
+/**
+ * @param {number} num
+ * @returns {number[]}
+ */
+export function numAsU32ToLEBytes(num) {
+    let buffer = Buffer.alloc(4);
+    buffer.writeUInt32LE(num);
+    return Array.from({ length: 2 }, (v, i) => buffer.readUint8(i));
 }
 
 /**
@@ -69,6 +89,16 @@ export function LEBytes2DoubleArray(bytes) {
 export function LEBytes2BlockhashArray(bytes) {
     return LEBytes2SplitArray(bytes, 32);
 }
+
+/**
+ * 
+ * @param {Uint8Array} bytes 
+ * @returns {AccountMeta[]}
+ */
+export function LEBytes2AccountMetaArray(bytes) {
+    return LEBytes2SplitArray(bytes, 35).map((elem) => AccountMeta.fromBytes(elem));
+}
+
 
 /**
  *
@@ -521,6 +551,130 @@ export class UserDataAccount {
     }
 }
 
+export class AccountMeta {
+    discriminator; // u8
+    address_config; // [u8; 32]
+    isSigner; // bool
+    isWritable; // bool
+
+    /**
+     * 
+     * @param {number} discriminator 
+     * @param {PublicKey | number[]} address_config 
+     * @param {boolean} isSigner 
+     * @param {boolean} isWritable 
+     */
+    constructor(discriminator, address_config, isSigner, isWritable) {
+        this.discriminator = discriminator;
+        if (address_config instanceof PublicKey) {
+            this.address_config = address_config.toBytes();
+        } else if (address_config instanceof Array && typeof address_config[0] === "number") {
+            this.address_config = Uint8Array.from({ length: 32 }, (v, i) => (i <= 1) ? address_config : 0);
+        } else {
+            console.error("address_config")
+            console.error(address_config);
+            console.error(address_config[0] instanceof Number);
+            throw TypeError("address_config can only be a PublicKey or a number");
+        }
+        this.isSigner = isSigner;
+        this.isWritable = isWritable;
+    }
+
+    static SIZE = 35;
+
+    /**
+     * @returns {Uint8Array}
+     */
+    toBytes() {
+        return Uint8Array.from([
+            this.discriminator,
+            ...this.address_config,
+            this.isSigner === true ? 1 : 0,
+            this.isSigner === true ? 1 : 0,
+        ]);
+    }
+
+    /**
+     * @param {Uint8Array} bytes 
+     * @returns {AccountMeta}
+     */
+    static fromBytes(bytes) {
+        let discriminator = bytes.at(0);
+        let address_config;
+        if (discriminator === 0) {
+            address_config = new PublicKey(bytes.subarray(1, 33));
+        } else if (discriminator === 133) {
+            address_config = Array.from(bytes.subarray(1, 3));
+        }
+        return new AccountMeta(
+            bytes[0],
+            address_config,
+            bytes[33] === 1,
+            bytes[34] === 1,
+        )
+    }
+}
+
+export class ExtraAccountMetaAccount {
+    address; //  PublicKey
+    lamports; //  u64
+    owner; // PublicKey
+
+    something; // [u8; 12] probably [u8;8] + u32 but idk
+    extraAccountMetas; // [accountMeta]
+
+    /**
+     * 
+     * @param {PublicKey} address 
+     * @param {number} lamports 
+     * @param {PublicKey} owner 
+     * @param {AccountMeta[]} extraAccountMetas 
+     */
+    constructor(address, lamports, owner, extraAccountMetas) {
+        this.address = address;
+        this.lamports = lamports;
+        this.owner = owner;
+        this.something = Uint8Array.from([105, 37, 101, 197, 75, 251, 102, 26, 144, 0, 0, 0]);
+        this.extraAccountMetas = extraAccountMetas;
+    }
+
+    toAccount() {
+        let buffer = new Uint8Array(16 + AccountMeta.SIZE * this.extraAccountMetas.length);
+        buffer.set(this.something, 0);
+        buffer.set(numAsU32ToLEBytes(this.extraAccountMetas.length), 12);
+        let i = 16;
+        for (accountMeta of this.extraAccountMetas) {
+            buffer.set(accountMeta.toBytes(), i);
+            i += AccountMeta.SIZE;
+        }
+
+        return {
+            address: this.address,
+            info: {
+                lamports: this.lamports,
+                data: buffer,
+                owner: this.owner,
+                executable: false,
+            },
+        };
+    }
+
+    /**
+     *
+     * @param {PublicKey} address
+     * @param {import("solana-bankrun").AccountInfoBytes} accountInfo
+     * @returns {ExtraAccountMetaAccount}
+     */
+    static fromAccountInfoBytes(address, accountInfo) {
+        return new ExtraAccountMetaAccount(
+            address,
+            accountInfo.lamports,
+            accountInfo.owner,
+            LEBytes2AccountMetaArray(accountInfo.data.subarray(16)),
+        );
+    }
+}
+
 // =============================== Default Account Factories ===============================
 
 /**
@@ -578,4 +732,15 @@ export function get_default_unpaid_ubi_bank() {
  */
 export function get_default_user_data_account(address) {
     return new UserDataAccount(address, BIG_NUMBER, DEFAULT_DISTRIBUTION_TIME, false, 0n, new Uint8Array(32), Array.from({ length: 8 }, (v, i) => new Uint8Array(32)));
+}
+
+/**
+ * @returns {ExtraAccountMetaAccount}
+ */
+export function get_default_extra_account_metas_account() {
+    return new ExtraAccountMetaAccount(compto_extra_account_metas_account_pubkey, BIG_NUMBER, compto_transfer_hook_id_pubkey, [
+        new AccountMeta(0, global_data_account_pubkey, false, false),
+        new AccountMeta(133, [3, 0], false, false),
+        new AccountMeta(133, [3, 2], false, false),
+    ]);
 }
