@@ -1,6 +1,6 @@
 use spl_token_2022::solana_program::{hash::Hash, hash::HASH_BYTES, program_error::ProgramError};
 
-use crate::VerifiedAccountInfo;
+use crate::{VerifiedAccountInfo, SEC_PER_DAY};
 
 #[repr(C)]
 #[derive(Debug)]
@@ -43,6 +43,10 @@ impl UserData {
     pub fn initialize(&mut self) {
         self.last_interest_payout_date = crate::normalize_time(crate::get_current_time());
         self.is_verified_human = false;
+    }
+
+    pub fn is_current(&self) -> bool {
+        self.last_interest_payout_date == crate::normalize_time(crate::get_current_time())
     }
 }
 
