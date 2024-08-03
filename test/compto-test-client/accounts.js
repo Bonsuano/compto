@@ -569,7 +569,7 @@ export class AccountMeta {
         if (address_config instanceof PublicKey) {
             this.address_config = address_config.toBytes();
         } else if (address_config instanceof Array && typeof address_config[0] === "number") {
-            this.address_config = Uint8Array.from({ length: 32 }, (v, i) => (i <= 1) ? address_config : 0);
+            this.address_config = Uint8Array.from({ length: 32 }, (v, i) => (i <= 1) ? address_config[i] : 0);
         } else {
             console.error("address_config")
             console.error(address_config);
