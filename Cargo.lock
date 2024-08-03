@@ -426,7 +426,6 @@ name = "comptoken-transfer-hook"
 version = "0.1.0"
 dependencies = [
  "comptoken-utils",
- "hex-literal",
  "solana-program",
  "spl-tlv-account-resolution",
  "spl-token-2022",
