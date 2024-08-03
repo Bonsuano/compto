@@ -739,7 +739,7 @@ export function get_default_user_data_account(address) {
  */
 export function get_default_extra_account_metas_account() {
     return new ExtraAccountMetaAccount(compto_extra_account_metas_account_pubkey, BIG_NUMBER, compto_transfer_hook_id_pubkey, [
-        new AccountMeta(0, global_data_account_pubkey, false, false),
+        new AccountMeta(0, compto_program_id_pubkey, false, false),
         new AccountMeta(133, [3, 0], false, false),
         new AccountMeta(133, [3, 2], false, false),
     ]);
