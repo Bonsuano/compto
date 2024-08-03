@@ -10,6 +10,7 @@ def generateFiles():
     # create cache if it doesn't exist
     run(f"[ -d {CACHE_PATH} ] || mkdir {CACHE_PATH} ")
     run(f"[ -d {COMPTOKEN_GENERATED_PATH} ] || mkdir {COMPTOKEN_GENERATED_PATH} ")
+    run(f"[ -d {TRANSFER_HOOK_GENERATED_PATH} ] || mkdir {TRANSFER_HOOK_GENERATED_PATH} ")
     # programId
     comptokenProgramId = randAddress()
     transferHookId = randAddress()
@@ -26,6 +27,7 @@ def generateFiles():
     generateTestUser()
     # rust file
     generateComptokenAddressFile(globalDataSeed, interestBankSeed, UBIBankSeed, mint_address)
+    generateTransferHookAddressFile(extraAccountMetasSeed, mint_address, comptokenProgramId)
     print("done generating files")
 
 def generateMockComptokenProgramIdFile(programId: str):

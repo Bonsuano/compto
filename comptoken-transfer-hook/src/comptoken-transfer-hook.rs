@@ -1,3 +1,4 @@
+mod generated;
 mod verify_accounts;
 
 use spl_tlv_account_resolution::{account::ExtraAccountMeta, seeds::Seed, state::ExtraAccountMetaList};
@@ -14,11 +15,10 @@ use spl_transfer_hook_interface::instruction::{ExecuteInstruction, TransferHookI
 
 use comptoken_utils::create_pda;
 
+use generated::{COMPTOKEN_ID, EXTRA_ACCOUNT_METAS_ACCOUNT_SEEDS};
 use verify_accounts::{
     verify_account_meta_storage_account, verify_mint_account, verify_mint_authority, VerifiedAccountInfo,
 };
-
-const COMPTOKEN_ID: Pubkey = pubkey!("11111111111111111111111111111111"); // TODO correct value
 
 entrypoint!(process_instruction);
 pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instruction_data: &[u8]) -> ProgramResult {
@@ -55,8 +55,8 @@ fn process_initialize_extra_account_meta_list(
     let payer_account = next_account_info(account_info_iter)?;
 
     let mint_account = verify_mint_account(mint_account);
-    let (account_meta_storage_account, account_meta_storage_account_bump) =
-        verify_account_meta_storage_account(account_meta_storage_account, &mint_account, program_id, true);
+    let account_meta_storage_account =
+        verify_account_meta_storage_account(account_meta_storage_account, program_id, true);
     let _mint_authority = verify_mint_authority(mint_authority, &mint_account, true, false);
     let payer_account = VerifiedAccountInfo::verify_account_signer_or_writable(payer_account, true, true);
 
@@ -90,10 +90,7 @@ fn process_initialize_extra_account_meta_list(
 
     let lamports = Rent::get()?.minimum_balance(account_size as usize);
 
-    let mut account_meta_storage_account_seeds = get_account_meta_storage_account_seeds(&mint_account);
-    account_meta_storage_account_seeds.push(std::array::from_ref(&account_meta_storage_account_bump));
-
-    let signer_seeds: &[&[&[u8]]] = &[&account_meta_storage_account_seeds];
+    let signer_seeds: &[&[&[u8]]] = &[EXTRA_ACCOUNT_METAS_ACCOUNT_SEEDS];
 
     create_pda(&payer_account, &account_meta_storage_account, lamports, account_size, program_id, signer_seeds)?;
 
@@ -103,8 +100,4 @@ fn process_initialize_extra_account_meta_list(
     )?;
 
     Ok(())
-}
-
-fn get_account_meta_storage_account_seeds<'a>(mint: &'a VerifiedAccountInfo) -> Vec<&'a [u8]> {
-    vec![b"extra-account-metas", mint.key.as_ref()]
 }
