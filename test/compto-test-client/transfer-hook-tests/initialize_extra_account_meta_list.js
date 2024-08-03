@@ -1,10 +1,9 @@
-import { Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction, } from "@solana/web3.js";
+import { Keypair, SystemProgram, Transaction, TransactionInstruction, } from "@solana/web3.js";
 import { Clock, start } from "solana-bankrun";
 
-import { createInitializeTransferHookInstruction, initializeTransferHookInstructionData, TokenInstruction, TransferHookInstruction } from "@solana/spl-token";
-import { get_default_comptoken_mint, get_default_global_data } from "../accounts.js";
+import { ExtraAccountMetaAccount, get_default_comptoken_mint, get_default_extra_account_metas_account } from "../accounts.js";
 import { Assert } from "../assert.js";
-import { compto_transfer_hook_id_pubkey, DEFAULT_START_TIME, } from "../common.js";
+import { compto_extra_account_metas_account_pubkey, compto_transfer_hook_id_pubkey, DEFAULT_START_TIME, } from "../common.js";
 
 async function test_initializeExtraAccountMetaList() {
     let comptoken_mint = get_default_comptoken_mint();
@@ -22,14 +21,9 @@ async function test_initializeExtraAccountMetaList() {
     const payer = context.payer;
     const blockhash = context.lastBlockhash;
 
-    const [extraAccountMetaListPDA] = PublicKey.findProgramAddressSync(
-        [Buffer.from("extra-account-metas"), comptoken_mint.address.toBuffer()],
-        compto_transfer_hook_id_pubkey
-    );
-
     const keys = [
         // the account that stores the extra account metas
-        { pubkey: extraAccountMetaListPDA, isSigner: false, isWritable: true },
+        { pubkey: compto_extra_account_metas_account_pubkey, isSigner: false, isWritable: true },
         // the mint account associated with the transfer hook
         { pubkey: comptoken_mint.address, isSigner: false, isWritable: true },
         // the mint authority for the mint
@@ -54,10 +48,21 @@ async function test_initializeExtraAccountMetaList() {
     console.log("computeUnitsConsumed: %d", meta.computeUnitsConsumed);
     console.log("returnData: %s", meta.returnData);
 
-    const finalMetaListAccount = await client.getAccount(extraAccountMetaListPDA);
-
-    console.log(finalMetaListAccount);
-
+    let account = await client.getAccount(compto_extra_account_metas_account_pubkey);
+    Assert.assertNotNull(account);
+    console.log(account)
+    const finalMetaListAccount = ExtraAccountMetaAccount.fromAccountInfoBytes(compto_extra_account_metas_account_pubkey, account);
+    // comptoken program id
+    const accountMetaList = get_default_extra_account_metas_account()
+    Assert.assert(finalMetaListAccount.address.equals(accountMetaList.address), "address isn't correct");
+    Assert.assertEqual(finalMetaListAccount.extraAccountMetas.length, accountMetaList.extraAccountMetas.length, "length isn't correct");
+    let zipped = finalMetaListAccount.extraAccountMetas.map((v, i) => [v, accountMetaList.extraAccountMetas[i]]);
+    for (const [final, oracle] of zipped) {
+        Assert.assertEqual(final.discriminator, oracle.discriminator, "discriminators aren't the same");
+        Assert.assertEqual(final.isSigner, oracle.isSigner, "isSigner isn't the same");
+        Assert.assertEqual(final.isWritable, oracle.isWritable, "isWritable isn't the same");
+        Assert.assert(final.address_config.reduce((pv, cv, i) => pv && cv == oracle.address_config[i]), "address configs aren't the same");
+    }
 }
 
 (async () => { await test_initializeExtraAccountMetaList(); })();

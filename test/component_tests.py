@@ -9,7 +9,7 @@ def generateFiles():
     print("generating files...")
     # create cache if it doesn't exist
     run(f"[ -d {CACHE_PATH} ] || mkdir {CACHE_PATH} ")
-    run(f"[ -d {GENERATED_PATH} ] || mkdir {GENERATED_PATH} ")
+    run(f"[ -d {COMPTOKEN_GENERATED_PATH} ] || mkdir {COMPTOKEN_GENERATED_PATH} ")
     # programId
     comptokenProgramId = randAddress()
     transferHookId = randAddress()
@@ -18,15 +18,14 @@ def generateFiles():
     # mint
     mint_address = generateMockMint()
     # pdas
-    globalDataPDA = setGlobalDataPDA(comptokenProgramId)
-    interestBankPDA = setInterestBankPDA(comptokenProgramId)
-    UBIBankPDA = setUBIBankPDA(comptokenProgramId)
+    globalDataSeed = setGlobalDataPDA(comptokenProgramId)["bumpSeed"]
+    interestBankSeed = setInterestBankPDA(comptokenProgramId)["bumpSeed"]
+    UBIBankSeed = setUBIBankPDA(comptokenProgramId)["bumpSeed"]
+    extraAccountMetasSeed = setExtraAccountMetasPDA(transferHookId, Pubkey(mint_address))["bumpSeed"]
     # test user
     generateTestUser()
     # rust file
-    generateComptokenAddressFile(
-        globalDataPDA["bumpSeed"], interestBankPDA["bumpSeed"], UBIBankPDA["bumpSeed"], mint_address
-    )
+    generateComptokenAddressFile(globalDataSeed, interestBankSeed, UBIBankSeed, mint_address)
     print("done generating files")
 
 def generateMockComptokenProgramIdFile(programId: str):
