@@ -14,7 +14,7 @@ pub fn verify_account_meta_storage_account<'a>(
     VerifiedAccountInfo::verify_pda_with_bump(
         account,
         program_id,
-        &EXTRA_ACCOUNT_METAS_ACCOUNT_SEEDS,
+        EXTRA_ACCOUNT_METAS_ACCOUNT_SEEDS,
         false,
         needs_writable,
     )

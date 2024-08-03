@@ -39,7 +39,7 @@ pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instru
     }
 }
 
-fn process_execute(program_id: &Pubkey, accounts: &[AccountInfo], amount: u64) -> ProgramResult {
+fn process_execute(program_id: &Pubkey, accounts: &[AccountInfo], _amount: u64) -> ProgramResult {
     //  Accounts
     //      []: Source token account
     //      []: Mint
@@ -50,7 +50,6 @@ fn process_execute(program_id: &Pubkey, accounts: &[AccountInfo], amount: u64) -
     //      []: Source Data Account
     //      []: Destination Data Account
 
-    msg!("Hello Transfer Hook!");
     let account_info_iter = &mut accounts.iter();
     let source_account = verify_source_account(next_account_info(account_info_iter)?);
     let _comptoken_mint_account = verify_comptoken_mint(next_account_info(account_info_iter)?);

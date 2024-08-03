@@ -1,6 +1,6 @@
 use spl_token_2022::solana_program::{hash::Hash, hash::HASH_BYTES, program_error::ProgramError};
 
-use crate::{VerifiedAccountInfo, SEC_PER_DAY};
+use crate::VerifiedAccountInfo;
 
 #[repr(C)]
 #[derive(Debug)]
