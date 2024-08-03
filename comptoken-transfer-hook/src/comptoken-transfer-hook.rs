@@ -6,18 +6,23 @@ use spl_token_2022::solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
-    msg, pubkey,
+    msg,
     pubkey::Pubkey,
     rent::Rent,
     sysvar::Sysvar,
 };
 use spl_transfer_hook_interface::instruction::{ExecuteInstruction, TransferHookInstruction};
 
-use comptoken_utils::create_pda;
+use comptoken_utils::{create_pda, user_data::UserData};
 
-use generated::{COMPTOKEN_ID, EXTRA_ACCOUNT_METAS_ACCOUNT_SEEDS};
+use generated::{
+    COMPTOKEN_ID, COMPTO_INTEREST_BANK_ACCOUNT_PUBKEY, COMPTO_UBI_BANK_ACCOUNT_PUBKEY,
+    EXTRA_ACCOUNT_METAS_ACCOUNT_SEEDS,
+};
 use verify_accounts::{
-    verify_account_meta_storage_account, verify_mint_account, verify_mint_authority, VerifiedAccountInfo,
+    verify_account_meta_storage_account, verify_comptoken_mint, verify_comptoken_program, verify_destination_account,
+    verify_mint_account, verify_mint_authority, verify_source_account, verify_source_authority_account,
+    verify_user_data_account, VerifiedAccountInfo,
 };
 
 entrypoint!(process_instruction);
@@ -35,7 +40,36 @@ pub fn process_instruction(program_id: &Pubkey, accounts: &[AccountInfo], instru
 }
 
 fn process_execute(program_id: &Pubkey, accounts: &[AccountInfo], amount: u64) -> ProgramResult {
-    todo!()
+    //  Accounts
+    //      []: Source token account
+    //      []: Mint
+    //      []: Destination token account
+    //      []: Source token account authority
+    //      []: Validation account
+    //      []: Comptoken Program
+    //      []: Source Data Account
+    //      []: Destination Data Account
+
+    msg!("Hello Transfer Hook!");
+    let account_info_iter = &mut accounts.iter();
+    let source_account = verify_source_account(next_account_info(account_info_iter)?);
+    let _comptoken_mint_account = verify_comptoken_mint(next_account_info(account_info_iter)?);
+    let destination_account = verify_destination_account(next_account_info(account_info_iter)?);
+    let _source_account_authority = verify_source_authority_account(next_account_info(account_info_iter)?); // what is this?
+    let _account_meta_storage_account =
+        verify_account_meta_storage_account(next_account_info(account_info_iter)?, program_id, false);
+    let _comptoken_program = verify_comptoken_program(next_account_info(account_info_iter)?);
+    let source_data_account = verify_user_data_account(next_account_info(account_info_iter)?, &source_account);
+    let destination_data_account =
+        verify_user_data_account(next_account_info(account_info_iter)?, &destination_account);
+
+    let source_user_data: &mut UserData = (&source_data_account).into();
+    assert!(source_user_data.is_current() || is_bank(source_data_account.key));
+
+    let destination_user_data: &mut UserData = (&destination_data_account).into();
+    assert!(destination_user_data.is_current() || is_bank(destination_data_account.key));
+
+    Ok(())
 }
 
 fn process_initialize_extra_account_meta_list(
@@ -101,4 +135,8 @@ fn process_initialize_extra_account_meta_list(
     )?;
 
     Ok(())
+}
+
+fn is_bank(address: &Pubkey) -> bool {
+    *address == COMPTO_INTEREST_BANK_ACCOUNT_PUBKEY || *address == COMPTO_UBI_BANK_ACCOUNT_PUBKEY
 }
