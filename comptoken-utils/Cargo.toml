@@ -10,3 +10,9 @@ crate-type = ["cdylib", "lib"]
 [dependencies]
 solana-program = { workspace = true }
 spl-token-2022 = { workspace = true }
+
+[dev-dependencies]
+hex-literal = "0.4.1"
+
+[features]
+testmode = []
