@@ -41,11 +41,12 @@ fn process_execute(program_id: &Pubkey, accounts: &[AccountInfo], amount: u64) -
 fn process_initialize_extra_account_meta_list(
     program_id: &Pubkey, accounts: &[AccountInfo], _extra_account_metas: Vec<ExtraAccountMeta>,
 ) -> ProgramResult {
-    //      [writable]: Validation account
+    //  Accounts
+    //      [w]: Validation account
     //      []: Mint
-    //      [signer]: Mint authority
+    //      [s]: Mint authority
     //      []: System program
-    //      [signer, writable]: payer account (not part of the standard)
+    //      [sw]: payer account (not part of the standard)
 
     let account_info_iter = &mut accounts.iter();
     let account_meta_storage_account = next_account_info(account_info_iter)?;
