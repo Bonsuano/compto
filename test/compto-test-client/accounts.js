@@ -51,7 +51,7 @@ export function numAsU32ToLEBytes(num) {
  * @param {number} num
  * @returns {number[]}
  */
-export function numAsDouble2LEBytes(num) {
+export function numAsDoubleToLEBytes(num) {
     let buffer = Buffer.alloc(8);
     buffer.writeDoubleLE(num);
     return Array.from({ length: 8 }, (v, i) => buffer.readUint8(i));
@@ -63,7 +63,7 @@ export function numAsDouble2LEBytes(num) {
  * @param {number} elem_size
  * @returns {Uint8Array[]}
  */
-function LEBytes2SplitArray(bytes, elem_size) {
+function LEBytesToSplitArray(bytes, elem_size) {
     let len = bytes.length / elem_size;
     let arr = new Array(len);
     for (let i = 0; i < len; ++i) {
@@ -77,8 +77,8 @@ function LEBytes2SplitArray(bytes, elem_size) {
  * @param {Uint8Array} bytes
  * @returns {number[]}
  */
-export function LEBytes2DoubleArray(bytes) {
-    return LEBytes2SplitArray(bytes, 8).map((elem) => new DataView(elem.buffer.slice(elem.byteOffset)).getFloat64(0, true));
+export function LEBytesToDoubleArray(bytes) {
+    return LEBytesToSplitArray(bytes, 8).map((elem) => new DataView(elem.buffer.slice(elem.byteOffset)).getFloat64(0, true));
 }
 
 /**
@@ -86,8 +86,8 @@ export function LEBytes2DoubleArray(bytes) {
  * @param {Uint8Array} bytes 
  * @returns {Uint8Array[]}
  */
-export function LEBytes2BlockhashArray(bytes) {
-    return LEBytes2SplitArray(bytes, 32);
+export function LEBytesToBlockhashArray(bytes) {
+    return LEBytesToSplitArray(bytes, 32);
 }
 
 /**
@@ -95,8 +95,8 @@ export function LEBytes2BlockhashArray(bytes) {
  * @param {Uint8Array} bytes 
  * @returns {AccountMeta[]}
  */
-export function LEBytes2AccountMetaArray(bytes) {
-    return LEBytes2SplitArray(bytes, 35).map((elem) => AccountMeta.fromBytes(elem));
+export function LEBytesToAccountMetaArray(bytes) {
+    return LEBytesToSplitArray(bytes, 35).map((elem) => AccountMeta.fromBytes(elem));
 }
 
 
@@ -306,7 +306,7 @@ export class DailyDistributionData {
             ...bigintAsU64ToBytes(this.highWaterMark),
             ...bigintAsU64ToBytes(this.lastDailyDistributionTime),
             ...bigintAsU64ToBytes(this.oldestInterest),
-            ...this.historicInterests.flatMap((num) => numAsDouble2LEBytes(num)),
+            ...this.historicInterests.flatMap((num) => numAsDoubleToLEBytes(num)),
         ]);
     }
 
@@ -322,7 +322,7 @@ export class DailyDistributionData {
             dataView.getBigUint64(8, true),
             dataView.getBigInt64(16, true),
             dataView.getBigUint64(24, true),
-            LEBytes2DoubleArray(bytes.subarray(32)),
+            LEBytesToDoubleArray(bytes.subarray(32)),
         );
     }
 }
@@ -546,7 +546,7 @@ export class UserDataAccount {
             dataView.getUint8(8) === 0 ? false : true,
             dataView.getBigUint64(16, true),
             accountInfo.data.subarray(24, 56),
-            LEBytes2BlockhashArray(accountInfo.data.subarray(56)),
+            LEBytesToBlockhashArray(accountInfo.data.subarray(56)),
         );
     }
 }
@@ -571,9 +571,6 @@ export class AccountMeta {
         } else if (address_config instanceof Array && typeof address_config[0] === "number") {
             this.address_config = Uint8Array.from({ length: 32 }, (v, i) => (i <= 1) ? address_config[i] : 0);
         } else {
-            console.error("address_config")
-            console.error(address_config);
-            console.error(address_config[0] instanceof Number);
             throw TypeError("address_config can only be a PublicKey or a number");
         }
         this.isSigner = isSigner;
@@ -670,7 +667,7 @@ export class ExtraAccountMetaAccount {
             address,
             accountInfo.lamports,
             accountInfo.owner,
-            LEBytes2AccountMetaArray(accountInfo.data.subarray(16)),
+            LEBytesToAccountMetaArray(accountInfo.data.subarray(16)),
         );
     }
 }
