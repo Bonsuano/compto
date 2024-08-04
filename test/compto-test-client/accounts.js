@@ -30,7 +30,7 @@ export function bigintAsU64ToBytes(int) {
  * @param {number} num
  * @returns {number[]}
  */
-export function numAsU162LEBytes(num) {
+export function numAsU16ToLEBytes(num) {
     let buffer = Buffer.alloc(2);
     buffer.writeUInt16LE(num);
     return Array.from({ length: 2 }, (v, i) => buffer.readUint8(i));
