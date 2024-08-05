@@ -60,7 +60,7 @@ async function test_initializeExtraAccountMetaList() {
         Assert.assertEqual(final.discriminator, oracle.discriminator, "discriminators aren't the same");
         Assert.assertEqual(final.isSigner, oracle.isSigner, "isSigner isn't the same");
         Assert.assertEqual(final.isWritable, oracle.isWritable, "isWritable isn't the same");
-        Assert.assert(final.address_config.reduce((pv, cv, i) => pv && cv === oracle.address_config[i], true), "address configs aren't the same");
+        Assert.assert(final.addressConfig.reduce((pv, cv, i) => pv && cv === oracle.addressConfig[i], true), "address configs aren't the same");
     }
 }
 
