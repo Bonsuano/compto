@@ -34,7 +34,11 @@ async function test_initializeExtraAccountMetaList() {
         { pubkey: payer.publicKey, isSigner: true, isWritable: true },
     ];
 
-    let data = Buffer.from([43, 34, 13, 49, 167, 88, 235, 235, 0, 0, 0, 0]);
+    // first 8 bytes of sha256 of "spl-transfer-hook-interface:execute"
+    // see https://spl.solana.com/transfer-hook-interface/specification
+    let instruction_data = Buffer.from([43, 34, 13, 49, 167, 88, 235, 235]);
+    let empty_account_meta_data = Buffer.from([0, 0, 0, 0]);
+    let data = Buffer.concat([instruction_data, empty_account_meta_data]);
 
     const ixs = [new TransactionInstruction({ programId: compto_transfer_hook_id_pubkey, keys, data })];
     const tx = new Transaction();

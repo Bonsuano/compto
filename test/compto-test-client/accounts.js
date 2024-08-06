@@ -614,6 +614,8 @@ export class AddressConfig {
     }
 }
 
+// effectively implements ExtraAccountMeta interface from
+// @solana/spl-token/src/extensions/transferHook/state.ts
 export class ExtraAccountMeta {
     discriminator; // u8
     addressConfig; // [u8; 32]
@@ -682,7 +684,8 @@ export class ExtraAccountMetaAccount {
     toAccount() {
         let extraAccountMetasSize = ExtraAccountMeta.SIZE * this.extraAccountMetas.length;
         let buffer = new Uint8Array(16 + extraAccountMetasSize);
-        // value is solanas transfer hook execute intsruction discriminator https://github.com/solana-labs/solana-program-library/blob/token-2022-v3.0/token/js/src/extensions/transferHook/instructions.ts#L168
+        // value is solanas transfer hook execute instruction discriminator
+        // https://github.com/solana-labs/solana-program-library/blob/token-2022-v3.0/token/js/src/extensions/transferHook/instructions.ts#L168
         buffer.set(Uint8Array.from([105, 37, 101, 197, 75, 251, 102, 26]), 0);
         buffer.set(numAsU32ToLEBytes(extraAccountMetasSize));
         buffer.set(numAsU32ToLEBytes(this.extraAccountMetas.length), 12);
