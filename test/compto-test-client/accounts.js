@@ -291,10 +291,14 @@ export class MintAccount extends AccountWithExtensions {
     address; //  PublicKey
     lamports; //  u64
     owner; // PublicKey
+
     supply; //  u64
     decimals; //  u8
     mintAuthority; //  optional PublicKey
     freezeAuthority; //  optional PublicKey
+
+    static SIZE = MINT_SIZE;
+    static ACCOUNT_TYPE = 1;
 
     /**
      * @param {PublicKey} address
@@ -305,6 +309,7 @@ export class MintAccount extends AccountWithExtensions {
      * @param {PublicKey | null} freezeAuthority
      */
     constructor(address, lamports, supply, decimals, mintAuthority = null, freezeAuthority = null) {
+        super()
         this.address = address;
         this.lamports = lamports;
         this.owner = TOKEN_2022_PROGRAM_ID
@@ -321,7 +326,7 @@ export class MintAccount extends AccountWithExtensions {
         const { option: freezeAuthorityOption, val: freezeAuthority } = getOptionOr(this.freezeAuthority, () => PublicKey.default);
         const { option: mintAuthorityOption, val: mintAuthority } = getOptionOr(this.mintAuthority, () => PublicKey.default);
 
-        let buffer = new Uint8Array(MINT_SIZE);
+        let buffer = new Uint8Array(this.getSize());
         MintLayout.encode(
             {
                 mintAuthorityOption,
@@ -334,6 +339,8 @@ export class MintAccount extends AccountWithExtensions {
             },
             buffer,
         );
+
+        this.encodeExtensions(buffer);
 
         return {
             address: this.address,
@@ -353,7 +360,7 @@ export class MintAccount extends AccountWithExtensions {
      */
     static fromAccountInfoBytes(address, accountInfo) {
         let rawMint = MintLayout.decode(accountInfo.data);
-        return new MintAccount(
+        let mintAccount = new MintAccount(
             address,
             accountInfo.lamports,
             rawMint.supply,
@@ -361,6 +368,8 @@ export class MintAccount extends AccountWithExtensions {
             rawMint.mintAuthorityOption === 1 ? rawMint.mintAuthority : null,
             rawMint.freezeAuthorityOption === 1 ? rawMint.freezeAuthority : null,
         );
+        mintAccount.extensions = this.decodeExtensions(accountInfo.data);
+        return mintAccount;
     }
 }
 export class ValidBlockhashes {
