@@ -872,7 +872,8 @@ export class ExtraAccountMetaAccount {
  * @returns {MintAccount}
  */
 export function get_default_comptoken_mint() {
-    return new MintAccount(comptoken_mint_pubkey, BIG_NUMBER, 1n, COMPTOKEN_DECIMALS, global_data_account_pubkey);
+    return new MintAccount(comptoken_mint_pubkey, BIG_NUMBER, 1n, COMPTOKEN_DECIMALS, global_data_account_pubkey)
+        .addExtension(TLV.transferHook(compto_transfer_hook_id_pubkey));
 }
 
 /**
@@ -894,7 +895,8 @@ export function get_default_global_data() {
  * @returns {TokenAccount}
  */
 export function get_default_comptoken_wallet(address, owner) {
-    return new TokenAccount(address, BIG_NUMBER, comptoken_mint_pubkey, owner, 0n, AccountState.Initialized, 0n);
+    return new TokenAccount(address, BIG_NUMBER, comptoken_mint_pubkey, owner, 0n, AccountState.Initialized, 0n)
+        .addExtension(TLV.TransferHookAccount());
 }
 
 /**
