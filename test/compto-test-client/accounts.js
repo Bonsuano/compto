@@ -515,10 +515,11 @@ export class GlobalDataAccount {
     }
 }
 
-export class TokenAccount {
+export class TokenAccount extends AccountWithExtensions {
     address; //  PublicKey
     lamports; //  u64
     owner; // PublicKey
+
     mint; //  PublicKey
     nominalOwner; //  PublicKey
     amount; //  u64
@@ -527,6 +528,9 @@ export class TokenAccount {
     state; //  AccountState
     delegatedAmount; //  u64
     closeAuthority; //  optional PublicKey
+
+    static SIZE = ACCOUNT_SIZE;
+    static ACCOUNT_TYPE = 2;
 
     /**
      * @param {PublicKey} address
@@ -541,6 +545,7 @@ export class TokenAccount {
      * @param {PublicKey | null} closeAuthority
      */
     constructor(address, lamports, mint, nominalOwner, amount, state, delegatedAmount, delegate = null, isNative = null, closeAuthority = null) {
+        super()
         this.address = address;
         this.lamports = lamports;
         this.owner = TOKEN_2022_PROGRAM_ID;
@@ -562,7 +567,7 @@ export class TokenAccount {
         const { option: isNativeOption, val: isNative } = getOptionOr(this.isNative, () => 0n);
         const { option: closeAuthorityOption, val: closeAuthority } = getOptionOr(this.closeAuthority, () => PublicKey.default);
 
-        let buffer = new Uint8Array(ACCOUNT_SIZE);
+        let buffer = new Uint8Array(this.getSize());
         AccountLayout.encode(
             {
                 mint: this.mint,
@@ -579,6 +584,8 @@ export class TokenAccount {
             },
             buffer,
         );
+
+        this.encodeExtensions(buffer);
 
         return {
             address: this.address,
@@ -598,7 +605,7 @@ export class TokenAccount {
      */
     static fromAccountInfoBytes(address, accountInfo) {
         let rawAccount = AccountLayout.decode(accountInfo.data);
-        return new TokenAccount(
+        let tokenAccount = new TokenAccount(
             address,
             accountInfo.lamports,
             rawAccount.mint,
@@ -610,6 +617,8 @@ export class TokenAccount {
             rawAccount.isNativeOption === 1 ? rawAccount.isNative : null,
             rawAccount.closeAuthorityOption === 1 ? rawAccount.closeAuthority : null,
         );
+        tokenAccount.extensions = TokenAccount.decodeExtensions(accountInfo.data);
+        return tokenAccount;
     }
 }
 
