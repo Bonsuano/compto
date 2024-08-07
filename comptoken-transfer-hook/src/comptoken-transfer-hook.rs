@@ -52,22 +52,29 @@ fn process_execute(program_id: &Pubkey, accounts: &[AccountInfo], _amount: u64) 
 
     let account_info_iter = &mut accounts.iter();
     let source_account = verify_source_account(next_account_info(account_info_iter)?);
+    // required as part of the transferhook API to identify that comptokens are being transferred
     let _comptoken_mint_account = verify_comptoken_mint(next_account_info(account_info_iter)?);
     let destination_account = verify_destination_account(next_account_info(account_info_iter)?);
-    let _source_account_authority = verify_source_authority_account(next_account_info(account_info_iter)?); // what is this?
+    // also required as part of the transferhook API but we don't use
+    let _source_account_authority = verify_source_authority_account(next_account_info(account_info_iter)?);
+    // used by transferhook to get the comptoken program and the PDAs before it gets here
     let _account_meta_storage_account =
         verify_account_meta_storage_account(next_account_info(account_info_iter)?, program_id, false);
+    // used by transferhook to generate the PDAs before it gets here
     let _comptoken_program = verify_comptoken_program(next_account_info(account_info_iter)?);
     let source_data_account = verify_user_data_account(next_account_info(account_info_iter)?, &source_account);
     let destination_data_account =
         verify_user_data_account(next_account_info(account_info_iter)?, &destination_account);
 
-    let source_user_data: &mut UserData = (&source_data_account).into();
-    assert!(source_user_data.is_current() || is_bank(source_data_account.key));
-
-    let destination_user_data: &mut UserData = (&destination_data_account).into();
-    assert!(destination_user_data.is_current() || is_bank(destination_data_account.key));
-
+    // Account must either be a bank account or have no unpaid interest or UBI amounts to do a transfer
+    if !is_bank(source_account.key) {
+        let source_user_data: &mut UserData = (&source_data_account).into();
+        assert!(source_user_data.is_current());
+        if !is_bank(destination_account.key) {
+            let destination_user_data: &mut UserData = (&destination_data_account).into();
+            assert!(destination_user_data.is_current());
+        }
+    }
     Ok(())
 }
 
