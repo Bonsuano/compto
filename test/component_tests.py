@@ -32,7 +32,7 @@ def generateFiles():
     # test user
     generateTestUser()
     # rust file
-    generateComptokenAddressFile(globalDataSeed, interestBankSeed, UBIBankSeed, mint_address)
+    generateComptokenAddressFile(globalDataSeed, interestBankSeed, UBIBankSeed, mint_address, transferHookId)
     generateTransferHookAddressFile(
         comptokenProgramId, extraAccountMetasSeed, mint_address, interestBankAddress, UBIBankAddress
     )
