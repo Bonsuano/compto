@@ -137,7 +137,157 @@ export function isArrayEqual(left, right) {
 }
 
 // =============================== Classes ===============================
-export class MintAccount {
+
+class ExtensionType {
+    static Uninitialized = 0;
+    static TransferFeeConfig = 1;
+    static TransferFeeAmount = 2;
+    static MintCloseAuthority = 3
+    static ConfidentialTransferMint = 4;
+    static ConfidentialTransferAccount = 5;
+    static DefaultAccountState = 6;
+    static ImmutableOwner = 7;
+    static MemoTransfer = 8;
+    static NonTransferable = 9;
+    static InterestBearingConfig = 10;
+    static CpiGuard = 11;
+    static PermanentDelegate = 12;
+    static NonTransferableAccount = 13;
+    static TransferHook = 14;
+    static TransferHookAccount = 15;
+    static MetadataPointer = 18;
+    static TokenMetadata = 19;
+    static GroupPointer = 20;
+    static TokenGroup = 21;
+    static GroupMemberPointer = 22;
+    static TokenGroupMember = 23;
+}
+
+export class TLV {
+    type; // u16
+    length; // u16
+    data; // [u8; length]
+
+    /**
+     * @param {number} type
+     * @param {number} length
+     * @param {Uint8Array} data
+     */
+    constructor(type, length, data) {
+        this.type = type;
+        this.length = length;
+        this.data = data;
+    }
+
+    static Uninitialized() {
+        return new TLV(ExtensionType.Uninitialized, 0, new Uint8Array(0));
+    }
+
+    /**
+     * @param {PublicKey} programId
+     * @param {PublicKey | null} authority
+     * @returns {TLV}
+     */
+    static transferHook(programId, authority = null) {
+        authority = getOptionOr(toOption(authority), () => PublicKey.default).val;
+        let data = Uint8Array.from([...authority.toBytes(), ...programId.toBytes()]);
+        return new TLV(ExtensionType.TransferHook, 64, data);
+    }
+
+    /**
+     * @returns {TLV}
+     */
+    static TransferHookAccount() {
+        let data = new Uint8Array(1);
+        return new TLV(ExtensionType.TransferHookAccount, 1, data);
+    }
+
+    /**
+     * @returns {Uint8Array}
+     */
+    toBytes() {
+        let data = Uint8Array.from([...numAsU16ToLEBytes(this.type), ...numAsU16ToLEBytes(this.length), ...this.data]);
+        return data;
+    }
+
+    /**
+     * @param {Uint8Array} bytes 
+     * @returns {TLV}
+     */
+    static fromBytes(bytes) {
+        let buffer = new DataView(bytes.buffer.slice(bytes.byteOffset));
+        return new TLV(buffer.getUint16(0, true), buffer.getUint16(2, true), bytes.subarray(4, 4 + buffer.getUint16(2, true)));
+    }
+
+    toString() {
+        return "\
+TLV {\n\
+    type: " + this.type + "\n\
+    length: " + this.length + "\n\
+    value: " + this.data + "\n\
+}"
+    }
+}
+
+class AccountWithExtensions {
+    extensions; // [TLV]
+
+    constructor() {
+        this.extensions = [];
+    }
+
+    /**
+     * @param {TLV} tlv
+     * @returns {MintAccount}
+     */
+    addExtension(tlv) {
+        this.extensions.push(tlv);
+        return this;
+    }
+
+    /**
+     * @returns {number}
+     */
+    getSize() {
+        if (this.extensions.length === 0) {
+            return this.constructor["SIZE"];
+        }
+        let size = this.extensions.reduce((pv, cv, i) => pv + cv.length + 4, 166);
+        if (size == 355) { // solana code says they pad with uninitialized ExtensionType if size is 355 https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L1047-L1049
+            return size + 4;
+        }
+        return size;
+    }
+
+    /**
+     * @param {Uint8Array} buffer
+     */
+    encodeExtensions(buffer) {
+        let index = 165;
+        buffer[index++] = this.constructor["ACCOUNT_TYPE"];
+        for (let extension of this.extensions) {
+            let bytes = extension.toBytes();
+            buffer.set(bytes, index);
+            index += bytes.length;
+        }
+    }
+
+    /**
+     * @param {Uint8Array} buffer 
+     */
+    static decodeExtensions(buffer) {
+        let index = 166;
+        let extensions = [];
+        while (index + 4 < buffer.length) {
+            let extension = TLV.fromBytes(buffer.subarray(index));
+            extensions.push(extension);
+            index += extension.length + 4;
+        }
+        return extensions;
+    }
+}
+
+export class MintAccount extends AccountWithExtensions {
     address; //  PublicKey
     lamports; //  u64
     owner; // PublicKey
