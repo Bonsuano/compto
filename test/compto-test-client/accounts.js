@@ -139,6 +139,8 @@ export function isArrayEqual(left, right) {
 // =============================== Classes ===============================
 
 class ExtensionType {
+    // u16 discriminated type for an extension
+    // https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L1042-L1115
     static Uninitialized = 0;
     static TransferFeeConfig = 1;
     static TransferFeeAmount = 2;
@@ -164,19 +166,21 @@ class ExtensionType {
 }
 
 export class TLV {
+    // structure derived from
+    // https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L106-L114
     type; // u16
     length; // u16
-    data; // [u8; length]
+    value; // [u8; length]
 
     /**
      * @param {number} type
      * @param {number} length
-     * @param {Uint8Array} data
+     * @param {Uint8Array} value
      */
-    constructor(type, length, data) {
+    constructor(type, length, value) {
         this.type = type;
         this.length = length;
-        this.data = data;
+        this.value = value;
     }
 
     static Uninitialized() {
@@ -190,24 +194,24 @@ export class TLV {
      */
     static transferHook(programId, authority = null) {
         authority = getOptionOr(toOption(authority), () => PublicKey.default).val;
-        let data = Uint8Array.from([...authority.toBytes(), ...programId.toBytes()]);
-        return new TLV(ExtensionType.TransferHook, 64, data);
+        let value = Uint8Array.from([...authority.toBytes(), ...programId.toBytes()]);
+        return new TLV(ExtensionType.TransferHook, 64, value);
     }
 
     /**
      * @returns {TLV}
      */
     static TransferHookAccount() {
-        let data = new Uint8Array(1);
-        return new TLV(ExtensionType.TransferHookAccount, 1, data);
+        let value = new Uint8Array(1);
+        return new TLV(ExtensionType.TransferHookAccount, 1, value);
     }
 
     /**
      * @returns {Uint8Array}
      */
     toBytes() {
-        let data = Uint8Array.from([...numAsU16ToLEBytes(this.type), ...numAsU16ToLEBytes(this.length), ...this.data]);
-        return data;
+        let bytes = Uint8Array.from([...numAsU16ToLEBytes(this.type), ...numAsU16ToLEBytes(this.length), ...this.value]);
+        return bytes;
     }
 
     /**
@@ -218,20 +222,11 @@ export class TLV {
         let buffer = new DataView(bytes.buffer.slice(bytes.byteOffset));
         return new TLV(buffer.getUint16(0, true), buffer.getUint16(2, true), bytes.subarray(4, 4 + buffer.getUint16(2, true)));
     }
-
-    toString() {
-        return "\
-TLV {\n\
-    type: " + this.type + "\n\
-    length: " + this.length + "\n\
-    value: " + this.data + "\n\
-}"
-    }
 }
 
 class AccountWithExtensions {
     extensions; // [TLV]
-
+    static extensions_start_index = 165; // comes from https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L273-L291
     constructor() {
         this.extensions = [];
     }
@@ -250,10 +245,12 @@ class AccountWithExtensions {
      */
     getSize() {
         if (this.extensions.length === 0) {
-            return this.constructor["SIZE"];
+            return this.constructor.SIZE;
         }
         let size = this.extensions.reduce((pv, cv, i) => pv + cv.length + 4, 166);
-        if (size == 355) { // solana code says they pad with uninitialized ExtensionType if size is 355 https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L1047-L1049
+        // solana code says they pad with uninitialized ExtensionType if size is 355
+        // https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L1047-L1049
+        if (size == 355) {
             return size + 4;
         }
         return size;
@@ -263,8 +260,8 @@ class AccountWithExtensions {
      * @param {Uint8Array} buffer
      */
     encodeExtensions(buffer) {
-        let index = 165;
-        buffer[index++] = this.constructor["ACCOUNT_TYPE"];
+        let index = AccountWithExtensions.extensions_start_index;
+        buffer[index++] = this.constructor.ACCOUNT_TYPE;
         for (let extension of this.extensions) {
             let bytes = extension.toBytes();
             buffer.set(bytes, index);
@@ -276,7 +273,10 @@ class AccountWithExtensions {
      * @param {Uint8Array} buffer 
      */
     static decodeExtensions(buffer) {
-        let index = 166;
+        let index = AccountWithExtensions.extensions_start_index;
+        if (extensions[i++] !== this.ACCOUNT_TYPE) {
+            throw Error("invalid account type");
+        }
         let extensions = [];
         while (index + 4 < buffer.length) {
             let extension = TLV.fromBytes(buffer.subarray(index));

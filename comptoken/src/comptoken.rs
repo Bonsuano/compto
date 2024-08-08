@@ -400,7 +400,6 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
     let compto_program = next_account_info(account_info_iter)?;
     let interest_data_pda /* not a real account */ = next_account_info(account_info_iter)?;
     let ubi_data_pda /* not a real account */ = next_account_info(account_info_iter)?;
-    VerifiedAccountInfo::verify_pda(ubi_data_pda, program_id, &[unpaid_ubi_bank.key.as_ref()], false, false).0;
 
     let user_comptoken_wallet_account =
         verify_user_comptoken_wallet_account(user_comptoken_wallet_account, false, true);
@@ -476,7 +475,7 @@ pub fn get_owed_comptokens(program_id: &Pubkey, accounts: &[AccountInfo], _instr
                 &transfer_hook_program,
                 &compto_program,
                 &user_data_account,
-                //&ubi_data_pda
+                &ubi_data_pda,
             ],
             0, // TODO figure out correct amount
         )?;

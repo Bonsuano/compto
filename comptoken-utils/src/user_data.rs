@@ -70,7 +70,6 @@ impl TryFrom<&mut [u8]> for &mut UserData {
         // This is how the rust docs say to do it... :/
         // https://doc.rust-lang.org/std/mem/fn.transmute.html
         let result = unsafe { &mut *(data_hashes as *mut _ as *mut UserData) };
-        println!("{}, {}, {}", data.len(), result.length, result.proofs.len());
         assert!(result.length <= result.proofs.len());
         Ok(result)
     }
@@ -96,7 +95,6 @@ impl TryFrom<&[u8]> for &UserData {
         // This is how the rust docs say to do it... :/
         // https://doc.rust-lang.org/std/mem/fn.transmute.html
         let result = unsafe { &*(data_hashes as *const _ as *const UserData) };
-        println!("{}, {}, {}", data.len(), result.length, result.proofs.len());
         assert!(result.length <= result.proofs.len());
         Ok(result)
     }
