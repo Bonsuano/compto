@@ -3,12 +3,18 @@ import { PublicKey, Transaction, TransactionInstruction } from "@solana/web3.js"
 import { Clock, start } from "solana-bankrun";
 
 import {
-    get_default_comptoken_mint, get_default_comptoken_wallet, get_default_global_data, get_default_user_data_account,
-    isArrayEqual, MintAccount, TokenAccount, UserDataAccount,
+    get_default_comptoken_mint,
+    get_default_comptoken_wallet,
+    get_default_global_data,
+    get_default_user_data_account,
+    MintAccount,
+    TokenAccount,
+    UserDataAccount,
 } from "../accounts.js";
 import { Assert } from "../assert.js";
 import { compto_program_id_pubkey, DEFAULT_START_TIME, Instruction, testuser_comptoken_wallet_pubkey } from "../common.js";
 import { ComptokenProof } from "../comptoken_proof.js";
+import { isArrayEqual } from "../utils.js";
 
 async function test_proofSubmission() {
     let global_data_account = get_default_global_data();
@@ -30,7 +36,6 @@ async function test_proofSubmission() {
     const client = context.banksClient;
     const payer = context.payer;
     const blockhash = context.lastBlockhash;
-    const rent = await client.getRent();
     const keys = [
         // will mint some comptokens
         { pubkey: mint_account.address, isSigner: false, isWritable: true },

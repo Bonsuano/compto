@@ -1,142 +1,29 @@
-import { ACCOUNT_SIZE, AccountLayout, AccountState, ExtraAccountMetaLayout, MINT_SIZE, MintLayout, TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
+import {
+    ACCOUNT_SIZE,
+    AccountLayout,
+    AccountState,
+    ExtraAccountMetaAccountDataLayout,
+    ExtraAccountMetaLayout,
+    MINT_SIZE,
+    MintLayout, TOKEN_2022_PROGRAM_ID
+} from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 
 import {
-    compto_extra_account_metas_account_pubkey, compto_program_id_pubkey, compto_transfer_hook_id_pubkey, comptoken_mint_pubkey, DEFAULT_ANNOUNCE_TIME,
-    DEFAULT_DISTRIBUTION_TIME, global_data_account_pubkey, Instruction, interest_bank_account_pubkey, ubi_bank_account_pubkey,
+    BIG_NUMBER,
+    compto_extra_account_metas_account_pubkey,
+    compto_program_id_pubkey,
+    compto_transfer_hook_id_pubkey,
+    COMPTOKEN_DECIMALS,
+    comptoken_mint_pubkey,
+    DEFAULT_ANNOUNCE_TIME,
+    DEFAULT_DISTRIBUTION_TIME,
+    global_data_account_pubkey,
+    interest_bank_account_pubkey,
+    ubi_bank_account_pubkey,
 } from "./common.js";
+import { bigintAsU64ToBytes, getOptionOr, LEBytesToBlockhashArray, LEBytesToDoubleArray, numAsDoubleToLEBytes, numAsU16ToLEBytes, toOption } from "./utils.js";
 
-export const BIG_NUMBER = 1_000_000_000;
-export const COMPTOKEN_DECIMALS = 0; // MAGIC NUMBER: remain consistent with comptoken.rs and full_deploy_test.py
-
-// =============================== Helper functions ===============================
-/**
- * @param {bigint} int
- * @returns {number[]}
- */
-export function bigintAsU64ToBytes(int) {
-    let arr = new Array(8);
-    for (let i = 0; int > 0n; ++i) {
-        arr[i] = Number(int & 255n);
-        int >>= 8n;
-    }
-    return arr;
-}
-
-/**
- * @param {number} num
- * @returns {number[]}
- */
-export function numAsU16ToLEBytes(num) {
-    let buffer = Buffer.alloc(2);
-    buffer.writeUInt16LE(num);
-    return Array.from({ length: 2 }, (v, i) => buffer.readUint8(i));
-}
-
-/**
- * @param {number} num
- * @returns {number[]}
- */
-export function numAsU32ToLEBytes(num) {
-    let buffer = Buffer.alloc(4);
-    buffer.writeUInt32LE(num);
-    return Array.from({ length: 2 }, (v, i) => buffer.readUint8(i));
-}
-
-/**
- * @param {number} num
- * @returns {number[]}
- */
-export function numAsDoubleToLEBytes(num) {
-    let buffer = Buffer.alloc(8);
-    buffer.writeDoubleLE(num);
-    return Array.from({ length: 8 }, (v, i) => buffer.readUint8(i));
-}
-
-/**
- * @template T
- * @param {T[]} bytes
- * @param {number} chunk_size
- * @returns {T[][]}
- */
-function chunkArray(bytes, chunk_size) {
-    let len = bytes.length / chunk_size;
-    let arr = new Array(len);
-    for (let i = 0; i < len; ++i) {
-        arr[i] = bytes.subarray(i * chunk_size, i * chunk_size + chunk_size);
-    }
-    return arr;
-}
-
-/**
- * @param {Uint8Array} bytes
- * @returns {number[]}
- */
-export function LEBytesToDoubleArray(bytes) {
-    return chunkArray(bytes, 8).map((elem) => new DataView(elem.buffer.slice(elem.byteOffset)).getFloat64(0, true));
-}
-
-/**
- * @param {Uint8Array} bytes 
- * @returns {Uint8Array[]}
- */
-export function LEBytesToBlockhashArray(bytes) {
-    return chunkArray(bytes, 32);
-}
-
-/**
- * @param {Uint8Array} bytes 
- * @returns {ExtraAccountMeta[]}
- */
-export function LEBytesToAccountMetaArray(bytes) {
-    return chunkArray(bytes, 35).map((elem) => ExtraAccountMeta.fromBytes(elem));
-}
-
-
-/**
- * @template T
- * @param {T | null | undefined} val
- * @returns {T | null}
- */
-export function toOption(val) {
-    if (val === undefined || typeof val === "undefined") {
-        return null;
-    }
-    return val;
-}
-
-/**
- * @template T
- * @param {T | null} opt_val
- * @param {() => T} fn
- * @returns {T} opt_val if it is not null or result of calling fn
- */
-export function getOptionOr(opt_val, fn) {
-    if (opt_val === null) {
-        return { option: 0, val: fn() };
-    }
-    return { option: 1, val: opt_val };
-}
-
-/**
- * @template T
- * @param {T[]} left 
- * @param {T[]} right 
- * @returns {boolean}
- */
-export function isArrayEqual(left, right) {
-    if (left.length != right.length) {
-        return false;
-    }
-    for (let i = 0; i < left.length; ++i) {
-        if (left[i] != right[i]) {
-            return false;
-        }
-    }
-    return true;
-}
-
-// =============================== Classes ===============================
 
 class ExtensionType {
     static Uninitialized = 0;
