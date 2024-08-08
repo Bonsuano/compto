@@ -49,7 +49,7 @@ async function test_proofSubmission() {
         { pubkey: TOKEN_2022_PROGRAM_ID, isSigner: false, isWritable: false },
     ];
 
-    let proof = new ComptokenProof(destination_comptoken_wallet.address, global_data_account.validBlockhashes.validBlockhash);
+    let proof = new ComptokenProof(destination_comptoken_wallet.address, global_data_account.data.validBlockhashes.validBlockhash);
     proof.mine();
     let data = Buffer.concat([
         Buffer.from([Instruction.COMPTOKEN_MINT]),
@@ -67,19 +67,19 @@ async function test_proofSubmission() {
     let account = await client.getAccount(mint_account.address);
     Assert.assertNotNull(account);
     const finalMintAccount = MintAccount.fromAccountInfoBytes(mint_account.address, account);
-    Assert.assert(finalMintAccount.supply > mint_account.supply, "comptokens have been minted");
+    Assert.assert(finalMintAccount.data.supply > mint_account.data.supply, "comptokens have been minted");
 
     account = await client.getAccount(destination_comptoken_wallet.address);
     Assert.assertNotNull(account);
     const finalDestinationComptokenWallet = TokenAccount.fromAccountInfoBytes(destination_comptoken_wallet.address, account);
-    Assert.assert(finalDestinationComptokenWallet.amount > destination_comptoken_wallet.amount, "destination wallet has gained some comptokens");
+    Assert.assert(finalDestinationComptokenWallet.data.amount > destination_comptoken_wallet.data.amount, "destination wallet has gained some comptokens");
 
     account = await client.getAccount(user_data_account.address);
     Assert.assertNotNull(account);
     const finalUserDataAccount = UserDataAccount.fromAccountInfoBytes(user_data_account.address, account);
-    Assert.assert(isArrayEqual(finalUserDataAccount.recentBlockhash, global_data_account.validBlockhashes.validBlockhash), "user datas recent blockhash is the valid blockhash");
-    Assert.assertEqual(finalUserDataAccount.length, user_data_account.length + 1n, "user data has stored a proof");
-    Assert.assert(isArrayEqual(finalUserDataAccount.proofs[0], proof.hash), "user data has stored the proof submitted");
+    Assert.assert(isArrayEqual(finalUserDataAccount.data.recentBlockhash, global_data_account.data.validBlockhashes.validBlockhash), "user datas recent blockhash is the valid blockhash");
+    Assert.assertEqual(finalUserDataAccount.data.length, user_data_account.data.length + 1n, "user data has stored a proof");
+    Assert.assert(isArrayEqual(finalUserDataAccount.data.proofs[0], proof.hash), "user data has stored the proof submitted");
 }
 
 (async () => { await test_proofSubmission(); })();
