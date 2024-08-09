@@ -1,3 +1,5 @@
+import { blob, f64, greedy, seq, struct } from "@solana/buffer-layout";
+import { bool, u64 } from "@solana/buffer-layout-utils";
 import {
     ACCOUNT_SIZE,
     AccountLayout,
@@ -295,33 +297,26 @@ export class ExtraAccountMetaAccount extends Account {
     static DATA_TYPE = ExtraAccountMetaAccountData;
 }
 
+export const UserDataLayout = struct([
+    u64("lastInterestPayoutDate"), // actually an i64 but will always be positive
+    bool("isVerifiedHuman"),
+    blob(7), // padding
+    u64("length"),
+    blob(32, "recentBlockhash"),
+    seq(blob(32), greedy(32), "proofs"),
+]);
+
 export class UserData extends DataType {
+    static LAYOUT = UserDataLayout;
+
     lastInterestPayoutDate_; // i64
     isVerifiedHuman_; // bool
     length_; // usize
     recentBlockhash_; // Hash
     proofs_; // [Hash]
 
-    toBytes() {
-        return new Uint8Array([
-            ...bigintAsU64ToBytes(this.lastInterestPayoutDate),
-            this.isVerifiedHuman ? 1 : 0,
-            ...[0, 0, 0, 0, 0, 0, 0], // padding
-            ...bigintAsU64ToBytes(this.length),
-            ...this.recentBlockhash,
-            ...this.proofs.reduce((a, b) => Uint8Array.from([...a, ...b]), new Uint8Array()),
-        ]);
-    }
-
-    static fromBytes(bytes) {
-        const dataView = new DataView(bytes.buffer.slice(bytes.byteOffset));
-        return new UserData({
-            lastInterestPayoutDate: dataView.getBigInt64(0, true),
-            isVerifiedHuman: dataView.getUint8(8) === 0 ? false : true,
-            length: dataView.getBigUint64(16, true),
-            recentBlockhash: bytes.subarray(24, 56),
-            proofs: LEBytesToBlockhashArray(bytes.subarray(56)),
-        });
+    getSize() {
+        return 56 + 32 * this.proofs.length;
     }
 }
 
@@ -330,121 +325,37 @@ export class UserDataAccount extends Account {
 }
 
 export class GlobalData extends DataType {
+    // LAYOUT defined later to avoid circular dependency
     validBlockhashes_;
     dailyDistributionData_;
 
-    toBytes() {
-        return new Uint8Array([...this.validBlockhashes.toBytes(), ...this.dailyDistributionData.toBytes()])
-    }
-
-    static fromBytes(bytes) {
-        return new GlobalData({
-            validBlockhashes: ValidBlockhashes.fromBytes(bytes.subarray(0, 80)),
-            dailyDistributionData: DailyDistributionData.fromBytes(bytes.subarray(80)),
-        })
-    }
+    static DAILY_DISTRIBUTION_HISTORY_SIZE = 365; // MAGIC NUMBER: remain consistent with rust
 }
+
+export const ValidBlockhashesLayout = struct([
+    blob(32, "announcedBlockhash"),
+    u64("announcedBlockhashTime"), // actually i64, but will always be positive
+    blob(32, "validBlockhash"),
+    u64("validBlockhashTime"), // actually i64, but will always be positive
+]);
+
+export const DailyDistributionDataLayout = struct([
+    u64("yesterdaySupply"),
+    u64("highWaterMark"),
+    u64("lastDailyDistributionTime"), // actually i64, but will always be positive
+    u64("oldestInterest"),
+    seq(f64(), GlobalData.DAILY_DISTRIBUTION_HISTORY_SIZE, "historicInterests"),
+]);
+
+export const GlobalDataLayout = struct([
+    ValidBlockhashesLayout.replicate("validBlockhashes"),
+    DailyDistributionDataLayout.replicate("dailyDistributionData"),
+])
+
+GlobalData.LAYOUT = GlobalDataLayout; // GlobalDataLayout uses DailyDistributionData, which uses GlobalData's DAILY_DISTRIBUTION_HISTORY_SIZE
 
 export class GlobalDataAccount extends Account {
     static DATA_TYPE = GlobalData;
-}
-
-export class ValidBlockhashes {
-    announcedBlockhash; //  blockhash
-    announcedBlockhashTime; //  i64
-    validBlockhash; //  blockhash
-    validBlockhashTime; //  i64
-
-    /**
-     * @param {{ blockhash: Uint8Array; time: bigint }} announced
-     * @param {{ blockhash: Uint8Array; time: bigint }} valid
-     */
-    constructor(announced, valid) {
-        this.announcedBlockhash = announced.blockhash;
-        this.announcedBlockhashTime = announced.time;
-        this.validBlockhash = valid.blockhash;
-        this.validBlockhashTime = valid.time;
-    }
-
-    /**
-     * @returns {Uint8Array}
-     */
-    toBytes() {
-        return new Uint8Array([
-            ...this.announcedBlockhash,
-            ...bigintAsU64ToBytes(this.announcedBlockhashTime),
-            ...this.validBlockhash,
-            ...bigintAsU64ToBytes(this.validBlockhashTime),
-        ]);
-    }
-
-    /**
-     * @param {Uint8Array} bytes
-     * @returns {ValidBlockhashes}
-     */
-    static fromBytes(bytes) {
-        const dataView = new DataView(bytes.buffer.slice(bytes.byteOffset));
-        return new ValidBlockhashes(
-            { blockhash: bytes.subarray(0, 32), time: dataView.getBigInt64(32, true) },
-            { blockhash: bytes.subarray(40, 72), time: dataView.getBigInt64(72, true) },
-        );
-    }
-}
-
-export class DailyDistributionData {
-    yesterdaySupply; //  u64
-    highWaterMark; //  u64
-    lastDailyDistributionTime; //  i64
-    oldestInterest; //  usize
-    historicInterests; //  [f64; 365]
-
-    static HISTORY_SIZE = 365; //   remain consistent with rust
-
-    /**
-     * @param {bigint} yesterdaySupply
-     * @param {bigint} highWaterMark
-     * @param {bigint} lastDailyDistributionTime
-     * @param {bigint} oldestInterest
-     * @param {number[]} historicInterests
-     */
-    constructor(yesterdaySupply, highWaterMark, lastDailyDistributionTime, oldestInterest, historicInterests) {
-        this.yesterdaySupply = yesterdaySupply;
-        this.highWaterMark = highWaterMark;
-        this.lastDailyDistributionTime = lastDailyDistributionTime;
-        this.oldestInterest = oldestInterest;
-        this.historicInterests = [
-            ...historicInterests.map((num) => num),
-            ...Array(DailyDistributionData.HISTORY_SIZE - historicInterests.length).fill(0),
-        ];
-    }
-
-    /**
-     * @returns {Uint8Array}
-     */
-    toBytes() {
-        return new Uint8Array([
-            ...bigintAsU64ToBytes(this.yesterdaySupply),
-            ...bigintAsU64ToBytes(this.highWaterMark),
-            ...bigintAsU64ToBytes(this.lastDailyDistributionTime),
-            ...bigintAsU64ToBytes(this.oldestInterest),
-            ...this.historicInterests.flatMap((num) => numAsDoubleToLEBytes(num)),
-        ]);
-    }
-
-    /**
-     * @param {Uint8Array} bytes
-     * @returns {DailyDistributionData}
-     */
-    static fromBytes(bytes) {
-        let dataView = new DataView(bytes.buffer.slice(bytes.byteOffset));
-        return new DailyDistributionData(
-            dataView.getBigUint64(0, true),
-            dataView.getBigUint64(8, true),
-            dataView.getBigInt64(16, true),
-            dataView.getBigUint64(24, true),
-            LEBytesToDoubleArray(bytes.subarray(32)),
-        );
-    }
 }
 
 export class Seed {
@@ -455,7 +366,7 @@ export class Seed {
         NULL: 0,
         LITERAL: 1, // corresponds to a data of [u8]
         INSTRUCTION_ARG: 2,
-        ACCOUNT_KEY: 3, // corresponds to a data of u8 (refernces )
+        ACCOUNT_KEY: 3, // corresponds to a data of u8 (is an index into the extraAccountMetas list)
         ACCOUNT_DATA: 4,
     }
 
@@ -511,11 +422,19 @@ export function get_default_comptoken_mint() {
 export function get_default_global_data() {
     return new GlobalDataAccount(global_data_account_pubkey, BIG_NUMBER, compto_program_id_pubkey,
         new GlobalData({
-            validBlockhashes: new ValidBlockhashes(
-                { blockhash: Uint8Array.from({ length: 32 }, (v, i) => i), time: DEFAULT_ANNOUNCE_TIME },
-                { blockhash: Uint8Array.from({ length: 32 }, (v, i) => 2 * i), time: DEFAULT_DISTRIBUTION_TIME }
-            ),
-            dailyDistributionData: new DailyDistributionData(0n, 0n, DEFAULT_DISTRIBUTION_TIME, 0n, []),
+            validBlockhashes: {
+                announcedBlockhash: Uint8Array.from({ length: 32 }, (v, i) => i),
+                announcedBlockhashTime: DEFAULT_ANNOUNCE_TIME,
+                validBlockhash: Uint8Array.from({ length: 32 }, (v, i) => 2 * i),
+                validBlockhashTime: DEFAULT_DISTRIBUTION_TIME,
+            },
+            dailyDistributionData: {
+                yesterdaySupply: 0n,
+                highWaterMark: 0n,
+                lastDailyDistributionTime: DEFAULT_DISTRIBUTION_TIME,
+                oldestInterest: 0n,
+                historicInterests: Array.from({ length: GlobalData.DAILY_DISTRIBUTION_HISTORY_SIZE }, (v, i) => new Uint8Array(32)),
+            },
         }));
 }
 
@@ -560,7 +479,7 @@ export function get_default_unpaid_ubi_bank() {
  * @returns {UserDataAccount}
  */
 export function get_default_user_data_account(address) {
-    return new UserDataAccount(address, BIG_NUMBER, compto_program_id_pubkey,
+    let acct = new UserDataAccount(address, BIG_NUMBER, compto_program_id_pubkey,
         new UserData({
             lastInterestPayoutDate: DEFAULT_DISTRIBUTION_TIME,
             isVerifiedHuman: false,
@@ -568,6 +487,8 @@ export function get_default_user_data_account(address) {
             recentBlockhash: new Uint8Array(32),
             proofs: Array.from({ length: 8 }, (v, i) => new Uint8Array(32))
         }));
+    console.log(acct);
+    return acct;
 }
 
 /**
