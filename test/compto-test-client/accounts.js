@@ -274,7 +274,7 @@ class AccountWithExtensions {
      */
     static decodeExtensions(buffer) {
         let index = AccountWithExtensions.extensions_start_index;
-        if (extensions[i++] !== this.ACCOUNT_TYPE) {
+        if (buffer[index++] !== this.ACCOUNT_TYPE) {
             throw Error("invalid account type");
         }
         let extensions = [];
