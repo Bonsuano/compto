@@ -157,8 +157,9 @@ export class DataTypeWithExtensions extends DataType {
 
     static decodeExtensions(buffer) {
         let index = DataTypeWithExtensions.EXTENSIONS_START_INDEX;
+        console.log(this);
         if (buffer[index++] !== this.ACCOUNT_TYPE) {
-            throw Error("Incorrect Account Type");
+            throw Error("Incorrect Account Type: type is " + buffer[index - 1] + " but should be " + this.ACCOUNT_TYPE);
         }
         let extensions = [];
         while (index + 4 < buffer.length) {
@@ -193,7 +194,7 @@ export class DataTypeWithExtensions extends DataType {
     }
 
     static fromBytes(bytes) {
-        let extensions = DataTypeWithExtensions.decodeExtensions(bytes);
+        let extensions = this.decodeExtensions(bytes);
         return new DataTypeWithExtensions(super.fromBytes(bytes)).addExtensions(
             ...extensions
         );
@@ -244,8 +245,6 @@ class Account {
             accountInfo.owner,
             data
         );
-        tokenAccount.extensions = TokenAccount.decodeExtensions(accountInfo.data);
-        return tokenAccount;
     }
 }
 
