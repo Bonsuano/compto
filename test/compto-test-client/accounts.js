@@ -244,6 +244,8 @@ class Account {
             accountInfo.owner,
             data
         );
+        tokenAccount.extensions = TokenAccount.decodeExtensions(accountInfo.data);
+        return tokenAccount;
     }
 }
 
