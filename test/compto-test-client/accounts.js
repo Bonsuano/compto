@@ -24,10 +24,12 @@ import {
     interest_bank_account_pubkey,
     ubi_bank_account_pubkey,
 } from "./common.js";
-import { bigintAsU64ToBytes, getOptionOr, LEBytesToBlockhashArray, LEBytesToDoubleArray, numAsDoubleToLEBytes, numAsU16ToLEBytes, toOption } from "./utils.js";
+import { getOptionOr, numAsU16ToLEBytes, toOption } from "./utils.js";
 
 
 class ExtensionType {
+    // u16 discriminated type for an extension
+    // https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L1042-L1115
     static Uninitialized = 0;
     static TransferFeeConfig = 1;
     static TransferFeeAmount = 2;
@@ -53,19 +55,21 @@ class ExtensionType {
 }
 
 export class TLV {
+    // structure derived from
+    // https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L106-L114
     type; // u16
     length; // u16
-    data; // [u8; length]
+    value; // [u8; length]
 
     /**
      * @param {number} type
      * @param {number} length
-     * @param {Uint8Array} data
+     * @param {Uint8Array} value
      */
-    constructor(type, length, data) {
+    constructor(type, length, value) {
         this.type = type;
         this.length = length;
-        this.data = data;
+        this.value = value;
     }
 
     static Uninitialized() {
@@ -79,24 +83,24 @@ export class TLV {
      */
     static TransferHook(programId, authority = null) {
         authority = getOptionOr(toOption(authority), () => PublicKey.default).val;
-        let data = Uint8Array.from([...authority.toBytes(), ...programId.toBytes()]);
-        return new TLV(ExtensionType.TransferHook, 64, data);
+        let value = Uint8Array.from([...authority.toBytes(), ...programId.toBytes()]);
+        return new TLV(ExtensionType.TransferHook, 64, value);
     }
 
     /**
      * @returns {TLV}
      */
     static TransferHookAccount() {
-        let data = new Uint8Array(1);
-        return new TLV(ExtensionType.TransferHookAccount, 1, data);
+        let value = new Uint8Array(1);
+        return new TLV(ExtensionType.TransferHookAccount, 1, value);
     }
 
     /**
      * @returns {Uint8Array}
      */
     toBytes() {
-        let data = Uint8Array.from([...numAsU16ToLEBytes(this.type), ...numAsU16ToLEBytes(this.length), ...this.data]);
-        return data;
+        let bytes = Uint8Array.from([...numAsU16ToLEBytes(this.type), ...numAsU16ToLEBytes(this.length), ...this.value]);
+        return bytes;
     }
 
     /**
@@ -134,13 +138,15 @@ export class DataType {
 export class DataTypeWithExtensions extends DataType {
     extensions;
 
+    static EXTENSIONS_START_INDEX = 165; // comes from https://github.com/solana-labs/solana-program-library/blob/master/token/program-2022/src/extension/mod.rs#L273-L291
+
     constructor(rawType) {
         super(rawType);
         this.extensions = [];
     }
 
     encodeExtensions(buffer) {
-        let index = 165;
+        let index = DataTypeWithExtensions.EXTENSIONS_START_INDEX;
         buffer[index++] = this.constructor.ACCOUNT_TYPE;
         for (let extension of this.extensions) {
             let bytes = extension.toBytes();
@@ -150,7 +156,10 @@ export class DataTypeWithExtensions extends DataType {
     }
 
     static decodeExtensions(buffer) {
-        let index = 166;
+        let index = DataTypeWithExtensions.EXTENSIONS_START_INDEX;
+        if (buffer[index++] !== this.ACCOUNT_TYPE) {
+            throw Error("Incorrect Account Type");
+        }
         let extensions = [];
         while (index + 4 < buffer.length) {
             let extension = TLV.fromBytes(buffer.subarray(index));
