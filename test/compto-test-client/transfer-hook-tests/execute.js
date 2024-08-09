@@ -64,11 +64,7 @@ async function test_execute() {
         {
             instruction: TokenInstruction.TransferChecked,
             amount: 1n,
-<<<<<<< HEAD
             MINT_DECIMALS: COMPTOKEN_DECIMALS,
-=======
-            MINT_DECIMALS,
->>>>>>> master
         },
         data
     );
@@ -90,11 +86,7 @@ async function test_execute() {
     let account = await client.getAccount(user2.address);
     Assert.assertNotNull(account);
     let finalUser2 = TokenAccount.fromAccountInfoBytes(user2.address, account);
-<<<<<<< HEAD
     Assert.assertEqual(finalUser2.data.amount, 1n);
-=======
-    Assert.assertEqual(finalUser2.amount, 1n);
->>>>>>> master
 
 }
 
